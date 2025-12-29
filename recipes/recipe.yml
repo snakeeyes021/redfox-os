@@ -3,18 +3,13 @@
 name: samsonite-os
 description: Custom Bazzite GNOME/NVIDIA DX Image
 base-image: ghcr.io/ublue-os/bazzite-gnome-nvidia
-image-version: latest
+image-version: stable
 
 modules:
   - type: files
     files:
       - source: system
         destination: /
-
-  # Align with repos to avoid dependency hell
-  - type: script
-    scripts:
-      - upgrade-system.sh
 
   # Install RPM Packages
   - type: rpm-ostree
