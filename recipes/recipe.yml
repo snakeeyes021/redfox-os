@@ -65,20 +65,19 @@ modules:
   # Install Flatpaks
   - type: default-flatpaks
     notify: true
-    system:
-      repo-url: https://dl.flathub.org/repo/flathub.flatpakrepo
-      repo-name: flathub
-      repo-title: Flathub
-      install:
-        # Core DX
-        - io.podman_desktop.PodmanDesktop
-        - org.gnome.dspy
-        - app.drey.Warp
-        - io.github.flattool.Warehouse
-        # Creativity / Productivity (Curated)
-        - org.blender.Blender
-        - org.gimp.GIMP
-        - org.kde.kdenlive
-        - com.obsproject.Studio
+    repo-url: https://dl.flathub.org/repo/flathub.flatpakrepo
+    repo-name: flathub
+    repo-title: Flathub
+    install:
+      # Core DX
+      - io.podman_desktop.PodmanDesktop
+      - org.gnome.dspy
+      - app.drey.Warp
+      - io.github.flattool.Warehouse
+      # Creativity / Productivity (Curated)
+      - org.blender.Blender
+      - org.gimp.GIMP
+      - org.kde.kdenlive
+      - com.obsproject.Studio
 
   - type: signing
