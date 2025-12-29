@@ -14,7 +14,7 @@ modules:
   # Align with repos to avoid dependency hell
   - type: script
     scripts:
-      - scripts/upgrade-system.sh
+      - upgrade-system.sh
 
   # Install RPM Packages
   - type: rpm-ostree
