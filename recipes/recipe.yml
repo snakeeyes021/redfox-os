@@ -14,7 +14,7 @@ modules:
   # Install packages via Containerfile to handle dependency conflicts (Surgical DNF)
   - type: containerfile
     containerfiles:
-      - containerfiles/dnf-overrides.Containerfile
+      - dnf-overrides
 
   # Install RPM Packages
   - type: rpm-ostree
