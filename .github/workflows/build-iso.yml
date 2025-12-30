@@ -42,7 +42,7 @@ jobs:
 
       - name: Build Disk Image
         id: build_disk
-        uses: ublue-os/bootc-image-builder-action@v1
+        uses: osbuild/bootc-image-builder-action@v2
         with:
           image: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:${{ steps.set_tag.outputs.tag }}
           type: iso
