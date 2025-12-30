@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       image_tag:
-        description: 'The tag of the OCI images to build ISOs from'
+        description: 'Tag to build (e.g., latest)'
         required: true
         default: 'latest'
   workflow_run:
@@ -23,6 +23,7 @@ jobs:
     permissions:
       contents: read
       packages: read
+      id-token: write
     strategy:
       fail-fast: false
       matrix:
@@ -31,62 +32,35 @@ jobs:
           - samsonite-os-nvidia
           - samsonite-os-nvidia-legacy
     steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
       - name: Determine Tag
-        id: tag_step
+        id: tag
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "tag=${{ inputs.image_tag }}" >> $GITHUB_OUTPUT
+            echo "val=${{ inputs.image_tag }}" >> $GITHUB_OUTPUT
           else
-            echo "tag=latest" >> $GITHUB_OUTPUT
+            echo "val=latest" >> $GITHUB_OUTPUT
           fi
 
-      - name: Calculate Safe Installer Version
-        id: math
-        run: |
-          # 1. Get the Image Version (The "Truth")
-          IMAGE="ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:${{ steps.tag_step.outputs.tag }}"
-          echo "Inspecting $IMAGE..."
-          
-          # Pull the version ID (e.g., "43") directly from the image
-          DETECTED_VERSION=$(docker run --rm --entrypoint cat $IMAGE /etc/os-release | grep '^VERSION_ID=' | cut -d= -f2 | tr -d '"')
-          
-          echo "Detected Image Version: $DETECTED_VERSION"
-          
-          # 2. Apply the N-1 Rule
-          # We subtract 1 to use the "Previous Stable" installer.
-          # This ensures we never crash because the installer templates are missing for a new release.
-          SAFE_VERSION=$((DETECTED_VERSION - 1))
-          
-          echo "Targeting Installer Version: $SAFE_VERSION"
-          echo "version=$SAFE_VERSION" >> $GITHUB_OUTPUT
+      - name: Build ISO (Official Tool)
+        uses: osbuild/bootc-image-builder-action@main
+        with:
+          config-file: ./disk_config/iso.toml
+          image: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:${{ steps.tag.outputs.val }}
+          type: anaconda-iso
 
-      - name: Build ISO (Manual Docker with Runtime Patch)
+      - name: Rename Output
+        id: rename
         run: |
-          # 1. We bypass the entrypoint to run a custom bash script.
-          # 2. We use 'sed' to explicitly replace the default size in the Makefile.
-          # 3. We run 'make' manually to ensure our variables are respected.
-          
-          docker run --rm --privileged \
-            --volume ${{ github.workspace }}:/github/workspace \
-            --entrypoint /bin/bash \
-            ghcr.io/jasonn3/build-container-installer:main \
-            -c "mknod -m 0660 /dev/loop0 b 7 0 || true && \
-                mkdir -p /cache/dnf && \
-                sed -i 's/--rootfs-size [0-9]*/--rootfs-size 25/g' Makefile && \
-                make \
-                VERSION=${{ steps.math.outputs.version }} \
-                VARIANT=Silverblue \
-                IMAGE_REPO=ghcr.io/${{ github.repository_owner }} \
-                IMAGE_NAME=${{ matrix.image }} \
-                IMAGE_TAG=${{ steps.tag_step.outputs.tag }} \
-                ISO_NAME=/github/workspace/${{ matrix.image }}-${{ steps.tag_step.outputs.tag }}.iso"
+          # The action outputs a directory with the file. We move it for the artifact upload.
+          # The default output is usually ./output/anaconda-iso/install.iso
+          mv ./output/anaconda-iso/install.iso ./${{ matrix.image }}-${{ steps.tag.outputs.val }}.iso
 
-      - name: Upload ISO Artifact
+      - name: Upload ISO
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.image }}-${{ steps.tag_step.outputs.tag }}-iso
-          path: |
-            *.iso
-            *.iso-CHECKSUM
-          if-no-files-found: error
+          name: ${{ matrix.image }}-${{ steps.tag.outputs.val }}-iso
+          path: ./${{ matrix.image }}-${{ steps.tag.outputs.val }}.iso
           retention-days: 7
