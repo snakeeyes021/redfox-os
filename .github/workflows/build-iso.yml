@@ -60,19 +60,26 @@ jobs:
           echo "Targeting Installer Version: $SAFE_VERSION"
           echo "version=$SAFE_VERSION" >> $GITHUB_OUTPUT
 
-      - name: Build ISO (Manual Docker)
+      - name: Build ISO (Manual Docker with Runtime Patch)
         run: |
-          # Define the build command with explicit ROOTFS_SIZE
+          # 1. We bypass the entrypoint to run a custom bash script.
+          # 2. We use 'sed' to explicitly replace the default size in the Makefile.
+          # 3. We run 'make' manually to ensure our variables are respected.
+          
           docker run --rm --privileged \
             --volume ${{ github.workspace }}:/github/workspace \
-            --env VERSION=${{ steps.math.outputs.version }} \
-            --env VARIANT=Silverblue \
-            --env IMAGE_REPO=ghcr.io/${{ github.repository_owner }} \
-            --env IMAGE_NAME=${{ matrix.image }} \
-            --env IMAGE_TAG=${{ steps.tag_step.outputs.tag }} \
-            --env ISO_NAME=/github/workspace/${{ matrix.image }}-${{ steps.tag_step.outputs.tag }}.iso \
-            --env ROOTFS_SIZE=25 \
-            ghcr.io/jasonn3/build-container-installer:main
+            --entrypoint /bin/bash \
+            ghcr.io/jasonn3/build-container-installer:main \
+            -c "mknod -m 0660 /dev/loop0 b 7 0 && \
+                mkdir -p /cache/dnf && \
+                sed -i 's/--rootfs-size [0-9]*/--rootfs-size 25/g' Makefile && \
+                make \
+                VERSION=${{ steps.math.outputs.version }} \
+                VARIANT=Silverblue \
+                IMAGE_REPO=ghcr.io/${{ github.repository_owner }} \
+                IMAGE_NAME=${{ matrix.image }} \
+                IMAGE_TAG=${{ steps.tag_step.outputs.tag }} \
+                ISO_NAME=/github/workspace/${{ matrix.image }}-${{ steps.tag_step.outputs.tag }}.iso"
 
       - name: Upload ISO Artifact
         uses: actions/upload-artifact@v4
