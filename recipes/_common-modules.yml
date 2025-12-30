@@ -1,64 +1,66 @@
-- type: files
-  files:
-    - source: ../files/system
-      destination: /
+# yaml-language-server: $schema=https://schema.blue-build.org/module-v1.json
+modules:
+  - type: files
+    files:
+      - source: ../files/system
+        destination: /
 
-- type: containerfile
-  containerfiles:
-    - ../containerfiles/dnf-overrides
+  - type: containerfile
+    containerfiles:
+      - ../containerfiles/dnf-overrides
 
-- type: rpm-ostree
-  install:
-    - incus
-    - incus-agent
-    - lxc
-    - podman-compose
-    - podman-tui
-    - docker-ce
-    - docker-ce-cli
-    - containerd.io
-    - docker-buildx-plugin
-    - docker-compose-plugin
-    - code
-    - android-tools
-    - iotop
-    - sysprof
-    - trace-cmd
-    - bpftop
-    - cockpit-bridge
-    - cockpit-machines
-    - cockpit-podman
-    - ccache
-    - restic
-    - rclone
-    - zsh
-    - python3-ramalama
+  - type: rpm-ostree
+    install:
+      - incus
+      - incus-agent
+      - lxc
+      - podman-compose
+      - podman-tui
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+      - code
+      - android-tools
+      - iotop
+      - sysprof
+      - trace-cmd
+      - bpftop
+      - cockpit-bridge
+      - cockpit-machines
+      - cockpit-podman
+      - ccache
+      - restic
+      - rclone
+      - zsh
+      - python3-ramalama
 
-- type: systemd
-  system:
-    enabled:
-      - docker.socket
-      - podman.socket
-      - libvirtd.service
-      - bluefin-dx-groups.service
-      - incus-workaround.service
+  - type: systemd
+    system:
+      enabled:
+        - docker.socket
+        - podman.socket
+        - libvirtd.service
+        - bluefin-dx-groups.service
+        - incus-workaround.service
 
-- type: default-flatpaks
-  configurations:
-    - scope: system
-      notify: true
-      repo:
-        url: https://dl.flathub.org/repo/flathub.flatpakrepo
-        name: flathub
-        title: Flathub
-      install:
-        - io.podman_desktop.PodmanDesktop
-        - org.gnome.dspy
-        - app.drey.Warp
-        - io.github.flattool.Warehouse
-        - org.blender.Blender
-        - org.gimp.GIMP
-        - org.kde.kdenlive
-        - com.obsproject.Studio
+  - type: default-flatpaks
+    configurations:
+      - scope: system
+        notify: true
+        repo:
+          url: https://dl.flathub.org/repo/flathub.flatpakrepo
+          name: flathub
+          title: Flathub
+        install:
+          - io.podman_desktop.PodmanDesktop
+          - org.gnome.dspy
+          - app.drey.Warp
+          - io.github.flattool.Warehouse
+          - org.blender.Blender
+          - org.gimp.GIMP
+          - org.kde.kdenlive
+          - com.obsproject.Studio
 
-- type: signing
+  - type: signing
