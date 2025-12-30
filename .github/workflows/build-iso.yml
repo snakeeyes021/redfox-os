@@ -16,7 +16,6 @@ on:
 
 jobs:
   build-isos:
-    # Only run this job if the main build succeeded (for auto-runs) or if manually dispatched
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     name: Build ${{ matrix.image }} ISO
     runs-on: ubuntu-latest
@@ -32,6 +31,10 @@ jobs:
           - samsonite-os-nvidia
           - samsonite-os-nvidia-legacy
     steps:
+      # 1. CRITICAL: Free up ~20GB of space by removing Android SDKs, DotNet, etc.
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@v1.3.1
+
       - name: Checkout Repo
         uses: actions/checkout@v4
 
@@ -44,18 +47,15 @@ jobs:
             echo "val=latest" >> $GITHUB_OUTPUT
           fi
 
-      - name: Build ISO (Official Tool)
+      - name: Build ISO
         uses: osbuild/bootc-image-builder-action@main
         with:
-          config-file: ./disk_config/iso.toml
           image: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:${{ steps.tag.outputs.val }}
           type: anaconda-iso
 
       - name: Rename Output
         id: rename
         run: |
-          # The action outputs a directory with the file. We move it for the artifact upload.
-          # The default output is usually ./output/anaconda-iso/install.iso
           mv ./output/anaconda-iso/install.iso ./${{ matrix.image }}-${{ steps.tag.outputs.val }}.iso
 
       - name: Upload ISO
