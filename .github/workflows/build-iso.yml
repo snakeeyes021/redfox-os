@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: read # OCI images are public, so only read permission is needed
+      packages: read
     strategy:
       fail-fast: false
       matrix:
@@ -31,8 +31,8 @@ jobs:
           - samsonite-os-nvidia
           - samsonite-os-nvidia-legacy
     steps:
-      - name: Set Image Tag
-        id: set_tag
+      - name: Determine Tag
+        id: tag_step
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "tag=${{ inputs.image_tag }}" >> $GITHUB_OUTPUT
@@ -40,16 +40,43 @@ jobs:
             echo "tag=latest" >> $GITHUB_OUTPUT
           fi
 
-      - name: Build Disk Image
-        id: build_disk
-        uses: osbuild/bootc-image-builder-action@v2
+      - name: Detect Fedora Version
+        id: version_step
+        run: |
+          # 1. Pull the image header (fast)
+          IMAGE="ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:${{ steps.tag_step.outputs.tag }}"
+          echo "Inspecting $IMAGE..."
+          
+          # 2. Extract the VERSION_ID from /etc/os-release inside the image
+          # We use a temporary container to cat the file. 
+          FEDORA_VERSION=$(docker run --rm --entrypoint cat $IMAGE /etc/os-release | grep '^VERSION_ID=' | cut -d= -f2 | tr -d '"')
+          
+          if [ -z "$FEDORA_VERSION" ]; then
+            echo "::error::Could not detect Fedora version from /etc/os-release"
+            exit 1
+          fi
+          
+          echo "Detected Fedora Version: $FEDORA_VERSION"
+          echo "version=$FEDORA_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Build ISO
+        uses: jasonn3/build-container-installer@v1.2.4
         with:
-          image: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:${{ steps.set_tag.outputs.tag }}
-          type: iso
+          arch: x86_64
+          image_name: ${{ matrix.image }}
+          image_repo: ghcr.io/${{ github.repository_owner }}
+          image_tag: ${{ steps.tag_step.outputs.tag }}
+          # We get the Fedora version dynamically from the image itself
+          version: ${{ steps.version_step.outputs.version }}
+          variant: 'Silverblue'
+          iso_name: ${{ matrix.image }}-${{ steps.tag_step.outputs.tag }}.iso
 
       - name: Upload ISO Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.image }}-${{ steps.set_tag.outputs.tag }}.iso
-          path: ${{ steps.build_disk.outputs.output-path }}
+          name: ${{ matrix.image }}-${{ steps.tag_step.outputs.tag }}-iso
+          path: |
+            *.iso
+            *.iso-CHECKSUM
+          if-no-files-found: error
           retention-days: 7
