@@ -11,6 +11,7 @@ The purpose of SamsoniteOS is to round out the offerings of Bazzite, both with s
 - [x] **Development:** VS Code (System install), Android Tools, BPF Tools (bpftop, bpftrace), Sysprof
 - [x] **CLI Utilities:** zsh, restic, rclone, ccache, ramalama (Local AI)
 - [ ] **Editor:** Zed (System install)
+- [ ] **Additional AI Utilities:** Cursor, Gemini CLI
 - [ ] **Unified Virtualization:** System-level GNOME Boxes + Virt-Manager integration.
 
 **Desktop & Media**
@@ -24,7 +25,12 @@ The purpose of SamsoniteOS is to round out the offerings of Bazzite, both with s
 ### Installation
 
 > [!CAUTION]
-> **GNOME ONLY:** This image is based on GNOME. **Do not rebase** from a KDE-based image (like Kinoite or Bazzite-KDE), as this can cause significant desktop environment conflicts. If you are currently on KDE, please install fresh using an ISO.
+> **GNOME ONLY:** This image is based on GNOME. **Do not rebase** from a KDE-based image (like Kinoite or mainline Bazzite), as this can cause significant desktop environment conflicts. If you are currently on KDE, please install fresh using an ISO.  
+
+*Multiple image channels coming soon:*
+- ***Nvidia Closed*** *(pinned to driver version 580 for legacy card support)*
+- ***Nvidia Open*** *(Nvidia GTX 16xx, RTX 20xx and above)*
+- ***Intel/AMD*** *(all others)*  
 
 **Rebasing from Silverblue, Bluefin, or Bazzite (GNOME):**
 
