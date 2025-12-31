@@ -20,7 +20,7 @@ jobs:
     name: Build ${{ matrix.image }} ISO
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: read
       id-token: write
     strategy:
@@ -94,25 +94,22 @@ jobs:
         run: |
           sudo find ./output -name "install.iso" -exec mv {} ./${{ matrix.image }}-${{ steps.tag.outputs.val }}.iso \;
 
-      - name: Upload ISO Artifact
+      - name: Upload ISO
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.image }}-${{ steps.tag.outputs.val }}-iso
           path: ./${{ matrix.image }}-${{ steps.tag.outputs.val }}.iso
           retention-days: 1
-          if-no-files-found: error
-
-  # NEW JOB: Runs only after all builds are successful
-  release:
+  release: 
     needs: build-isos
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Needed to create the release
+      contents: write
     steps:
-      - name: Download All ISOs
+      - name: Download Artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: *-iso
+          pattern: "*-iso"
           path: ./release-isos
           merge-multiple: true
 
@@ -124,11 +121,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # 1. Delete the old "latest-iso" release if it exists to avoid conflicts
+          # Delete the old release to avoid conflicts
           gh release delete latest-iso --cleanup-tag -y || true
 
-          # 2. Create a new release and upload all ISOs found in the folder
-          # The GitHub CLI (gh) automatically handles large files >2GB via chunking
+          # Create new release with GH CLI (Handles files >2GB)
           gh release create latest-iso \
             ./release-isos/*.iso \
             --title "Latest ISO Build" \
