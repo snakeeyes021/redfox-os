@@ -43,37 +43,76 @@ jobs:
             echo "val=latest" >> $GITHUB_OUTPUT
           fi
 
-      - name: Download Fedora Base ISO
+      - name: Detect Fedora Version (from Image)
+        id: version
         run: |
-          # Downloading Fedora 41 Server Net-Install (~900MB)
-          # We rename it to 'base.iso' for simplicity
-          curl -L -o base.iso "https://download.fedoraproject.org/pub/fedora/linux/releases/41/Server/x86_64/iso/Fedora-Server-netinst-x86_64-41-1.2.iso"
+          # 1. Login to GHCR so we can inspect private/internal packages if needed
+          skopeo login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
+          
+          IMAGE_URL="docker://ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:${{ steps.tag.outputs.val }}"
+          
+          echo "Inspecting $IMAGE_URL..."
+          
+          # 2. Inspect the image labels to find the version
+          # BlueBuild/UBlue images typically have 'org.opencontainers.image.version' (e.g., "43.20251230.0")
+          FULL_VER=$(skopeo inspect --config $IMAGE_URL | jq -r '.config.Labels["org.opencontainers.image.version"] // empty')
+          
+          # Fallback: if label is missing, assume it's the "latest" Fedora (currently 43) or try to parse other labels
+          if [ -z "$FULL_VER" ]; then
+            echo "WARNING: Could not detect version from labels. Defaulting to 43."
+            MAJOR_VER="43"
+          else
+            # Extract the major version (everything before the first dot)
+            MAJOR_VER=$(echo $FULL_VER | cut -d. -f1)
+          fi
+          
+          echo "Detected Fedora Version: $MAJOR_VER"
+          echo "ver=$MAJOR_VER" >> $GITHUB_OUTPUT
+
+      - name: Download Fedora Net-Installer
+        run: |
+          # Use the detected version to build the URL
+          FEDORA_VER="${{ steps.version.outputs.ver }}"
+          BASE_URL="https://download.fedoraproject.org/pub/fedora/linux/releases/${FEDORA_VER}/Server/x86_64/iso/"
+          
+          echo "Looking for ISO in: $BASE_URL"
+          
+          # Scrape the directory to find the current point release (e.g., 43-1.2 vs 43-1.5)
+          ISO_NAME=$(curl -s $BASE_URL | grep -o "Fedora-Server-netinst-x86_64-${FEDORA_VER}-.*\.iso" | head -n 1 | sed 's/">//')
+          
+          if [ -z "$ISO_NAME" ]; then
+             echo "Error: Could not find ISO for Fedora ${FEDORA_VER}."
+             exit 1
+          fi
+          
+          echo "Downloading $ISO_NAME..."
+          curl -L -o base.iso "${BASE_URL}${ISO_NAME}"
+
+          # Safety Check
+          FILESIZE=$(stat -c%s "base.iso")
+          if [ $FILESIZE -lt 500000000 ]; then
+            echo "CRITICAL ERROR: File too small ($FILESIZE bytes). Likely a 404/Error page."
+            exit 1
+          fi
 
       - name: Generate Kickstart File
         run: |
-          # This kickstart file tells the installer to pull your specific container image
           cat <<EOF > inst.ks
-          # Use graphical installer
           graphical
           network --bootproto=dhcp
 
-          # CRITICAL: Point to your custom OCI image
+          # Pull the exact image we inspected earlier
           ostreecontainer --url=registry:ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:${{ steps.tag.outputs.val }} --transport=registry --no-signature-verification
 
-          # Clear partitions and install
           clearpart --all --initlabel
           autopart
-          
-          # Reboot after installation
           reboot
           EOF
 
-      - name: Inject Kickstart (Build ISO)
-        # We run 'mkksiso' inside a Fedora container to avoid dependency hell on Ubuntu
+      - name: Inject Kickstart
         run: |
           docker pull fedora:latest
           
-          # Run the container to modify the ISO
           docker run --rm \
             -v $(pwd):/work \
             -w /work \
@@ -111,14 +150,14 @@ jobs:
           # 1. Delete old release
           gh release delete latest-iso --cleanup-tag -y -R ${{ github.repository }} || true
 
-          # 2. Create new empty release
+          # 2. Create new release
           gh release create latest-iso \
             --title "Latest ISO Build" \
-            --notes "Net-Installers for Samsonite OS. Requires Internet. <br/> **Date:** ${{ steps.date.outputs.date }}" \
+            --notes "Net-Installers for Samsonite OS. <br/> **Fedora Version:** Auto-Detected from Image. <br/> **Date:** ${{ steps.date.outputs.date }}" \
             --latest \
             -R ${{ github.repository }}
 
-          # 3. Upload all 3 ISOs to the same release
+          # 3. Upload files
           gh release upload latest-iso \
             ./release-isos/*.iso \
             --clobber \
