@@ -56,29 +56,25 @@ jobs:
             echo "val=latest" >> $GITHUB_OUTPUT
           fi
 
-      # 2. HOTFIX: Remove broken 'terra' repos to prevent depsolve errors.
-      # We also MOVE the image to Root storage so the builder can see it.
+      # HOTFIX: Remove broken 'terra' repos to prevent depsolve errors.
+      # We run this as SUDO so the image lands directly in Root's storage.
+      # This avoids the "no space left on device" error caused by duplicating the image via 'podman load'.
       - name: Patch Image (Remove Broken Repos)
         run: |
           IMAGE_REF="ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:${{ steps.tag.outputs.val }}"
           
-          # 1. Pull and Patch as User (Rootless)
-          podman pull $IMAGE_REF
-          podman run --name fixer $IMAGE_REF sh -c "rm -f /etc/yum.repos.d/terra*.repo"
-          podman commit fixer localhost/${{ matrix.image }}-fixed
-          podman rm fixer
+          # Pull and Patch directly as Root (Sudo)
+          sudo podman pull $IMAGE_REF
+          sudo podman run --name fixer $IMAGE_REF sh -c "rm -f /etc/yum.repos.d/terra*.repo"
+          sudo podman commit fixer localhost/${{ matrix.image }}-fixed
+          sudo podman rm fixer
 
-          # 2. Transfer to Root Storage
-          # The ISO builder runs as sudo, so it needs the image in sudo's storage.
-          podman save localhost/${{ matrix.image }}-fixed | sudo podman load
-
-      # 3. BUILD ISO (Manual Mode)
       - name: Build ISO
         run: |
           mkdir -p ./output
           
           # We execute the builder container directly using the options the Action would have used
-          # But we skip the 'pull' because the image is already in sudo's storage from the previous step.
+          # The image is already in sudo's storage from the previous step.
           sudo podman run \
             --rm \
             --privileged \
