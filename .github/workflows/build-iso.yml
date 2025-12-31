@@ -20,7 +20,7 @@ jobs:
     name: Build ${{ matrix.image }} ISO
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: read
       id-token: write
     strategy:
@@ -100,3 +100,17 @@ jobs:
           name: ${{ matrix.image }}-${{ steps.tag.outputs.val }}-iso
           path: ./${{ matrix.image }}-${{ steps.tag.outputs.val }}.iso
           retention-days: 7
+
+      - name: Get Date
+        id: date
+        run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+
+      - name: Publish to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        if: github.event_name == 'workflow_run' || github.event_name == 'workflow_dispatch'
+        with:
+          tag_name: latest-iso
+          name: "Latest ISO Build"
+          body: "Automated daily build of Samsonite OS. \n\n**Date:** ${{ steps.date.outputs.date }}"
+          files: ./*.iso
+          make_latest: true
