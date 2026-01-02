@@ -74,6 +74,4 @@ modules:
 
   - type: script
     scripts:
-      - chmod +x /usr/bin/firstboot-dispatcher.sh
-      - chmod +x /usr/share/firstboot/scripts/*
-      - systemctl enable firstboot-setup.service
+      - setup-permissions.sh
