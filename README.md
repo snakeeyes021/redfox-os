@@ -25,7 +25,7 @@ The purpose of SamsoniteOS is to round out the offerings of Bazzite, both with s
 ### Installation
 
 > [!CAUTION]
-> **GNOME ONLY:** This image is based on GNOME. **Do not rebase** from a KDE-based image (like Kinoite or mainline Bazzite), as this can cause significant desktop environment conflicts. If you are currently on KDE, please install fresh using an ISO.  
+> **GNOME ONLY:** This image is based on GNOME. **Do not rebase** from a KDE-based image (like Kinoite or mainline Bazzite), as this can cause significant desktop environment conflicts. If you are currently on KDE, please install a fresh copy of a GNOME-based Fedora Atomic distro first, then rebase to SamsoniteOS.  
 
 We have three images available, depending on your hardware:
 
