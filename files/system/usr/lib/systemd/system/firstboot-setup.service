@@ -1,0 +1,13 @@
+[Unit]
+Description=First Boot Setup Dispatcher
+# Wait for Flatpak helper and Network
+After=network-online.target flatpak-system-helper.service
+Wants=network-online.target flatpak-system-helper.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/firstboot-dispatcher.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
