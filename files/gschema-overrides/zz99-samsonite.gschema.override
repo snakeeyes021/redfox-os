@@ -21,12 +21,15 @@ enabled-extensions=['user-theme@gnome-shell-extensions.gcampax.github.com', 'gsc
 dock-position='LEFT'
 dock-fixed=true
 extend-height=true
-dash-max-icon-size=48
-background-opacity=0.8
-show-mounts-network=false
-show-icons-notifications-counter=true
-custom-theme-shrink=false
-apply-custom-theme=true
+
+[org.gnome.shell.extensions.blur-my-shell.lockscreen]
+pipeline='pipeline_default'
+
+[org.gnome.shell.extensions.blur-my-shell.coverflow-alt-tab]
+pipeline='pipeline_default'
+
+[org.gnome.shell.extensions.blur-my-shell.screenshot]
+pipeline='pipeline_default'
 
 [org.gnome.shell.extensions.blur-my-shell.dash-to-dock]
 pipeline='pipeline_default'
@@ -35,8 +38,8 @@ pipeline='pipeline_default'
 edge-tiling=false
 
 [org.gnome.shell.extensions.tilingshell]
-inner-gaps=uint32 8
-quarter-tiling-threshold=uint32 10
+inner-gaps='uint32 8'
+quarter-tiling-threshold='uint32 10'
 window-use-custom-border-color=false
 selected-layouts=[['26608328'], ['26608328'], ['26608328']]
 active-layouts=['26608328']
