@@ -79,3 +79,4 @@ modules:
   - type: script
     scripts:
       - setup-permissions.sh
+      - build-dconf.sh
