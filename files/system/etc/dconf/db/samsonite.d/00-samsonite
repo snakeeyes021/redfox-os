@@ -37,4 +37,3 @@ span-window-right=['<Shift><Alt>Right']
 span-window-left=['<Shift><Alt>Left']
 span-window-up=['<Shift><Alt>Up']
 span-window-down=['<Shift><Alt>Down']
-overridden-settings='{"org.gnome.mutter.keybindings": {"toggle-tiled-right": "<Super>Right", "toggle-tiled-left": "<Super>Left"}, "org.gnome.desktop.wm.keybindings": {"maximize": "<Super>Up", "unmaximize": "<Super>Down"}, "org.gnome.mutter": {"edge-tiling": "true"}}'
