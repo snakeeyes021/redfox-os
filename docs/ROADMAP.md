@@ -1,9 +1,9 @@
 # SamsoniteOS Detailed To-Do
 
 ## 🚨 Infrastructure Fixes
-- [ ] **Migrate to DNF Module**
-    - [ ] Update `recipes/_common-modules.yml` to replace `rpm-ostree` module with `dnf`.
-    - [ ] Delete `containerfiles/dnf-overrides/Containerfile` once verified.
+- [x] **Migrate to DNF Module**
+    - [x] Update `recipes/_common-modules.yml` to replace `rpm-ostree` module with `dnf`.
+    - [x] Delete `containerfiles/dnf-overrides/Containerfile` once verified.
 - [ ] **Update README.md**
     - [ ] Update "Rebasing" section: Explicitly warn about the Silverblue blocker (Signed Image vs. Unsigned Silverblue Policy).
 - [ ] **Curate & Fix Flatpaks**

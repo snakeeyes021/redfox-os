@@ -9,41 +9,35 @@ modules:
     include:
       - zz99-samsonite.gschema.override
 
-  - type: containerfile
-    containerfiles:
-      - ../containerfiles/dnf-overrides
-
-  - type: rpm-ostree
-    install:
-      - incus
-      - incus-agent
-      - lxc
-      - podman-compose
-      - podman-tui
-      - docker-ce
-      - docker-ce-cli
-      - containerd.io
-      - docker-buildx-plugin
-      - docker-compose-plugin
-      - code
-      - android-tools
-      - iotop
-      - sysprof
-      - trace-cmd
-      - bpftop
-      - cockpit-bridge
-      - cockpit-machines
-      - cockpit-podman
-      - ccache
-      - restic
-      - rclone
-      - zsh
-      - python3-ramalama
-
   - type: dnf
     install:
       packages:
         - cursor
+        - incus
+        - incus-agent
+        - lxc
+        - podman-compose
+        - podman-tui
+        - docker-ce
+        - docker-ce-cli
+        - containerd.io
+        - docker-buildx-plugin
+        - docker-compose-plugin
+        - code
+        - android-tools
+        - iotop
+        - sysprof
+        - trace-cmd
+        - bpftop
+        - bpftrace
+        - cockpit-bridge
+        - cockpit-machines
+        - cockpit-podman
+        - ccache
+        - restic
+        - rclone
+        - zsh
+        - python3-ramalama
 
   - type: systemd
     system:
