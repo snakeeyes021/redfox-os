@@ -1,4 +1,4 @@
-Required:
+Required (not ujust):
 - Audio Player
 - Boxes (system package)
 - Calculator
@@ -23,20 +23,43 @@ Required:
 - Virtual Machine Manager (system package to allow cross access to VMs between Boxes and VMM)
 
 
-ujust install-normie:
+INSTALLS
+ujust install-basic:
 - Backups
 - Calendar
 - Camera
 - Clocks
 - Contacts
+- Maps
+- Weather
+
+ujust install-productivity:
 - Document Scanner
 - LibreOffice Suite
 - Mailspring
-- Maps
 - Gradia
-- GNOME Music
-- Weather
 
+ujust install-daily:
+- Tuba
+- Newsflash
+- Cozy
+- GNOME Music
+
+ujust install-music:
+- Ardour
+- Musescore
+- Frescobaldi
+
+ujust install-creative
+- Blender
+- Krita
+- Inkscape
+- Gimp
+- # TODO: Something for photos
+
+ujust install-dev
+- ujust install-zed
+- ujust install-gemini-cli
 
 ujust install-bluefin-dx:
 - Bustle
@@ -46,5 +69,18 @@ ujust install-bluefin-dx:
 - Embellish
 - Helvum
 
+ujust install-matt
+- ujust install-dev
+- ujust install-bluefin-dx
+- ujust install-creative
+- ujust install-music
+- ujust install-daily
+- ujust install-productivity
+- ujust install-basic
 
 
+
+CONFIG
+ujust configure-dev
+- ujust configure-vscode
+- ujust configure-cursor
