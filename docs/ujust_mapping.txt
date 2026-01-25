@@ -1,4 +1,4 @@
-Required (not ujust):
+REQUIRED (not ujust):
 (flatpak)
 org.gnome.Decibels                  # Audio Player
 org.gnome.Calculator                # Calculator
@@ -20,12 +20,13 @@ org.gnome.Logs                      # Logs
 io.missioncenter.MissionCenter      # Mission Center
 org.gnome.TextEditor                # Text Editor
 org.gnome.Showtime                  # Video Player
+io.github.flattool.Warehouse        # WareHouse
 
 (system)
 gnome-boxes                         # Boxes (System Package)
 virt-manager                        # Virtual Machine Manager (System Package)
 
-INSTALLS
+UJUST INSTALLS:
 ujust install-basic:
 org.gnome.World.PikaBackup          # Backups
 org.gnome.Calendar                  # Calendar
@@ -37,14 +38,17 @@ org.gnome.Weather                   # Weather
 
 ujust install-productivity:
 org.gnome.SimpleScan                # Document Scanner
-org.libreoffice.LibreOffice         # LibreOffice Suite
-com.getmailspring.Mailspring        # Mailspring
-be.alexandervanhee.gradia           # Gradia
+org.libreoffice.LibreOffice         # LibreOffice Suite (Office Suite)
+com.getmailspring.Mailspring        # Mailspring (Email Client)
+be.alexandervanhee.gradia           # Gradia (Screenshot/photo Markup)
+net.cozic.joplin_desktop            # Joplin (Notes App)
+app.drey.Warp                       # Warp (File Transfer Helper)
 
 ujust install-daily:
-dev.geopjr.Tuba                     # Tuba
-io.gitlab.news_flash.NewsFlash      # Newsflash
-com.github.geigi.cozy               # Cozy
+dev.geopjr.Tuba                     # Tuba (Mastodon Client)
+io.gitlab.news_flash.NewsFlash      # Newsflash (RSS Reader)
+com.github.geigi.cozy               # Cozy (Audiobooks)
+com.github.johnfactotum.Foliate     # Foliate (E-books)
 org.gnome.Music                     # GNOME Music
 
 ujust install-audio:
@@ -70,10 +74,18 @@ org.darktable.Darktable             # Darktable (Editor)
 
 ujust install-video:
 org.kde.kdenlive                    # Kdenlive
+org.bunkus.mkvtoolnix-gui           # MKVToolNix
+org.gnome.gitlab.YaLTeR.VideoTrimmer# Video Trimmer
+com.github.unrud.VideoDownloader    # Video Downloader
+com.obsproject.Studio               # OBS Studio
 
 ujust install-notation:
 org.musescore.MuseScore             # Musescore
 org.frescobaldi.Frescobaldi         # Frescobaldi
+
+ujust install-writing:
+org.cvfosammmm.Setzer               # Setzer
+ch.theologeek.Manuskript            # Manuskript
 
 ujust install-gnome-dev:
 org.gnome.Builder                   # GNOME Builder (IDE)
@@ -83,6 +95,8 @@ ujust install-dev:
 ujust install-gnome-dev
 ujust install-zed                   # Zed Editor (Script)
 ujust install-gemini-cli            # Gemini CLI (Script)
+io.podman_desktop.PodmanDesktop     # Podman
+org.gnome.dspy                      # D-Spy
 
 ujust install-bluefin-dx:
 org.freedesktop.Bustle              # Bustle
@@ -98,6 +112,7 @@ ujust install-creative:
 - ujust install-photos
 - ujust install-video
 - ujust install-notation
+- ujust install-writing
 
 ujust install-matt:
 - ujust install-dev
@@ -107,6 +122,19 @@ ujust install-matt:
 - ujust install-productivity
 - ujust install-basic
 
+ujust install-dewy:
+- ujust install-zed
+- ujust install-dropbox               # Installs maestral gui
+- ujust install-basic
+- ujust install-daily
+- ujust install-productivity
+org.videolan.VLC                      # VLC Media Player
+org.cvfosammmm.Setzer                 # Setzer (LaTex editor)
+
+ujust install-normie:
+- ujust install-basic
+- ujust install-daily
+- ujust install-productivity
 
 
 CONFIG
