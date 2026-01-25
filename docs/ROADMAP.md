@@ -46,7 +46,7 @@
 - [ ] `install-gemini-cli`: `brew install gemini-cli`.
 - [ ] `configure-heroic`:
 - [ ] **UI/UX Atoms:**
-    - [ ] `fix-flatpak-theming`:
+    - [x] `fix-flatpak-theming`:
         - `sudo flatpak override --filesystem=xdg-data/themes`
         - `sudo flatpak mask org.gtk.Gtk3theme.adw-gtk3`
         - `sudo flatpak mask org.gtk.Gtk3theme.adw-gtk3-dark`
@@ -65,17 +65,17 @@
     - [ ] `fix-4k-scaling`: Remove `xwayland-native-scaling`.
 
 ### Level 1.5: Small-ecules (Software packs)
-- [ ] `install-productivity`: Flatpak list (Office, etc.).
-    - [ ] potentially also `install-daily`: this and productivity may be one unit or two. This would include things like Tuba, RSS feed reader, Audiobook reader, etc.
-- [ ] `install-music`: Flatpak list (Ardour, Musescore, Lilypond, Frescobaldi, etc.).
-- [ ] `install-creative`: Flatpak list (Blender, Krita, Inkscape, Photo stuff, GIMP, Kdenlive, OBS etc.).
-- [ ] `install-dev`: Combines `install-zed`, `setup-vscode`, `setup-cursor`, `install-gemini-cli`.
+- [x] `install-productivity`: Flatpak list (Office, etc.).
+    - [x] potentially also `install-daily`: this and productivity may be one unit or two. This would include things like Tuba, RSS feed reader, Audiobook reader, etc.
+- [x] `install-music`: Flatpak list (Ardour, Musescore, Lilypond, Frescobaldi, etc.).
+- [x] `install-creative`: Flatpak list (Blender, Krita, Inkscape, Photo stuff, GIMP, Kdenlive, OBS etc.).
+- [x] `install-dev`: Combines `install-zed`, `setup-vscode`, `setup-cursor`, `install-gemini-cli`.
 
 ### Level 2: Molecules (Logical Groups)
 - [ ] **Software Bundles:**
-    - [ ] `install-matt`: Combines `install-dev`, `install-music`, `install-creative`, `install-productivity`, and `install-daily` if it is created.
+    - [x] `install-matt`: Combines `install-dev`, `install-music`, `install-creative`, `install-productivity`, and `install-daily` if it is created.
     - [ ] `install-dewy`: Combines `install-dev`, `install-music`, (?) 
-    - [ ] `install-normie`: Combines `install-productivity`, `install-creative`, and `install-daily` if it is created.
+    - [x] `install-normie`: Combines `install-productivity`, `install-creative`, and `install-daily` if it is created.
 
 - [ ] **Theme Molecules:**
     - [ ] `theme-matt`
