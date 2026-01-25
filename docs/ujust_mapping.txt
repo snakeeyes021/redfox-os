@@ -107,37 +107,37 @@ io.github.getnf.embellish           # Embellish
 org.pipewire.Helvum                 # Helvum
 
 ujust install-creative:
-- ujust install-audio
-- ujust install-graphics
-- ujust install-photos
-- ujust install-video
-- ujust install-notation
-- ujust install-writing
+ujust install-audio
+ujust install-graphics
+ujust install-photos
+ujust install-video
+ujust install-notation
+ujust install-writing
 
 ujust install-matt:
-- ujust install-dev
-- ujust install-bluefin-dx
-- ujust install-creative
-- ujust install-daily
-- ujust install-productivity
-- ujust install-basic
+ujust install-dev
+ujust install-bluefin-dx
+ujust install-creative
+ujust install-daily
+ujust install-productivity
+ujust install-basic
 
 ujust install-dewy:
-- ujust install-zed
-- ujust install-dropbox               # Installs maestral gui
-- ujust install-basic
-- ujust install-daily
-- ujust install-productivity
+ujust install-zed
+ujust install-dropbox               # Installs maestral gui
+ujust install-basic
+ujust install-daily
+ujust install-productivity
 org.videolan.VLC                      # VLC Media Player
 org.cvfosammmm.Setzer                 # Setzer (LaTex editor)
 
 ujust install-normie:
-- ujust install-basic
-- ujust install-daily
-- ujust install-productivity
+ujust install-basic
+ujust install-daily
+ujust install-productivity
 
 
 CONFIG
 ujust configure-dev:
-- ujust configure-vscode
-- ujust configure-cursor
+ujust configure-vscode
+ujust configure-cursor
