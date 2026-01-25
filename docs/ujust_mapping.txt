@@ -1,0 +1,50 @@
+Required:
+- Audio Player
+- Boxes (system package)
+- Calculator
+- Characters
+- Connections
+- Disk Usage Analyzer
+- DistroShelf 
+- Document Viewer
+- Extension Manager
+- Firefox
+- Firmware
+- File Roller
+- Flatseal
+- Fonts
+- Ignition
+- Image Viewer
+- Impression
+- Logs
+- Mission Center
+- Text Editor
+- Video Player 
+- Virtual Machine Manager (system package to allow cross access to VMs between Boxes and VMM)
+
+
+ujust install-normie:
+- Backups
+- Calendar
+- Camera
+- Clocks
+- Contacts
+- Document Scanner
+- LibreOffice Suite
+- Mailspring
+- Maps
+- Gradia
+- GNOME Music
+- Weather
+
+
+ujust install-bluefin-dx:
+- Bustle
+- Clapgrep
+- Concessio
+- Dev Toolbox
+- Embellish
+- Helvum
+
+
+
