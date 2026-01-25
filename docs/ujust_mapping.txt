@@ -1,73 +1,76 @@
 Required (not ujust):
-- Audio Player
-- Boxes (system package)
-- Calculator
-- Characters
-- Connections
-- Disk Usage Analyzer
-- DistroShelf 
-- Document Viewer
-- Extension Manager
-- Firefox
-- Firmware
-- File Roller
-- Flatseal
-- Fonts
-- Ignition
-- Image Viewer
-- Impression
-- Logs
-- Mission Center
-- Text Editor
-- Video Player 
-- Virtual Machine Manager (system package to allow cross access to VMs between Boxes and VMM)
+(flatpak)
+org.gnome.Decibels                  # Audio Player
+org.gnome.Calculator                # Calculator
+org.gnome.Characters                # Characters
+org.gnome.Connections               # Connections / RDP
+org.gnome.baobab                    # Disk Usage Analyzer
+com.ranfdev.DistroShelf             # DistroShelf
+org.gnome.Papers                    # Document Viewer
+com.mattjakeman.ExtensionManager    # Extension Manager
+org.mozilla.firefox                 # Firefox
+org.gnome.Firmware                  # Firmware
+org.gnome.FileRoller                # File Roller / Archive Manager
+com.github.tchx84.Flatseal          # Flatseal
+org.gnome.font-viewer               # Fonts
+io.github.flattool.Ignition         # Ignition
+org.gnome.Loupe                     # Image Viewer
+io.gitlab.adhami3310.Impression     # Impression / ISO Writer
+org.gnome.Logs                      # Logs
+io.missioncenter.MissionCenter      # Mission Center
+org.gnome.TextEditor                # Text Editor
+org.gnome.Showtime                  # Video Player
 
+(system)
+gnome-boxes                         # Boxes (System Package)
+virt-manager                        # Virtual Machine Manager (System Package)
 
 INSTALLS
 ujust install-basic:
-- Backups
-- Calendar
-- Camera
-- Clocks
-- Contacts
-- Maps
-- Weather
+org.gnome.World.PikaBackup          # Backups
+org.gnome.Calendar                  # Calendar
+org.gnome.Snapshot                  # Camera
+org.gnome.clocks                    # Clocks
+org.gnome.Contacts                  # Contacts
+org.gnome.Maps                      # Maps
+org.gnome.Weather                   # Weather
 
 ujust install-productivity:
-- Document Scanner
-- LibreOffice Suite
-- Mailspring
-- Gradia
+org.gnome.SimpleScan                # Document Scanner
+org.libreoffice.LibreOffice         # LibreOffice Suite
+com.getmailspring.Mailspring        # Mailspring
+be.alexandervanhee.gradia           # Gradia
 
 ujust install-daily:
-- Tuba
-- Newsflash
-- Cozy
-- GNOME Music
+dev.geopjr.Tuba                     # Tuba
+io.gitlab.news_flash.NewsFlash      # Newsflash
+com.github.geigi.cozy               # Cozy
+org.gnome.Music                     # GNOME Music
 
 ujust install-music:
-- Ardour
-- Musescore
-- Frescobaldi
+org.ardour.Ardour                   # Ardour
+org.musescore.MuseScore             # Musescore
+org.frescobaldi.Frescobaldi         # Frescobaldi
 
 ujust install-creative
-- Blender
-- Krita
-- Inkscape
-- Gimp
-- # TODO: Something for photos
+org.blender.Blender                 # Blender
+org.kde.krita                       # Krita
+org.inkscape.Inkscape               # Inkscape
+org.gimp.GIMP                       # Gimp
+org.kde.kdenlive                    # Kdenlive (Added)
+# TODO: Something for photos
 
 ujust install-dev
 - ujust install-zed
 - ujust install-gemini-cli
 
 ujust install-bluefin-dx:
-- Bustle
-- Clapgrep
-- Concessio
-- Dev Toolbox
-- Embellish
-- Helvum
+org.freedesktop.Bustle              # Bustle
+de.leopoldluley.Clapgrep            # Clapgrep
+io.github.ronniedroid.concessio     # Concessio
+me.iepure.devtoolbox                # Dev Toolbox
+io.github.getnf.embellish           # Embellish
+org.pipewire.Helvum                 # Helvum
 
 ujust install-matt
 - ujust install-dev
