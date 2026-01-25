@@ -75,9 +75,12 @@ ujust install-notation:
 org.musescore.MuseScore             # Musescore
 org.frescobaldi.Frescobaldi         # Frescobaldi
 
-ujust install-dev:
+ujust install-gnome-dev:
 org.gnome.Builder                   # GNOME Builder (IDE)
 re.sonny.Workbench                  # Workbench
+
+ujust install-dev:
+ujust install-gnome-dev
 ujust install-zed                   # Zed Editor (Script)
 ujust install-gemini-cli            # Gemini CLI (Script)
 
