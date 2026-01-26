@@ -20,3 +20,17 @@ enabled-extensions=['user-theme@gnome-shell-extensions.gcampax.github.com', 'gsc
 
 [org.gnome.mutter]
 edge-tiling=false
+
+[org.gnome.desktop.wm.keybindings]
+close=['<Super>q']
+switch-to-workspace-left=['<Super><Control>Left']
+switch-to-workspace-right=['<Super><Control>Right']
+switch-to-workspace-up=['<Super><Control>Up']
+switch-to-workspace-down=['<Super><Control>Down']
+move-to-workspace-left=['<Super><Shift><Control>Left']
+move-to-workspace-right=['<Super><Shift><Control>Right']
+move-to-workspace-up=['<Super><Shift><Control>Up']
+move-to-workspace-down=['<Super><Shift><Control>Down']
+
+[org.gnome.desktop.input-sources]
+xkb-options=['compose:ralt']
