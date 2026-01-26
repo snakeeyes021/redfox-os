@@ -112,8 +112,9 @@
 - [ ] **Samsonite Branding**
     - [ ] Create/Add assets: Neofetch/Fastfetch Logo, Splash Screen, System Info Logo.
 
-## Fixups (Items that arrive after a fix is already implemented)
+## Fixups/New (Items that arrive after a fix is already implemented)
 - [ ] Screenshot (add Windows super + shift + s shortcut for selection screenshot; move fullscreen screenshot to printscreen)
 - [ ] Check that Boxes is installing as system package and is cross-compatible with VMM
 - [ ] Confirm that Winboat is best as app-image (RPM is published on github releases page, so we could be doing this as a system package; the issue is that the appimage setup is not frictionless).
     - [ ] Test appimage to confirm is working. If not, try RPM. Proceed based on findings
+- [ ] Change names for everything (can't use Samsonite almost certainly; probably go with RedFox)
