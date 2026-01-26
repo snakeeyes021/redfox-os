@@ -33,11 +33,23 @@ install-soundthread:
     echo "TODO: Implement install-soundthread"
 
 # Install Winboat (via Gearlever)
+# Install Winboat (via Gearlever)
 install-winboat:
+    #!/usr/bin/env bash
+    set -e # Exit immediately if a command fails
     echo "Installing Winboat..."
     flatpak install -y flathub it.mijorus.gearlever
+    
     echo "Fetching latest Winboat AppImage..."
-    URL=$(curl -s https://api.github.com/repos/TibixDev/winboat/releases/latest | jq -r ".assets[] | select(.name | test(\"x86_64.AppImage$\")) | .browser_download_url")
+    # No $$ needed here because we are inside a bash shebang block!
+    # No && \ needed because variables persist in this block.
+    URL=$(curl -s https://api.github.com/repos/TibixDev/winboat/releases/latest | jq -r '.assets[] | select(.name | test("x86_64.AppImage$")) | .browser_download_url')
+    
+    if [ -z "$URL" ]; then
+        echo "Error: Could not find download URL"
+        exit 1
+    fi
+
     curl -L -o /tmp/WinBoat.AppImage "$URL"
     echo "Opening in Gearlever..."
     flatpak run it.mijorus.gearlever /tmp/WinBoat.AppImage
