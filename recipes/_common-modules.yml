@@ -92,3 +92,4 @@ modules:
     scripts:
       - setup-permissions.sh
       - build-dconf.sh
+      - inject-gearlever.sh

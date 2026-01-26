@@ -18,19 +18,20 @@
 ## ⚙️ System Defaults (GSchema Overrides)
 *These settings apply to everyone by default (via `gschema-overrides`).*
 
-- [ ] **Keyboard Shortcuts Strategy**
-    - [ ] Navigation: `Ctrl`+`Super`+`Arrow` (Workspaces).
-    - [ ] Window Move: `Shift`+`Super`+`Arrow`.
-    - [ ] Tiling Snap: `Super`+`Arrow`.
-    - [ ] Close Window: `Super`+`q`.
+- [x] **Keyboard Shortcuts Strategy**
+    - [x] Determine which shortcuts should be controlled by GNOME and which by Tiling Shell (the below might not all be correct)
+        - [x] Navigation: `Ctrl`+`Super`+`Arrow` (Workspaces).
+        - [x] Window Move: `Shift`+`Super`+`Arrow`.
+        - [x] Tiling Snap: `Super`+`Arrow`.
+        - [x] Close Window: `Super`+`q`.
 - [ ] **Dash to Dock (Disabled by default, but configured)**
     - [ ] **Behavior:** Isolate Workspaces (`true`).
     - [ ] **Click Action:** `minimize-or-previews` (Focus, minimize, or show previews).
     - [ ] **Size:** Fixed icon size (Scroll to reveal).
 
 ## 📦 Default Software
-- [ ] **Winboat:** Determine installation (DNF/Flatpak) and add to system defaults.
-- [ ] **Implement** System-level GNOME Boxes + Virt-Manager
+- [x] **Winboat:** Determine installation (DNF/Flatpak) and add to system defaults.
+- [x] **Implement** System-level GNOME Boxes + Virt-Manager
 - [ ] **Implement** Starship terminal prompt by default with light-theme terminal (steal from Bluefin)
 
 ## 🌳 The `ujust` Architecture Tree

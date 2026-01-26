@@ -32,6 +32,37 @@ configure-heroic:
 install-soundthread:
     echo "TODO: Implement install-soundthread"
 
+# Install Winboat (via Gearlever)
+install-winboat:
+    echo "Installing Winboat..."
+    flatpak install -y flathub it.mijorus.gearlever
+    echo "Fetching latest Winboat AppImage..."
+    URL=$(curl -s https://api.github.com/repos/TibixDev/winboat/releases/latest | jq -r ".assets[] | select(.name | test(\"x86_64.AppImage$\")) | .browser_download_url")
+    curl -L -o /tmp/WinBoat.AppImage "$URL"
+    echo "Opening in Gearlever..."
+    flatpak run it.mijorus.gearlever /tmp/WinBoat.AppImage
+
+# Update Gearlever AppImages
+update-gearlever:
+    #!/usr/bin/bash
+    if ! flatpak list | grep -q "it.mijorus.gearlever"; then
+        echo "Gearlever not installed. Skipping."
+        exit 0
+    fi
+    APPS=$(flatpak run it.mijorus.gearlever --list-installed)
+    if [ -z "$APPS" ]; then
+        echo "No AppImages managed by Gearlever found."
+        exit 0
+    fi
+    echo "=== Updating Gearlever AppImages ==="
+    echo "$APPS" | while read -r APP_PATH; do
+        if [ -n "$APP_PATH" ]; then
+            APP_NAME=$(basename "$APP_PATH")
+            echo "-> Checking $APP_NAME..."
+            flatpak run it.mijorus.gearlever --update "$APP_PATH"
+        fi
+    done
+
 # UI/UX Atoms
 fix-flatpak-theming:
     sudo flatpak override --filesystem=xdg-data/themes
@@ -88,6 +119,7 @@ install-basic:
 
 # Install Productivity Apps
 install-productivity:
+    just install-winboat
     flatpak install -y flathub \
         org.gnome.SimpleScan \
         org.libreoffice.LibreOffice \
