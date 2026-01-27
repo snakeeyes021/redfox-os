@@ -131,7 +131,6 @@ install-basic:
 
 # Install Productivity Apps
 install-productivity:
-    just install-winboat
     flatpak install -y flathub \
         org.gnome.SimpleScan \
         org.libreoffice.LibreOffice \
@@ -191,6 +190,12 @@ install-video:
         com.github.unrud.VideoDownloader \
         com.obsproject.Studio
 
+# Install Compatibility Tools
+install-compatibility:
+    just install-winboat
+    flatpak install -y flathub \
+        com.usebottles.bottles
+
 # Install Music Notation Apps
 install-notation:
     flatpak install -y flathub \
@@ -248,6 +253,7 @@ install-matt:
     just install-creative
     just install-daily
     just install-productivity
+    just install-compatibility
     just install-basic
     just install-comms
 
