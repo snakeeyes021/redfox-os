@@ -15,8 +15,8 @@ if [ ! -f "$CONFIG_FILE" ]; then
 fi
 
 # CONFIGURATION: The command to inject
-# We use [custom_commands] as that is the correct Topgrade syntax for shell hooks
-SECTION="[custom_commands]"
+# We use [commands] as that is the correct Topgrade syntax for shell hooks
+SECTION="[commands]"
 INJECTION='"Gearlever" = "just update-appimages"'
 
 echo "Injecting Gearlever update into $CONFIG_FILE..."
@@ -29,8 +29,8 @@ fi
 
 # INJECTION LOGIC
 if grep -qF "$SECTION" "$CONFIG_FILE"; then
-    # If [custom_commands] exists, insert our line immediately after it
-    sed -i "/^\[custom_commands\]/a $INJECTION" "$CONFIG_FILE"
+    # If [commands] exists, insert our line immediately after it
+    sed -i "/^\[commands\]/a $INJECTION" "$CONFIG_FILE"
 else
     # If the section is missing, append the block to the end of the file
     echo "" >> "$CONFIG_FILE"
