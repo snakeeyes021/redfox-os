@@ -1,0 +1,151 @@
+REQUIRED (not ujust):
+(flatpak)
+org.gnome.Decibels                  # Audio Player
+org.gnome.Calculator                # Calculator
+org.gnome.Characters                # Characters
+org.gnome.Connections               # Connections / RDP
+org.gnome.baobab                    # Disk Usage Analyzer
+com.ranfdev.DistroShelf             # DistroShelf
+org.gnome.Papers                    # Document Viewer
+com.mattjakeman.ExtensionManager    # Extension Manager
+org.mozilla.firefox                 # Firefox
+org.gnome.Firmware                  # Firmware
+org.gnome.FileRoller                # File Roller / Archive Manager
+com.github.tchx84.Flatseal          # Flatseal
+org.gnome.font-viewer               # Fonts
+io.github.flattool.Ignition         # Ignition
+org.gnome.Loupe                     # Image Viewer
+io.gitlab.adhami3310.Impression     # Impression / ISO Writer
+org.gnome.Logs                      # Logs
+io.missioncenter.MissionCenter      # Mission Center
+org.gnome.TextEditor                # Text Editor
+org.gnome.Showtime                  # Video Player
+io.github.flattool.Warehouse        # WareHouse
+
+(system--dnf)
+gnome-boxes                         # Boxes (System Package)
+virt-manager                        # Virtual Machine Manager (System Package)
+
+UJUST INSTALLS:
+ujust install-basic:
+org.gnome.World.PikaBackup          # Backups
+org.gnome.Calendar                  # Calendar
+org.gnome.Snapshot                  # Camera
+org.gnome.clocks                    # Clocks
+org.gnome.Contacts                  # Contacts
+org.gnome.Maps                      # Maps
+org.gnome.Weather                   # Weather
+
+ujust install-productivity:
+org.gnome.SimpleScan                # Document Scanner
+org.libreoffice.LibreOffice         # LibreOffice Suite (Office Suite)
+com.getmailspring.Mailspring        # Mailspring (Email Client)
+be.alexandervanhee.gradia           # Gradia (Screenshot/photo Markup)
+net.cozic.joplin_desktop            # Joplin (Notes App)
+app.drey.Warp                       # Warp (File Transfer Helper)
+
+ujust install-comms:
+org.signal.Signal                   # Signal Desktop
+dev.vencord.Vesktop                 # Vesktop (Discord with Audio Screenshare)
+
+ujust install-daily:
+dev.geopjr.Tuba                     # Tuba (Mastodon Client)
+io.gitlab.news_flash.NewsFlash      # Newsflash (RSS Reader)
+com.github.geigi.cozy               # Cozy (Audiobooks)
+com.github.johnfactotum.Foliate     # Foliate (E-books)
+org.gnome.Music                     # GNOME Music
+
+ujust install-audio:
+org.ardour.Ardour                   # Ardour
+info.puredata.Pd                    # Pure Data (Vanilla)
+net.purrdata.PurrData               # Purr Data
+org.audacityteam.Audacity           # Audacity
+net.sourceforge.VMPK                # VMPK
+org.pipewire.Helvum                 # Helvum
+ujust install-soundthread           # SoundThread (Custom Script)
+
+ujust install-graphics:
+org.kde.krita                       # Krita
+org.blender.Blender                 # Blender
+org.inkscape.Inkscape               # Inkscape
+org.gimp.GIMP                       # Gimp
+com.orama_interactive.Pixelorama    # Pixelorama
+nl.hjdskes.gcolor3                  # Color Picker
+
+ujust install-photos:
+org.kde.digikam                     # DigiKam (Manager)
+org.darktable.Darktable             # Darktable (Editor)
+
+ujust install-video:
+org.kde.kdenlive                    # Kdenlive
+org.bunkus.mkvtoolnix-gui           # MKVToolNix
+org.gnome.gitlab.YaLTeR.VideoTrimmer # Video Trimmer
+com.github.unrud.VideoDownloader    # Video Downloader
+com.obsproject.Studio               # OBS Studio
+
+ujust install-notation:
+org.musescore.MuseScore             # Musescore
+org.frescobaldi.Frescobaldi         # Frescobaldi
+
+ujust install-writing:
+org.cvfosammmm.Setzer               # Setzer
+ch.theologeek.Manuskript            # Manuskript
+
+ujust install-gnome-dev:
+org.gnome.Builder                   # GNOME Builder (IDE)
+re.sonny.Workbench                  # Workbench
+
+ujust install-dev:
+ujust install-gnome-dev
+ujust install-zed                   # Zed Editor (Script)
+ujust install-gemini-cli            # Gemini CLI (Script)
+io.podman_desktop.PodmanDesktop     # Podman
+org.gnome.dspy                      # D-Spy
+ca.desrt.dconf-editor               # DConf Editor
+
+ujust install-bluefin-dx:
+org.freedesktop.Bustle              # Bustle
+de.leopoldluley.Clapgrep            # Clapgrep
+io.github.ronniedroid.concessio     # Concessio
+me.iepure.devtoolbox                # Dev Toolbox
+io.github.getnf.embellish           # Embellish
+org.pipewire.Helvum                 # Helvum
+
+ujust install-creative:
+ujust install-audio
+ujust install-graphics
+ujust install-photos
+ujust install-video
+ujust install-notation
+ujust install-writing
+
+ujust install-matt:
+ujust install-dev
+ujust install-bluefin-dx
+ujust install-creative
+ujust install-daily
+ujust install-productivity
+ujust install-basic
+install-comms
+
+ujust install-dewy:
+ujust install-zed
+ujust install-dropbox               # Installs maestral gui
+ujust install-basic
+ujust install-daily
+ujust install-productivity
+install-comms
+org.videolan.VLC                    # VLC Media Player
+org.cvfosammmm.Setzer               # Setzer (LaTex editor)
+
+ujust install-normie:
+ujust install-basic
+ujust install-daily
+ujust install-productivity
+install-comms
+
+
+CONFIG
+ujust configure-dev:
+ujust configure-vscode
+ujust configure-cursor

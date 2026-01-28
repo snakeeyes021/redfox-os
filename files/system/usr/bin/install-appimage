@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Usage: install-appimage <NAME> <MANAGER> <REPO_URL> <FILE_PATTERN> [PRERELEASE]
+APP_NAME="$1"
+MANAGER="$2"
+REPO_URL="$3"
+FILE_PATTERN="$4"
+PRERELEASE="${5:-false}"
+
+echo "=== Handling AppImage: $APP_NAME ==="
+
+# --- 1. Download ---
+DL_URL=""
+
+if [ "$MANAGER" == "GithubUpdater" ]; then
+    REPO_SLUG=$(echo "$REPO_URL" | sed 's|https://github.com/||')
+    JQ_REGEX=$(echo "$FILE_PATTERN" | sed 's/\./\\./g; s/\*/.*/g')
+
+    echo "   Fetching release info from $REPO_SLUG..."
+    JSON_RESPONSE=$(curl -s -H "User-Agent: Mozilla/5.0 (compat; BlueBuild/1.0)" "https://api.github.com/repos/${REPO_SLUG}/releases/latest")
+    
+    # Fix: Case-insensitive match for the download URL
+    DL_URL=$(echo "$JSON_RESPONSE" | jq -r --arg regex "$JQ_REGEX" \
+        '.assets[] | select(.name | test($regex; "i")) | .browser_download_url' | head -n 1)
+
+    if [ -z "$DL_URL" ] || [ "$DL_URL" == "null" ]; then
+        echo "Error: Could not find asset matching '$FILE_PATTERN'."
+        exit 1
+    fi
+
+elif [ "$MANAGER" == "StaticFileUpdater" ]; then
+    DL_URL="$REPO_URL"
+fi
+
+echo "   Downloading from: $DL_URL"
+TEMP_FILE=$(mktemp --suffix=.AppImage)
+curl -L -o "$TEMP_FILE" "$DL_URL"
+
+# --- 2. Integrate ---
+echo "   Integrating into Gearlever..."
+if ! flatpak list | grep -q "it.mijorus.gearlever"; then
+    flatpak install -y flathub it.mijorus.gearlever
+fi
+
+flatpak run it.mijorus.gearlever --integrate "$TEMP_FILE" -y
+rm -f "$TEMP_FILE"
+
+# --- 3. Configure Updates ---
+echo "   Configuring Update Metadata..."
+
+# Fix: Use awk to get the clean file path
+INSTALLED_PATH=$(flatpak run it.mijorus.gearlever --list-installed | grep -Fi "$APP_NAME" | head -n 1 | awk '{print $NF}')
+
+if [ -z "$INSTALLED_PATH" ]; then
+    echo "Error: Integration finished, but file not found in Gearlever list."
+    exit 1
+fi
+
+flatpak run it.mijorus.gearlever --set-update-source "$INSTALLED_PATH" \
+    --manager "$MANAGER" \
+    repo_url="$REPO_URL" \
+    repo_filename="$FILE_PATTERN" \
+    allow_prereleases="$PRERELEASE"
+
+echo "=== $APP_NAME Setup Complete ==="

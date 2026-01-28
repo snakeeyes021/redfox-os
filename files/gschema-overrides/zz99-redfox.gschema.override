@@ -1,0 +1,44 @@
+[org.gnome.desktop.interface]
+gtk-theme='adw-gtk3'
+color-scheme='default'
+accent-color='blue'
+
+[org.gnome.desktop.wm.preferences]
+button-layout='close:'
+
+[org.gnome.settings-daemon.plugins.color]
+night-light-enabled=true
+night-light-schedule-automatic=true
+
+[org.gnome.desktop.background]
+picture-uri='file:///usr/share/backgrounds/redfox/background-l.jpg'
+picture-uri-dark='file:///usr/share/backgrounds/redfox/background-d.jpg'
+picture-options='zoom'
+
+[org.gnome.shell]
+enabled-extensions=['user-theme@gnome-shell-extensions.gcampax.github.com', 'gsconnect@andyholmes.github.io', 'caffeine@patapon.info', 'add-to-steam@pupper.space', 'appindicatorsupport@rgcjonas.gmail.com', 'restartto@tiagoporsch.github.io', 'blur-my-shell@aunetx', 'tilingshell@ferrarodomenico.com']
+
+[org.gnome.mutter]
+edge-tiling=false
+
+[org.gnome.desktop.wm.keybindings]
+close=['<Super>q']
+switch-to-workspace-left=['<Super><Control>Left']
+switch-to-workspace-right=['<Super><Control>Right']
+switch-to-workspace-up=['<Super><Control>Up']
+switch-to-workspace-down=['<Super><Control>Down']
+move-to-workspace-left=['<Super><Shift><Control>Left']
+move-to-workspace-right=['<Super><Shift><Control>Right']
+move-to-workspace-up=['<Super><Shift><Control>Up']
+move-to-workspace-down=['<Super><Shift><Control>Down']
+move-to-monitor-left=['<Super><Control><Alt>Left']
+move-to-monitor-right=['<Super><Control><Alt>Right']
+move-to-monitor-up=['<Super><Control><Alt>Up']
+move-to-monitor-down=['<Super><Control><Alt>Down']
+
+[org.gnome.shell.keybindings]
+shift-overview-up=@as []
+shift-overview-down=@as []
+
+[org.gnome.desktop.input-sources]
+xkb-options=['compose:ralt']

@@ -13,9 +13,9 @@ elif ! grep -q "^user-db:user" "$PROFILE_FILE"; then
     sed -i '1i user-db:user' "$PROFILE_FILE"
 fi
 
-# Inject samsonite if not present
-if ! grep -q "^system-db:samsonite" "$PROFILE_FILE"; then
-    sed -i '/^user-db:user/a system-db:samsonite' "$PROFILE_FILE"
+# Inject redfox if not present
+if ! grep -q "^system-db:redfox" "$PROFILE_FILE"; then
+    sed -i '/^user-db:user/a system-db:redfox' "$PROFILE_FILE"
 fi
 
 # Compile the dconf databases

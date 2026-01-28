@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=https://schema.blue-build.org/recipe-v1.json
 
-name: samsonite-os-nvidia-legacy
-description: Samsonite OS - Legacy Nvidia Drivers
+name: redfox-os-nvidia-legacy
+description: RedFoxOS - Legacy Nvidia Drivers
 base-image: ghcr.io/ublue-os/bazzite-gnome-nvidia
 image-version: latest # This will be overruled by the branch name during the build
 

@@ -2,9 +2,9 @@
 <!DOCTYPE wallpapers SYSTEM "gnome-wp-list.dtd">
 <wallpapers>
   <wallpaper deleted="false">
-    <name>Samsonite Default</name>
-    <filename>/usr/share/backgrounds/samsonite/background-l.jpg</filename>
-    <filename-dark>/usr/share/backgrounds/samsonite/background-d.jpg</filename-dark>
+    <name>RedFoxOS Default</name>
+    <filename>/usr/share/backgrounds/redfox/background-l.jpg</filename>
+    <filename-dark>/usr/share/backgrounds/redfox/background-d.jpg</filename-dark>
     <options>zoom</options>
     <shade_type>solid</shade_type>
     <pcolor>#000000</pcolor>

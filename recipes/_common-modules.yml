@@ -7,43 +7,40 @@ modules:
 
   - type: gschema-overrides
     include:
-      - zz99-samsonite.gschema.override
-
-  - type: containerfile
-    containerfiles:
-      - ../containerfiles/dnf-overrides
-
-  - type: rpm-ostree
-    install:
-      - incus
-      - incus-agent
-      - lxc
-      - podman-compose
-      - podman-tui
-      - docker-ce
-      - docker-ce-cli
-      - containerd.io
-      - docker-buildx-plugin
-      - docker-compose-plugin
-      - code
-      - android-tools
-      - iotop
-      - sysprof
-      - trace-cmd
-      - bpftop
-      - cockpit-bridge
-      - cockpit-machines
-      - cockpit-podman
-      - ccache
-      - restic
-      - rclone
-      - zsh
-      - python3-ramalama
+      - zz99-redfox.gschema.override
 
   - type: dnf
     install:
       packages:
         - cursor
+        - incus
+        - incus-agent
+        - lxc
+        - podman-compose
+        - podman-tui
+        - docker-ce
+        - docker-ce-cli
+        - containerd.io
+        - docker-buildx-plugin
+        - docker-compose-plugin
+        - code
+        - android-tools
+        - iotop
+        - sysprof
+        - trace-cmd
+        - bpftop
+        - bpftrace
+        - cockpit-bridge
+        - cockpit-machines
+        - cockpit-podman
+        - ccache
+        - restic
+        - rclone
+        - zsh
+        - python3-ramalama
+        - gnome-boxes
+        - virt-manager
+        - freerdp
 
   - type: systemd
     system:
@@ -62,26 +59,37 @@ modules:
   - type: default-flatpaks
     configurations:
       - scope: system
-        notify: true
+        notify: false
         repo:
           url: https://dl.flathub.org/repo/flathub.flatpakrepo
           name: flathub
           title: Flathub
         install:
-          - io.podman_desktop.PodmanDesktop
-          - org.gnome.dspy
-          - app.drey.Warp
+          - org.gnome.Decibels
+          - org.gnome.Calculator
+          - org.gnome.Characters
+          - org.gnome.Connections
+          - org.gnome.baobab
+          - com.ranfdev.DistroShelf
+          - org.gnome.Papers
+          - com.mattjakeman.ExtensionManager
+          - org.mozilla.firefox
+          - org.gnome.Firmware
+          - org.gnome.FileRoller
+          - com.github.tchx84.Flatseal
+          - org.gnome.font-viewer
+          - io.github.flattool.Ignition
+          - org.gnome.Loupe
+          - io.gitlab.adhami3310.Impression
+          - org.gnome.Logs
+          - io.missioncenter.MissionCenter
+          - org.gnome.TextEditor
+          - org.gnome.Showtime
           - io.github.flattool.Warehouse
-          - org.blender.Blender
-          - org.gimp.GIMP
-          - org.kde.kdenlive
-          - com.obsproject.Studio
-          - org.gtk.Gtk3theme.adw-gtk3
-          - org.gtk.Gtk3theme.adw-gtk3-dark
 
   - type: signing
 
   - type: script
     scripts:
-      - setup-permissions.sh
       - build-dconf.sh
+      - inject-gearlever.sh

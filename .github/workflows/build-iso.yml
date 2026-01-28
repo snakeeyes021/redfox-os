@@ -27,9 +27,9 @@ jobs:
       fail-fast: false
       matrix:
         image:
-          - samsonite-os
-          - samsonite-os-nvidia
-          - samsonite-os-nvidia-legacy
+          - redfox-os
+          - redfox-os-nvidia
+          - redfox-os-nvidia-legacy
     steps:
       # 1. CRITICAL: Free up ~20GB of space by removing Android SDKs, DotNet, etc.
       - name: Free Disk Space (Ubuntu)
