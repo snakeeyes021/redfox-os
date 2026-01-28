@@ -50,7 +50,7 @@ rm -f "$TEMP_FILE"
 echo "   Configuring Update Metadata..."
 
 # Fix: Use awk to get the clean file path
-INSTALLED_PATH=$(flatpak run it.mijorus.gearlever --list-installed | grep -i "$APP_NAME" | head -n 1 | awk '{print $NF}')
+INSTALLED_PATH=$(flatpak run it.mijorus.gearlever --list-installed | grep -Fi "$APP_NAME" | head -n 1 | awk '{print $NF}')
 
 if [ -z "$INSTALLED_PATH" ]; then
     echo "Error: Integration finished, but file not found in Gearlever list."
