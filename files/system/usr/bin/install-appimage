@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
 # Usage: install-appimage <NAME> <MANAGER> <REPO_URL> <FILE_PATTERN> [PRERELEASE]
 APP_NAME="$1"
