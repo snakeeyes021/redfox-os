@@ -121,3 +121,4 @@
 - [x] Change names for everything (Completed: Renamed to RedFoxOS)
 - [ ] Add sound theme change
 - [ ] Dock defaults
+- [ ] Set default hostname, etc
