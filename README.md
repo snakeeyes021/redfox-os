@@ -60,7 +60,13 @@ To switch to RedFoxOS from an existing GNOME-based Universal Blue installation, 
     ```
 
 > [!NOTE]
-> **Fedora Silverblue Users:** While it is certainly possible to rebase from Fedora Silverblue, we do not recommend it for casual users. Silverblue's default policy does not support our signed images out of the box, meaning the commands above will fail without additional system configuration that is outside the scope of this guide.
+> **Fedora Silverblue Users:** Direct rebasing from Fedora Silverblue is not officially supported. Silverblue's default configuration will reject the signed commands above. While we recommend switching from a fresh Bluefin or Bazzite (GNOME) install first, advanced users can perform a direct migration by using a "two-step" method:
+
+1. Rebase to unverified: Modify the appropriate command above to use ```ostree-unverified-registry``` (instead of ```ostree-image-signed```). This installs the OS but temporarily bypasses the initial verification check.
+
+2. Reboot: Restart your system to boot into RedFoxOS.
+
+3. Rebase to signed: Once rebooted, run the original signed command listed above. This ensures your system is properly verified for all future updates.
 
 ### Verification
 
