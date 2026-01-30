@@ -244,7 +244,7 @@ install-dewy:
     flatpak install -y flathub \
         org.videolan.VLC \
         org.cvfosammmm.Setzer \
-        net.pixieditor.PixiEditor
+        net.pixieditor.PixiEditor \
         com.spotify.Client
 
 # Install Normie Bundle
