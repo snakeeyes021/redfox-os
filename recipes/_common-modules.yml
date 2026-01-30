@@ -92,4 +92,4 @@ modules:
   - type: script
     scripts:
       - build-dconf.sh
-      - inject-gearlever.sh
+      - inject-custom-updates.sh
