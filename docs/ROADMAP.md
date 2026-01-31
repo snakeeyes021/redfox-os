@@ -43,8 +43,8 @@
     - [ ] **Task:** Compile final list of extensions.
     - [ ] **Task:** Implement `jq` script to inject settings (Theme, Fonts, etc.).
 - [ ] `setup-cursor`: Mirror `setup-vscode` logic.
-- [ ] `install-zed`: Script to install Zed via `curl | sh` to `~/.local`.
-- [ ] `install-gemini-cli`: `brew install gemini-cli`.
+- [x] `install-zed`: Script to install Zed via `curl | sh` to `~/.local`.
+- [x] `install-gemini-cli`: `brew install gemini-cli`.
 - [ ] `configure-heroic`:
 - [ ] **UI/UX Atoms:**
     - [x] `fix-flatpak-theming`:
@@ -75,7 +75,7 @@
 ### Level 2: Molecules (Logical Groups)
 - [ ] **Software Bundles:**
     - [x] `install-matt`: Combines `install-dev`, `install-music`, `install-creative`, `install-productivity`, and `install-daily` if it is created.
-    - [ ] `install-dewy`: Combines `install-dev`, `install-music`, (?) 
+    - [x] `install-dewy`
     - [x] `install-normie`: Combines `install-productivity`, `install-creative`, and `install-daily` if it is created.
 
 - [ ] **Theme Molecules:**
