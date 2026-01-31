@@ -15,7 +15,7 @@ configure-cursor:
 # Install Zed
 install-zed:
     echo "Installing Zed..."
-    curl -f https://zed.dev/install.sh | sh
+    bash -c "set -euo pipefail; curl -f https://zed.dev/install.sh | sh"
     echo "Zed installed!"
 
 # Uninstall Zed
@@ -27,6 +27,11 @@ uninstall-zed:
         "$HOME/.local/bin/zed" --uninstall; \
     else \
         echo "Zed executable not found."; \
+    fi
+    if ! command -v zed &> /dev/null && [ ! -x "$HOME/.local/bin/zed" ]; then \
+        echo "Zed uninstalled successfully!"; \
+    else \
+        echo "Zed was not removed (possibly cancelled or error)."; \
     fi
 
 # Install Gemini CLI
