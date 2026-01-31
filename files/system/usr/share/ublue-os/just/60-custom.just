@@ -77,6 +77,10 @@ install-winboat:
       "https://github.com/TibixDev/winboat" \
       "winboat-*-x86_64.AppImage"
 
+# Uninstall Winboat
+uninstall-winboat:
+    /usr/bin/uninstall-appimage "WinBoat"
+
 # UI/UX Atoms
 fix-flatpak-theming:
     sudo flatpak override --filesystem=xdg-data/themes
