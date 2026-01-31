@@ -38,6 +38,10 @@ configure-heroic:
 install-soundthread:
     /usr/bin/update-soundthread
 
+# Uninstall SoundThread
+uninstall-soundthread:
+    /usr/bin/uninstall-soundthread
+
 # Update all AppImages managed by Gearlever
 update-appimages:
     /usr/bin/update-appimages
