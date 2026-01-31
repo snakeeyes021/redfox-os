@@ -18,17 +18,40 @@ install-zed:
     curl -f https://zed.dev/install.sh | sh
     echo "Zed installed!"
 
+# Uninstall Zed
+uninstall-zed:
+    echo "Uninstalling Zed..."
+    if command -v zed &> /dev/null; then \
+        zed --uninstall; \
+    elif [ -x "$HOME/.local/bin/zed" ]; then \
+        "$HOME/.local/bin/zed" --uninstall; \
+    else \
+        echo "Zed executable not found."; \
+    fi
+
 # Install Gemini CLI
 install-gemini-cli:
     echo "Installing Gemini CLI..."
     brew install gemini-cli
     echo "Gemini CLI installed!"
 
+# Uninstall Gemini CLI
+uninstall-gemini-cli:
+    echo "Uninstalling Gemini CLI..."
+    brew uninstall gemini-cli
+    echo "Gemini CLI uninstalled!"
+
 # Install Dropbox
 install-dropbox:
     echo "Installing Maestral (Dropbox Client)..."
     pip install --upgrade 'maestral[gui]'
     echo "Maestral installed!"
+
+# Uninstall Dropbox
+uninstall-dropbox:
+    echo "Uninstalling Maestral (Dropbox Client)..."
+    pip uninstall -y maestral
+    echo "Maestral uninstalled!"
 
 # Configure Heroic
 configure-heroic:
