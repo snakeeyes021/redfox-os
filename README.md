@@ -9,19 +9,17 @@ Its primary raison d'être is to provide driver support for Pascal-series Nvidia
 
 ### Core Developer Experience
 - [x] **Containerization:** Docker (Engine & CLI), Podman (with Compose & TUI), Incus, LXC
-- [x] **Virtualization:** Libvirt/QEMU, Cockpit (Machines, Podman, Bridge)
+- [x] **Virtualization:** Libvirt/QEMU, Cockpit (Machines, Podman, Bridge), System-level GNOME Boxes + Virt-Manager
 - [x] **Development:** VS Code (System install), Android Tools, BPF Tools (bpftop, bpftrace), Sysprof
 - [x] **CLI Utilities:** zsh, restic, rclone, ccache, ramalama (Local AI)
 - [x] **Editor:** Zed (ujust recipe installer)
 - [x] **Additional AI Utilities:** Cursor (system), Gemini CLI (ujust)
-- [x] **Unified Virtualization:** System-level GNOME Boxes + Virt-Manager integration
 
 ### Desktop & Media
 - [x] **NVIDIA Pascal Support:** Built on `bazzite-gnome-nvidia` for legacy driver support
 - [x] **Curated App Packs:** Creative, Productivity, Dev, and several other curated app bundle installers, all installable via simple ujust recipes
-- [ ] **Shell Customization:** Starship prompt integration
 - [ ] **GNOME config:** Several preset desktop environment configs, including a mostly "vanilla" GNOME config, all available via simple ujust recipes
-- [ ] **More:** Wallpaper, keyboard shortcuts, etc.
+- [ ] **More:** Wallpaper, keyboard shortcuts, shell prompt, etc.
 
 ## Installation
 
