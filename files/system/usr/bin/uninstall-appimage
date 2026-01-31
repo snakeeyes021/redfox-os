@@ -12,9 +12,11 @@ fi
 
 echo "Searching for AppImage: $APP_NAME..."
 
-# Gearlever list format is typically: "AppName /path/to/file.AppImage" or similar.
-# We grep for the name and extract the last field (the path).
-INSTALLED_PATH=$(flatpak run it.mijorus.gearlever --list-installed | grep -Fi "$APP_NAME" | head -n 1 | awk '{print $NF}')
+# Gearlever list format is typically: "AppName (ID) [Version] [Status] /path/to/file.AppImage"
+# 1. Use grep -iw to match the whole word (avoids "Boat" matching "WinBoat").
+# 2. Use grep -o "/.*" to extract the absolute path (handles spaces in path).
+# 3. Use sed to strip trailing whitespace.
+INSTALLED_PATH=$(flatpak run it.mijorus.gearlever --list-installed | grep -iw "$APP_NAME" | head -n 1 | grep -o "/.*" | sed 's/[[:space:]]*$//')
 
 if [ -z "$INSTALLED_PATH" ]; then
     echo "Error: AppImage for '$APP_NAME' not found in Gearlever database."

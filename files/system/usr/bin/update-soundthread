@@ -22,9 +22,9 @@ echo "$ACTION_MSG $APP_NAME..."
 
 # Get the latest release data from GitHub API
 LATEST_RELEASE=$(curl -s "https://api.github.com/repos/$REPO/releases/latest")
-TAG_NAME=$(echo "$LATEST_RELEASE" | grep -oP '"tag_name": "\K(.*)(?=")')
+TAG_NAME=$(echo "$LATEST_RELEASE" | jq -r '.tag_name')
 
-if [ -z "$TAG_NAME" ]; then
+if [ -z "$TAG_NAME" ] || [ "$TAG_NAME" == "null" ]; then
     echo "Error: Could not fetch latest release version."
     exit 1
 fi
@@ -36,9 +36,9 @@ echo "Latest version: $TAG_NAME"
 # We need to construct the filename dynamically or parse the assets.
 # Parsing assets is safer.
 
-DOWNLOAD_URL=$(echo "$LATEST_RELEASE" | grep -oP '"browser_download_url": "\K(.*linux_x86_64.tar.gz)(?=")')
+DOWNLOAD_URL=$(echo "$LATEST_RELEASE" | jq -r '.assets[] | select(.name | endswith("linux_x86_64.tar.gz")) | .browser_download_url')
 
-if [ -z "$DOWNLOAD_URL" ]; then
+if [ -z "$DOWNLOAD_URL" ] || [ "$DOWNLOAD_URL" == "null" ]; then
     echo "Error: Could not find a compatible linux_x86_64 download asset."
     exit 1
 fi
@@ -80,7 +80,7 @@ else
     # We use a temporary file to safely update the location
     if grep -q "\[cdpprogs\]" "$CONFIG_FILE"; then
         # Section exists, update location
-        sed -i "s|location=\".*\"|location=\"$CDP_PATH\"|" "$CONFIG_FILE"
+        sed -i "s#location=\".*\"#location=\"$CDP_PATH\"#" "$CONFIG_FILE"
     else
         # Section missing, append it
         cat >> "$CONFIG_FILE" <<EOF
