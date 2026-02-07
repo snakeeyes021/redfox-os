@@ -98,11 +98,14 @@ theme-sound-fedora:
 theme-sound-bazzite:
     gsettings set org.gnome.desktop.sound theme-name 'steam'
 
-set-window-controls-right:
-    echo "TODO: Implement set-window-controls-right"
+set-window-controls-right-full:
+    gsettings set org.gnome.desktop.wm.preferences button-layout ':minimize,maximize,close'
+
+set-window-controls-right-gnome:
+    gsettings set org.gnome.desktop.wm.preferences button-layout ':close'
 
 set-window-controls-left-gnome:
-    echo "TODO: Implement set-window-controls-left-gnome"
+    gsettings reset org.gnome.desktop.wm.preferences button-layout
 
 sort-app-grid:
     echo "TODO: Implement sort-app-grid"
@@ -331,7 +334,7 @@ theme-matt:
 # Theme Dewy
 theme-dewy:
     sort-app-grid
-    set-window-controls-right
+    set-window-controls-right-full
     preset-dock-ubuntu
 
 # Theme Fedora

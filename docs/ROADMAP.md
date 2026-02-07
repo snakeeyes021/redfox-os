@@ -74,8 +74,9 @@
         - [ ] Dark Mode, Line Numbers, Overview Map, Highlight Current Line.
     - [ ] `configure-text-editor-reset` (Reset): Revert indentation and visuals to system defaults.
     - [ ] figure out terminal recipes (starship/no starship, light theme/system theme, etc)
-    - [ ] `set-window-controls-right` (Deviation): Sets `:minimize,maximize,close`.
-    - [ ] `set-window-controls-left-gnome` (Reset): Sets `close:` (reverts to system default).
+    - [x] `set-window-controls-right-full` (Deviation): Sets `:minimize,maximize,close`.
+    - [x] `set-window-controls-right-gnome` (Deviation): Sets `:close`.
+    - [x] `set-window-controls-left-gnome` (Reset): Sets `close:` (reverts to system default).
     - [ ] `sort-app-grid` (Deviation): Removes folders and sorts alphabetically.
     - [ ] `default-app-grid` (Reset): Restores folders and sorts with default sorting.
     - [ ] `preset-dock-ubuntu` (Reset): Configure Dash to Dock (Left side). Turn on Dash to Dock.
