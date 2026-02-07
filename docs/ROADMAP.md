@@ -153,5 +153,5 @@
     - [x] Set system default override to 'freedesktop' (Fedora default).
     - [x] Create ujust recipes: `theme-sound-fedora` (reset) and `theme-sound-bazzite` (set to 'bazzite').
 - [ ] Dock defaults
-- [ ] Set default hostname, etc
+- [x] Set default hostname, etc (Implemented via static file `files/system/etc/hostname`)
 - [ ] Determine 
