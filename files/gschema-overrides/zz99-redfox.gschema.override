@@ -39,6 +39,11 @@ move-to-monitor-down=['<Super><Control><Alt>Down']
 [org.gnome.shell.keybindings]
 shift-overview-up=@as []
 shift-overview-down=@as []
+show-screenshot-ui=['<Super><Shift>s']
+screenshot=['Print']
+
+[org.gnome.desktop.sound]
+theme-name='freedesktop'
 
 [org.gnome.desktop.input-sources]
 xkb-options=['compose:ralt']

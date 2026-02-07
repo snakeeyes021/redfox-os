@@ -36,7 +36,8 @@
 
 ## 📦 Default Software
 - [x] **Winboat:** Determine installation (DNF/Flatpak) and add to system defaults.
-- [ ] **Dropbox:** Install official Dropbox client (System/DNF/RPM).
+- [ ] **Dropbox:** Install official Dropbox client (System/DNF/RPM)
+    - [ ] Remove maestral after dropbox is tested and experience is satisfactory (if maestral is not removed, improve maestral uninstall script to remove leftovers)
 - [x] **Implement** System-level GNOME Boxes + Virt-Manager
 - [ ] **Implement** Starship terminal prompt by default with light-theme terminal (steal from Bluefin)
     - [ ] **Implement** ujust "configure" recipes for starship bluefin (system default, "reset"), starship bazzite (deviation), starship off (deviation)
@@ -134,13 +135,15 @@
     - [ ] Create/Add assets: Neofetch/Fastfetch Logo, Splash Screen, System Info Logo.
 
 ## Fixups/New (Items that arrive after a fix is already implemented)
-- [ ] Screenshot (add Windows super + shift + s shortcut for selection screenshot; move fullscreen screenshot to printscreen)
+- [x] Screenshot (add Windows super + shift + s shortcut for selection screenshot; move fullscreen screenshot to printscreen)
 - [x] Check that Boxes is installing as system package and is cross-compatible with VMM
 - [x] Confirm that Winboat is best as app-image (RPM is published on github releases page, so we could be doing this as a system package; the issue is that the appimage setup is not frictionless).
     - [x] Test appimage to confirm is working. If not, try RPM. Proceed based on findings
     - [x] Winboat requires FreeRDP
 - [x] Change names for everything (Completed: Renamed to RedFoxOS)
-- [ ] Add sound theme change -- ujust (set default sound theme to normal fedora default, "reset". set sound to bazzite, "deviation")
+- [x] Add sound theme change -- ujust (set default sound theme to normal fedora default, "reset". set sound to bazzite, "deviation")
+    - [x] Set system default override to 'freedesktop' (Fedora default).
+    - [x] Create ujust recipes: `theme-sound-fedora` (reset) and `theme-sound-bazzite` (set to 'bazzite').
 - [ ] Dock defaults
 - [ ] Set default hostname, etc
 - [ ] Determine 

@@ -92,6 +92,12 @@ fix-flatpak-theming:
     sudo flatpak mask org.gtk.Gtk3theme.adw-gtk3
     sudo flatpak mask org.gtk.Gtk3theme.adw-gtk3-dark
 
+theme-sound-fedora:
+    gsettings reset org.gnome.desktop.sound theme-name
+
+theme-sound-bazzite:
+    gsettings set org.gnome.desktop.sound theme-name 'steam'
+
 set-window-controls-right:
     echo "TODO: Implement set-window-controls-right"
 
