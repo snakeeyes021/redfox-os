@@ -201,7 +201,8 @@ install-video:
         org.bunkus.mkvtoolnix-gui \
         org.gnome.gitlab.YaLTeR.VideoTrimmer \
         com.github.unrud.VideoDownloader \
-        com.obsproject.Studio
+        com.obsproject.Studio \
+        io.github.wartybix.Constrict
 
 # Install Compatibility Tools
 install-compatibility:
