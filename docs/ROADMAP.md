@@ -96,21 +96,12 @@
 - [x] `install-dev`: Combines `install-zed`, `setup-vscode`, `setup-cursor`, `install-gemini-cli`.
 
 ### Level 2: Molecules (Logical Groups)
-- [ ] **Software Bundles:**
+- [ ] **Software Bundles (Install Molecules):**
     - [x] `install-matt`: Combines `install-dev`, `install-music`, `install-creative`, `install-productivity`, and `install-daily` if it is created.
     - [x] `install-dewy`
     - [x] `install-normie`: Combines `install-productivity`, `install-creative`, and `install-daily` if it is created.
 
-- [ ] **Theme Molecules:**
-    - [ ] `theme-matt`
-        - [ ] runs `sort-app-grid`.
-        - [ ] runs `set-window-controls-left-gnome`.
-    - [ ] `theme-dewy`:
-        - [ ] Runs `sort-app-grid`.
-        - [ ] Runs `set-window-controls-right`.
-        - [ ] Runs `preset-dock-ubuntu` (or custom Dewy dock settings).
-    - [ ] `theme-fedora`: "Reset" recipe to restore Vanilla Fedora look.
-- [ ] **Config Molecules:**
+- [ ] **Config Molecules (User/Tool Setup):**
     - [ ] `configure-matt`:
         - [ ] Runs Hardware Atoms (Logic checks happen inside atoms or here).
         - [ ] Runs `configure-git`.
@@ -122,11 +113,27 @@
     - [ ] `configure-normie`:
         - [ ] **Task:** Determine configs and sub-recipes.
 
+- [ ] **Layout Molecules (UX/Behavior/Positioning):**
+    - [ ] `layout-matt` (Renamed from theme-matt):
+        - [ ] runs `sort-app-grid`.
+        - [ ] runs `set-window-controls-left-gnome`.
+    - [ ] `layout-dewy` (Renamed from theme-dewy):
+        - [ ] Runs `sort-app-grid`.
+        - [ ] Runs `set-window-controls-right`.
+        - [ ] Runs `preset-dock-ubuntu` (or custom Dewy dock settings).
+    - [ ] `layout-fedora`: "Reset" recipe to restore Vanilla Fedora layout.
+    - [ ] `layout-normie`: Flexible layout switcher?
+
+- [ ] **Theme Molecules (Visuals/Assets):**
+    - [ ] `theme-matt`: Sets wallpapers, GTK theme (Adwaita Dark), Icons.
+    - [ ] `theme-dewy`: Sets wallpapers, GTK theme (Adwaita Light), Icons.
+    - [ ] `theme-fedora`: Reset visuals to default.
+
 ### Level 3: Organisms (User Bootstraps)
-- [ ] `bootstrap-matt`: Runs `install-matt`, `theme-matt`, `configure-matt`.
-- [ ] `bootstrap-dewy`: Runs `install-dewy`, `theme-dewy`, `configure-dewy`.
-- [ ] `bootstrap-fedora`: Runs `theme-fedora`, `configure-fedora` (no install-fedora; all main default fedora apps should already be installed)
-- [ ] `bootstrap-normie`: Runs `install-normie`, `theme-normie`, `configure-normie`.
+- [ ] `bootstrap-matt`: Runs `install-matt`, `theme-matt`, `layout-matt`, `configure-matt`.
+- [ ] `bootstrap-dewy`: Runs `install-dewy`, `theme-dewy`, `layout-dewy`, `configure-dewy`.
+- [ ] `bootstrap-fedora`: Runs `theme-fedora`, `layout-fedora`, `configure-fedora` (no install-fedora).
+- [ ] `bootstrap-normie`: Runs `install-normie`, `theme-normie`, `layout-normie`, `configure-normie`.
 
 ## 🎨 Branding & Aesthetics
 - [ ] **Wallpapers**

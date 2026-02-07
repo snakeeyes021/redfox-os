@@ -303,6 +303,8 @@ install-normie:
 
 # Level 3: Organisms (User Bootstraps & Configs)
 
+# --- CONFIG MOLECULES (User/Tool Setup) ---
+
 # Configure Dev Environment
 configure-dev:
     configure-vscode
@@ -313,6 +315,7 @@ configure-matt:
     mkdir -p ~/dev
     configure-dev
     # just runs hardware atoms here eventually
+    # e.g., fix-oryp9-mouse
 
 # Configure Dewy's Environment
 configure-dewy:
@@ -326,16 +329,46 @@ configure-fedora:
 configure-normie:
     echo "TODO: Implement configure-normie"
 
-# Theme Matt
-theme-matt:
+
+# --- LAYOUT MOLECULES (UX/Behavior/Positioning) ---
+
+# Layout Matt (Mac-like)
+layout-matt:
     sort-app-grid
     set-window-controls-left-gnome
+    # preset-dock-macos
 
-# Theme Dewy
-theme-dewy:
+# Layout Dewy (Windows/Ubuntu-like)
+layout-dewy:
     sort-app-grid
     set-window-controls-right-full
     preset-dock-ubuntu
+
+# Layout Fedora (Vanilla)
+layout-fedora:
+    echo "TODO: Implement layout-fedora (reset)"
+    # default-app-grid
+    # set-window-controls-right-gnome (or whatever default is)
+
+# Layout Normie (Flexible)
+layout-normie:
+    echo "TODO: Implement layout-normie"
+
+
+# --- THEME MOLECULES (Visuals/Assets) ---
+
+# Theme Matt
+theme-matt:
+    echo "Applying Matt's Visual Theme..."
+    # gsettings set org.gnome.desktop.interface gtk-theme 'Adwaita-dark'
+    # gsettings set org.gnome.desktop.background picture-uri 'file:///...'
+    # theme-sound-fedora
+
+# Theme Dewy
+theme-dewy:
+    echo "Applying Dewy's Visual Theme..."
+    # gsettings set org.gnome.desktop.interface gtk-theme 'Adwaita'
+    # theme-sound-bazzite
 
 # Theme Fedora
 theme-fedora:
@@ -345,25 +378,32 @@ theme-fedora:
 theme-normie:
     echo "TODO: Implement theme-normie"
 
+
+# --- BOOTSTRAP ORGANISMS ---
+
 # Bootstrap Matt
 bootstrap-matt:
     install-matt
     theme-matt
+    layout-matt
     configure-matt
 
 # Bootstrap Dewy
 bootstrap-dewy:
     install-dewy
     theme-dewy
+    layout-dewy
     configure-dewy
 
 # Bootstrap Fedora
 bootstrap-fedora:
     theme-fedora
+    layout-fedora
     configure-fedora
 
 # Bootstrap Normie
 bootstrap-normie:
     install-normie
     theme-normie
+    layout-normie
     configure-normie
