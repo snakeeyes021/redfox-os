@@ -120,7 +120,7 @@
         - [ ] runs `set-window-controls-left-gnome`.
     - [ ] `layout-dewy` (Renamed from theme-dewy):
         - [ ] Runs `sort-app-grid`.
-        - [ ] Runs `set-window-controls-right`.
+        - [ ] Runs `set-window-controls-right-full`.
         - [ ] Runs `preset-dock-ubuntu` (or custom Dewy dock settings).
     - [ ] `layout-fedora`: "Reset" recipe to restore Vanilla Fedora layout.
     - [ ] `layout-normie`: Flexible layout switcher?
