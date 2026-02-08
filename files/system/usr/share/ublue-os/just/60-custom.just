@@ -349,7 +349,8 @@ install-dewy:
         org.videolan.VLC \
         org.cvfosammmm.Setzer \
         net.pixieditor.PixiEditor \
-        com.spotify.Client
+        com.spotify.Client \
+        com.bambulab.BambuStudio
 
 # Install Normie Bundle
 install-normie:
