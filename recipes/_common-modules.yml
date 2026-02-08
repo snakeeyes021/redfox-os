@@ -94,3 +94,5 @@ modules:
       - build-dconf.sh
       - inject-custom-updates.sh
       - fix-cursor-icon.sh
+      - install-pixi.sh
+      - install-uv.sh
