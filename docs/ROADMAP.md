@@ -68,11 +68,11 @@
         - [x] Enable Snap Assistant = false.
         - [x] **Keybindings:** Move (Super+Arrow), Cycle (Ctrl+Right Arrow), Focus (Remove Super+Arrow).
     - [x] `configure-tiling-default` (Reset): Revert Tiling Shell extension to system defaults.
-    - [ ] `configure-text-editor-dev` (Deviation):
-        - [ ] Indentation: Spaces, 4 per tab/indent.
-    - [ ] `configure-text-editor-dewy-visuals` (Deviation):
-        - [ ] Dark Mode, Line Numbers, Overview Map, Highlight Current Line.
-    - [ ] `configure-text-editor-reset` (Reset): Revert indentation and visuals to system defaults.
+    - [x] `configure-text-editor-dev` (Deviation):
+        - [x] Indentation: Spaces, 4 per tab/indent.
+    - [x] `configure-text-editor-dewy-visuals` (Deviation):
+        - [x] Dark Mode, Line Numbers, Overview Map, Highlight Current Line.
+    - [x] `configure-text-editor-reset` (Reset): Revert indentation and visuals to system defaults.
     - [ ] figure out terminal recipes (starship/no starship, light theme/system theme, etc)
     - [x] `set-window-controls-right-full` (Deviation): Sets `:minimize,maximize,close`.
     - [x] `set-window-controls-right-gnome` (Deviation): Sets `:close`.

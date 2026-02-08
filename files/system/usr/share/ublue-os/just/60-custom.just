@@ -12,6 +12,34 @@ configure-vscode:
 configure-cursor:
     echo "TODO: Implement configure-cursor"
 
+# Configure Text Editor Dev Mode (Indentation)
+configure-text-editor-dev:
+    echo "Configuring Text Editor for Development (Spaces, 4 per tab)..."
+    flatpak run --command=gsettings org.gnome.TextEditor set org.gnome.TextEditor indent-style 'space'
+    flatpak run --command=gsettings org.gnome.TextEditor set org.gnome.TextEditor tab-width 4
+
+# Reset Text Editor Configuration (Indentation)
+configure-text-editor-reset:
+    echo "Resetting Text Editor indentation to defaults..."
+    flatpak run --command=gsettings org.gnome.TextEditor reset org.gnome.TextEditor indent-style
+    flatpak run --command=gsettings org.gnome.TextEditor reset org.gnome.TextEditor tab-width
+
+# Theme Text Editor Dewy (Visuals)
+theme-text-editor-dewy:
+    echo "Configuring Text Editor Visuals (Dark Mode, Line Numbers, Map, Highlight)..."
+    flatpak run --command=gsettings org.gnome.TextEditor set org.gnome.TextEditor style-variant 'dark'
+    flatpak run --command=gsettings org.gnome.TextEditor set org.gnome.TextEditor show-line-numbers true
+    flatpak run --command=gsettings org.gnome.TextEditor set org.gnome.TextEditor show-map true
+    flatpak run --command=gsettings org.gnome.TextEditor set org.gnome.TextEditor highlight-current-line true
+
+# Theme Text Editor Default (Visuals Reset)
+theme-text-editor-default:
+    echo "Resetting Text Editor visuals to defaults..."
+    flatpak run --command=gsettings org.gnome.TextEditor reset org.gnome.TextEditor style-variant
+    flatpak run --command=gsettings org.gnome.TextEditor reset org.gnome.TextEditor show-line-numbers
+    flatpak run --command=gsettings org.gnome.TextEditor reset org.gnome.TextEditor show-map
+    flatpak run --command=gsettings org.gnome.TextEditor reset org.gnome.TextEditor highlight-current-line
+
 # Install Zed
 install-zed:
     echo "Installing Zed..."
@@ -344,19 +372,22 @@ configure-dev:
 configure-matt:
     mkdir -p ~/dev
     configure-dev
+    configure-text-editor-dev
     # just runs hardware atoms here eventually
     # e.g., fix-oryp9-mouse
 
 # Configure Dewy's Environment
 configure-dewy:
-    echo "TODO: Implement configure-dewy"
+    configure-text-editor-dev
 
 # Configure Fedora's Environment
 configure-fedora:
+    configure-text-editor-reset
     echo "TODO: Implement configure-fedora"
 
 # Configure Normie's Environment
 configure-normie:
+    configure-text-editor-reset
     echo "TODO: Implement configure-normie"
 
 
@@ -391,6 +422,7 @@ layout-normie:
 # Theme Matt
 theme-matt:
     echo "Applying Matt's Visual Theme..."
+    theme-text-editor-default
     # gsettings set org.gnome.desktop.interface gtk-theme 'Adwaita-dark'
     # gsettings set org.gnome.desktop.background picture-uri 'file:///...'
     # theme-sound-fedora
@@ -398,16 +430,17 @@ theme-matt:
 # Theme Dewy
 theme-dewy:
     echo "Applying Dewy's Visual Theme..."
+    theme-text-editor-dewy
     # gsettings set org.gnome.desktop.interface gtk-theme 'Adwaita'
     # theme-sound-bazzite
 
 # Theme Fedora
 theme-fedora:
-    echo "TODO: Implement theme-fedora (reset)"
+    theme-text-editor-default
 
 # Theme Normie
 theme-normie:
-    echo "TODO: Implement theme-normie"
+    theme-text-editor-default
 
 
 # --- BOOTSTRAP ORGANISMS ---
