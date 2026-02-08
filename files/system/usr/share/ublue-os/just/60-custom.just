@@ -327,13 +327,20 @@ install-creative: install-audio install-graphics install-photos install-video in
 install-matt: install-dev install-bluefin-dx install-creative install-daily install-productivity install-compatibility install-basic install-comms
 
 # Install Dewy's Bundle
-install-dewy: install-zed install-dropbox install-basic install-productivity install-comms
+install-dewy: install-zed install-dropbox install-comms
     flatpak install -y flathub \
         org.videolan.VLC \
         org.cvfosammmm.Setzer \
         net.pixieditor.PixiEditor \
         com.spotify.Client \
-        com.bambulab.BambuStudio
+        com.bambulab.BambuStudio \
+        org.gnome.SimpleScan \
+        org.libreoffice.LibreOffice \
+        be.alexandervanhee.gradia \
+        net.cozic.joplin_desktop \
+        app.drey.Warp \
+        org.texstudio.TeXstudio \
+        org.freedesktop.Sdk.Extension.texlive
 
 # Install Normie Bundle
 install-normie: install-basic install-daily install-productivity install-comms
