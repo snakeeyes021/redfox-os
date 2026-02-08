@@ -1,7 +1,7 @@
 # Level 1: Atoms (Single-Purpose Scripts)
 
 # Reset hostname to "redfox" (from whatever was inherited from upstream, likely "bazzite")
-fix-hostname:
+reset-hostname:
     @echo "Setting hostname to redfox..."
     hostnamectl set-hostname redfox
     hostnamectl set-hostname --pretty "RedFoxOS"
@@ -347,20 +347,20 @@ install-normie: install-basic install-daily install-productivity install-comms
 configure-dev: configure-vscode configure-cursor
 
 # Configure Matt's Environment
-configure-matt: configure-dev configure-text-editor-dev
+configure-matt: configure-dev configure-text-editor-dev reset-hostname
     mkdir -p ~/dev
     # just runs hardware atoms here eventually
     # e.g., fix-oryp9-mouse
 
 # Configure Dewy's Environment
-configure-dewy: configure-text-editor-dev
+configure-dewy: configure-text-editor-dev reset-hostname
 
 # Configure Fedora's Environment
-configure-fedora: configure-text-editor-reset
+configure-fedora: configure-text-editor-reset reset-hostname
     echo "TODO: Implement configure-fedora"
 
 # Configure Normie's Environment
-configure-normie: configure-text-editor-reset
+configure-normie: configure-text-editor-reset reset-hostname
     echo "TODO: Implement configure-normie"
 
 
