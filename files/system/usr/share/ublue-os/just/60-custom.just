@@ -107,6 +107,36 @@ set-window-controls-right-gnome:
 set-window-controls-left-gnome:
     gsettings reset org.gnome.desktop.wm.preferences button-layout
 
+layout-tiling-dewy:
+    gsettings set org.gnome.shell.extensions.tilingshell show-indicator true
+    gsettings set org.gnome.shell.extensions.tilingshell inner-gaps 0
+    gsettings set org.gnome.shell.extensions.tilingshell outer-gaps 0
+    gsettings set org.gnome.shell.extensions.tilingshell enable-snap-assist false
+    gsettings set org.gnome.shell.extensions.tilingshell focus-window-up "['']"
+    gsettings set org.gnome.shell.extensions.tilingshell focus-window-down "['']"
+    gsettings set org.gnome.shell.extensions.tilingshell focus-window-left "['']"
+    gsettings set org.gnome.shell.extensions.tilingshell focus-window-right "['']"
+    gsettings set org.gnome.shell.extensions.tilingshell move-window-up "['<Super>Up']"
+    gsettings set org.gnome.shell.extensions.tilingshell move-window-down "['<Super>Down']"
+    gsettings set org.gnome.shell.extensions.tilingshell move-window-left "['<Super>Left']"
+    gsettings set org.gnome.shell.extensions.tilingshell move-window-right "['<Super>Right']"
+    gsettings set org.gnome.shell.extensions.tilingshell cycle-layouts "['<Control>Right']"
+
+layout-tiling-default:
+    gsettings reset org.gnome.shell.extensions.tilingshell show-indicator
+    gsettings reset org.gnome.shell.extensions.tilingshell inner-gaps
+    gsettings reset org.gnome.shell.extensions.tilingshell outer-gaps
+    gsettings reset org.gnome.shell.extensions.tilingshell enable-snap-assist
+    gsettings reset org.gnome.shell.extensions.tilingshell focus-window-up
+    gsettings reset org.gnome.shell.extensions.tilingshell focus-window-down
+    gsettings reset org.gnome.shell.extensions.tilingshell focus-window-left
+    gsettings reset org.gnome.shell.extensions.tilingshell focus-window-right
+    gsettings reset org.gnome.shell.extensions.tilingshell move-window-up
+    gsettings reset org.gnome.shell.extensions.tilingshell move-window-down
+    gsettings reset org.gnome.shell.extensions.tilingshell move-window-left
+    gsettings reset org.gnome.shell.extensions.tilingshell move-window-right
+    gsettings reset org.gnome.shell.extensions.tilingshell cycle-layouts
+
 sort-app-grid:
     echo "TODO: Implement sort-app-grid"
 
@@ -342,6 +372,7 @@ layout-matt:
 layout-dewy:
     sort-app-grid
     set-window-controls-right-full
+    layout-tiling-dewy
     preset-dock-ubuntu
 
 # Layout Fedora (Vanilla)

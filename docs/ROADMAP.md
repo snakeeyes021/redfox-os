@@ -63,11 +63,11 @@
         - `sudo flatpak override --filesystem=xdg-data/themes`
         - `sudo flatpak mask org.gtk.Gtk3theme.adw-gtk3`
         - `sudo flatpak mask org.gtk.Gtk3theme.adw-gtk3-dark`
-    - [ ] `configure-tiling-dewy` (Deviation):
-        - [ ] Show Indicator = true, Gaps (Inner/Outer) = 0.
-        - [ ] Enable Snap Assistant = false.
-        - [ ] **Keybindings:** Move (Super+Arrow), Cycle (Ctrl+Right Arrow), Focus (Remove Super+Arrow).
-    - [ ] `configure-tiling-default` (Reset): Revert Tiling Shell extension to system defaults.
+    - [x] `configure-tiling-dewy` (Deviation):
+        - [x] Show Indicator = true, Gaps (Inner/Outer) = 0.
+        - [x] Enable Snap Assistant = false.
+        - [x] **Keybindings:** Move (Super+Arrow), Cycle (Ctrl+Right Arrow), Focus (Remove Super+Arrow).
+    - [x] `configure-tiling-default` (Reset): Revert Tiling Shell extension to system defaults.
     - [ ] `configure-text-editor-dev` (Deviation):
         - [ ] Indentation: Spaces, 4 per tab/indent.
     - [ ] `configure-text-editor-dewy-visuals` (Deviation):
