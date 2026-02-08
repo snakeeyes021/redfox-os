@@ -360,31 +360,28 @@ configure-normie: configure-text-editor-reset
 # --- LAYOUT MOLECULES (UX/Behavior/Positioning) ---
 
 # Layout Matt (Mac-like)
-layout-matt: sort-app-grid set-window-controls-left-gnome
+layout-matt: sort-app-grid set-window-controls-left-gnome layout-tiling-default
     # preset-dock-macos
 
 # Layout Dewy (Windows/Ubuntu-like)
 layout-dewy: sort-app-grid set-window-controls-right-full layout-tiling-dewy preset-dock-ubuntu
 
 # Layout Fedora (Vanilla)
-layout-fedora:
+layout-fedora: default-app-grid set-window-controls-right-gnome layout-tiling-default
     echo "TODO: Implement layout-fedora (reset)"
-    # default-app-grid
-    # set-window-controls-right-gnome (or whatever default is)
 
 # Layout Normie (Flexible)
-layout-normie:
+layout-normie: default-app-grid set-window-controls-left-gnome layout-tiling-default
     echo "TODO: Implement layout-normie"
 
 
 # --- THEME MOLECULES (Visuals/Assets) ---
 
 # Theme Matt
-theme-matt: theme-text-editor-default
+theme-matt: theme-text-editor-default theme-sound-fedora
     echo "Applying Matt's Visual Theme..."
     # gsettings set org.gnome.desktop.interface gtk-theme 'Adwaita-dark'
     # gsettings set org.gnome.desktop.background picture-uri 'file:///...'
-    # theme-sound-fedora
 
 # Theme Dewy
 theme-dewy: theme-text-editor-dewy
@@ -393,10 +390,10 @@ theme-dewy: theme-text-editor-dewy
     # theme-sound-bazzite
 
 # Theme Fedora
-theme-fedora: theme-text-editor-default
+theme-fedora: theme-text-editor-default theme-sound-fedora
 
 # Theme Normie
-theme-normie: theme-text-editor-default
+theme-normie: theme-text-editor-default theme-sound-fedora
 
 
 # --- BOOTSTRAP ORGANISMS ---
