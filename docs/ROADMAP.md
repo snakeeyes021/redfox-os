@@ -36,7 +36,8 @@
 
 ## 📦 Default Software
 - [x] **Winboat:** Determine installation (DNF/Flatpak) and add to system defaults.
-- [ ] **Dropbox:** Install official Dropbox client (System/DNF/RPM).
+- [ ] **Dropbox:** Install official Dropbox client (System/DNF/RPM)
+    - [ ] Remove maestral after dropbox is tested and experience is satisfactory (if maestral is not removed, improve maestral uninstall script to remove leftovers)
 - [x] **Implement** System-level GNOME Boxes + Virt-Manager
 - [ ] **Implement** Starship terminal prompt by default with light-theme terminal (steal from Bluefin)
     - [ ] **Implement** ujust "configure" recipes for starship bluefin (system default, "reset"), starship bazzite (deviation), starship off (deviation)
@@ -62,19 +63,20 @@
         - `sudo flatpak override --filesystem=xdg-data/themes`
         - `sudo flatpak mask org.gtk.Gtk3theme.adw-gtk3`
         - `sudo flatpak mask org.gtk.Gtk3theme.adw-gtk3-dark`
-    - [ ] `configure-tiling-dewy` (Deviation):
-        - [ ] Show Indicator = true, Gaps (Inner/Outer) = 0.
-        - [ ] Enable Snap Assistant = false.
-        - [ ] **Keybindings:** Move (Super+Arrow), Cycle (Ctrl+Right Arrow), Focus (Remove Super+Arrow).
-    - [ ] `configure-tiling-default` (Reset): Revert Tiling Shell extension to system defaults.
-    - [ ] `configure-text-editor-dev` (Deviation):
-        - [ ] Indentation: Spaces, 4 per tab/indent.
-    - [ ] `configure-text-editor-dewy-visuals` (Deviation):
-        - [ ] Dark Mode, Line Numbers, Overview Map, Highlight Current Line.
-    - [ ] `configure-text-editor-reset` (Reset): Revert indentation and visuals to system defaults.
+    - [x] `configure-tiling-dewy` (Deviation):
+        - [x] Show Indicator = true, Gaps (Inner/Outer) = 0.
+        - [x] Enable Snap Assistant = false.
+        - [x] **Keybindings:** Move (Super+Arrow), Cycle (Ctrl+Right Arrow), Focus (Remove Super+Arrow).
+    - [x] `configure-tiling-default` (Reset): Revert Tiling Shell extension to system defaults.
+    - [x] `configure-text-editor-dev` (Deviation):
+        - [x] Indentation: Spaces, 4 per tab/indent.
+    - [x] `configure-text-editor-dewy-visuals` (Deviation):
+        - [x] Dark Mode, Line Numbers, Overview Map, Highlight Current Line.
+    - [x] `configure-text-editor-reset` (Reset): Revert indentation and visuals to system defaults.
     - [ ] figure out terminal recipes (starship/no starship, light theme/system theme, etc)
-    - [ ] `set-window-controls-right` (Deviation): Sets `:minimize,maximize,close`.
-    - [ ] `set-window-controls-left-gnome` (Reset): Sets `close:` (reverts to system default).
+    - [x] `set-window-controls-right-full` (Deviation): Sets `:minimize,maximize,close`.
+    - [x] `set-window-controls-right-gnome` (Deviation): Sets `:close`.
+    - [x] `set-window-controls-left-gnome` (Reset): Sets `close:` (reverts to system default).
     - [ ] `sort-app-grid` (Deviation): Removes folders and sorts alphabetically.
     - [ ] `default-app-grid` (Reset): Restores folders and sorts with default sorting.
     - [ ] `preset-dock-ubuntu` (Reset): Configure Dash to Dock (Left side). Turn on Dash to Dock.
@@ -94,21 +96,13 @@
 - [x] `install-dev`: Combines `install-zed`, `setup-vscode`, `setup-cursor`, `install-gemini-cli`.
 
 ### Level 2: Molecules (Logical Groups)
-- [ ] **Software Bundles:**
+- [ ] **Software Bundles (Install Molecules):**
     - [x] `install-matt`: Combines `install-dev`, `install-music`, `install-creative`, `install-productivity`, and `install-daily` if it is created.
     - [x] `install-dewy`
     - [x] `install-normie`: Combines `install-productivity`, `install-creative`, and `install-daily` if it is created.
+    - [ ] `install-fedora` (install at least all GNOME basics (might need to not use packs and just manually make a list))
 
-- [ ] **Theme Molecules:**
-    - [ ] `theme-matt`
-        - [ ] runs `sort-app-grid`.
-        - [ ] runs `set-window-controls-left-gnome`.
-    - [ ] `theme-dewy`:
-        - [ ] Runs `sort-app-grid`.
-        - [ ] Runs `set-window-controls-right`.
-        - [ ] Runs `preset-dock-ubuntu` (or custom Dewy dock settings).
-    - [ ] `theme-fedora`: "Reset" recipe to restore Vanilla Fedora look.
-- [ ] **Config Molecules:**
+- [ ] **Config Molecules (User/Tool Setup):**
     - [ ] `configure-matt`:
         - [ ] Runs Hardware Atoms (Logic checks happen inside atoms or here).
         - [ ] Runs `configure-git`.
@@ -120,11 +114,27 @@
     - [ ] `configure-normie`:
         - [ ] **Task:** Determine configs and sub-recipes.
 
+- [ ] **Layout Molecules (UX/Behavior/Positioning):**
+    - [ ] `layout-matt` (Renamed from theme-matt):
+        - [ ] runs `sort-app-grid`.
+        - [ ] runs `set-window-controls-left-gnome`.
+    - [ ] `layout-dewy` (Renamed from theme-dewy):
+        - [ ] Runs `sort-app-grid`.
+        - [ ] Runs `set-window-controls-right-full`.
+        - [ ] Runs `preset-dock-ubuntu` (or custom Dewy dock settings).
+    - [ ] `layout-fedora`: "Reset" recipe to restore Vanilla Fedora layout.
+    - [ ] `layout-normie`: Flexible layout switcher?
+
+- [ ] **Theme Molecules (Visuals/Assets):**
+    - [ ] `theme-matt`: Sets wallpapers, GTK theme (Adwaita Dark), Icons.
+    - [ ] `theme-dewy`: Sets wallpapers, GTK theme (Adwaita Light), Icons.
+    - [ ] `theme-fedora`: Reset visuals to default.
+
 ### Level 3: Organisms (User Bootstraps)
-- [ ] `bootstrap-matt`: Runs `install-matt`, `theme-matt`, `configure-matt`.
-- [ ] `bootstrap-dewy`: Runs `install-dewy`, `theme-dewy`, `configure-dewy`.
-- [ ] `bootstrap-fedora`: Runs `theme-fedora`, `configure-fedora` (no install-fedora; all main default fedora apps should already be installed)
-- [ ] `bootstrap-normie`: Runs `install-normie`, `theme-normie`, `configure-normie`.
+- [ ] `bootstrap-matt`: Runs `install-matt`, `theme-matt`, `layout-matt`, `configure-matt`.
+- [ ] `bootstrap-dewy`: Runs `install-dewy`, `theme-dewy`, `layout-dewy`, `configure-dewy`.
+- [ ] `bootstrap-fedora`: Runs `theme-fedora`, `layout-fedora`, `configure-fedora` (no install-fedora).
+- [ ] `bootstrap-normie`: Runs `install-normie`, `theme-normie`, `layout-normie`, `configure-normie`.
 
 ## 🎨 Branding & Aesthetics
 - [ ] **Wallpapers**
@@ -134,13 +144,15 @@
     - [ ] Create/Add assets: Neofetch/Fastfetch Logo, Splash Screen, System Info Logo.
 
 ## Fixups/New (Items that arrive after a fix is already implemented)
-- [ ] Screenshot (add Windows super + shift + s shortcut for selection screenshot; move fullscreen screenshot to printscreen)
+- [x] Screenshot (add Windows super + shift + s shortcut for selection screenshot; move fullscreen screenshot to printscreen)
 - [x] Check that Boxes is installing as system package and is cross-compatible with VMM
 - [x] Confirm that Winboat is best as app-image (RPM is published on github releases page, so we could be doing this as a system package; the issue is that the appimage setup is not frictionless).
     - [x] Test appimage to confirm is working. If not, try RPM. Proceed based on findings
     - [x] Winboat requires FreeRDP
 - [x] Change names for everything (Completed: Renamed to RedFoxOS)
-- [ ] Add sound theme change -- ujust (set default sound theme to normal fedora default, "reset". set sound to bazzite, "deviation")
+- [x] Add sound theme change -- ujust (set default sound theme to normal fedora default, "reset". set sound to bazzite, "deviation")
+    - [x] Set system default override to 'freedesktop' (Fedora default).
+    - [x] Create ujust recipes: `theme-sound-fedora` (reset) and `theme-sound-bazzite` (set to 'bazzite').
 - [ ] Dock defaults
-- [ ] Set default hostname, etc
+- [ ] Set default hostname, etc (Implemented via static file `files/system/etc/hostname`) -- wrong, need to take a second swing at it (and remove the first attempt)
 - [ ] Determine 

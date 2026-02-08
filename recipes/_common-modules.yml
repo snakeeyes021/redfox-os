@@ -93,3 +93,4 @@ modules:
     scripts:
       - build-dconf.sh
       - inject-custom-updates.sh
+      - fix-cursor-icon.sh

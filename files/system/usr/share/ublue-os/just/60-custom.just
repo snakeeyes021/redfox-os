@@ -12,6 +12,34 @@ configure-vscode:
 configure-cursor:
     echo "TODO: Implement configure-cursor"
 
+# Configure Text Editor Dev Mode (Indentation)
+configure-text-editor-dev:
+    echo "Configuring Text Editor for Development (Spaces, 4 per tab)..."
+    flatpak run --command=gsettings org.gnome.TextEditor set org.gnome.TextEditor indent-style 'space'
+    flatpak run --command=gsettings org.gnome.TextEditor set org.gnome.TextEditor tab-width 4
+
+# Reset Text Editor Configuration (Indentation)
+configure-text-editor-reset:
+    echo "Resetting Text Editor indentation to defaults..."
+    flatpak run --command=gsettings org.gnome.TextEditor reset org.gnome.TextEditor indent-style
+    flatpak run --command=gsettings org.gnome.TextEditor reset org.gnome.TextEditor tab-width
+
+# Theme Text Editor Dewy (Visuals)
+theme-text-editor-dewy:
+    echo "Configuring Text Editor Visuals (Dark Mode, Line Numbers, Map, Highlight)..."
+    flatpak run --command=gsettings org.gnome.TextEditor set org.gnome.TextEditor style-variant 'dark'
+    flatpak run --command=gsettings org.gnome.TextEditor set org.gnome.TextEditor show-line-numbers true
+    flatpak run --command=gsettings org.gnome.TextEditor set org.gnome.TextEditor show-map true
+    flatpak run --command=gsettings org.gnome.TextEditor set org.gnome.TextEditor highlight-current-line true
+
+# Theme Text Editor Default (Visuals Reset)
+theme-text-editor-default:
+    echo "Resetting Text Editor visuals to defaults..."
+    flatpak run --command=gsettings org.gnome.TextEditor reset org.gnome.TextEditor style-variant
+    flatpak run --command=gsettings org.gnome.TextEditor reset org.gnome.TextEditor show-line-numbers
+    flatpak run --command=gsettings org.gnome.TextEditor reset org.gnome.TextEditor show-map
+    flatpak run --command=gsettings org.gnome.TextEditor reset org.gnome.TextEditor highlight-current-line
+
 # Install Zed
 install-zed:
     echo "Installing Zed..."
@@ -92,11 +120,50 @@ fix-flatpak-theming:
     sudo flatpak mask org.gtk.Gtk3theme.adw-gtk3
     sudo flatpak mask org.gtk.Gtk3theme.adw-gtk3-dark
 
-set-window-controls-right:
-    echo "TODO: Implement set-window-controls-right"
+theme-sound-fedora:
+    gsettings reset org.gnome.desktop.sound theme-name
+
+theme-sound-bazzite:
+    gsettings set org.gnome.desktop.sound theme-name 'steam'
+
+set-window-controls-right-full:
+    gsettings set org.gnome.desktop.wm.preferences button-layout ':minimize,maximize,close'
+
+set-window-controls-right-gnome:
+    gsettings set org.gnome.desktop.wm.preferences button-layout ':close'
 
 set-window-controls-left-gnome:
-    echo "TODO: Implement set-window-controls-left-gnome"
+    gsettings reset org.gnome.desktop.wm.preferences button-layout
+
+layout-tiling-dewy:
+    gsettings set org.gnome.shell.extensions.tilingshell show-indicator true
+    gsettings set org.gnome.shell.extensions.tilingshell inner-gaps 0
+    gsettings set org.gnome.shell.extensions.tilingshell outer-gaps 0
+    gsettings set org.gnome.shell.extensions.tilingshell enable-snap-assist false
+    gsettings set org.gnome.shell.extensions.tilingshell focus-window-up "['']"
+    gsettings set org.gnome.shell.extensions.tilingshell focus-window-down "['']"
+    gsettings set org.gnome.shell.extensions.tilingshell focus-window-left "['']"
+    gsettings set org.gnome.shell.extensions.tilingshell focus-window-right "['']"
+    gsettings set org.gnome.shell.extensions.tilingshell move-window-up "['<Super>Up']"
+    gsettings set org.gnome.shell.extensions.tilingshell move-window-down "['<Super>Down']"
+    gsettings set org.gnome.shell.extensions.tilingshell move-window-left "['<Super>Left']"
+    gsettings set org.gnome.shell.extensions.tilingshell move-window-right "['<Super>Right']"
+    gsettings set org.gnome.shell.extensions.tilingshell cycle-layouts "['<Control>Right']"
+
+layout-tiling-default:
+    gsettings reset org.gnome.shell.extensions.tilingshell show-indicator
+    gsettings reset org.gnome.shell.extensions.tilingshell inner-gaps
+    gsettings reset org.gnome.shell.extensions.tilingshell outer-gaps
+    gsettings reset org.gnome.shell.extensions.tilingshell enable-snap-assist
+    gsettings reset org.gnome.shell.extensions.tilingshell focus-window-up
+    gsettings reset org.gnome.shell.extensions.tilingshell focus-window-down
+    gsettings reset org.gnome.shell.extensions.tilingshell focus-window-left
+    gsettings reset org.gnome.shell.extensions.tilingshell focus-window-right
+    gsettings reset org.gnome.shell.extensions.tilingshell move-window-up
+    gsettings reset org.gnome.shell.extensions.tilingshell move-window-down
+    gsettings reset org.gnome.shell.extensions.tilingshell move-window-left
+    gsettings reset org.gnome.shell.extensions.tilingshell move-window-right
+    gsettings reset org.gnome.shell.extensions.tilingshell cycle-layouts
 
 sort-app-grid:
     echo "TODO: Implement sort-app-grid"
@@ -167,8 +234,7 @@ install-daily:
         com.spotify.Client
 
 # Install Audio Production Apps
-install-audio:
-    install-soundthread
+install-audio: install-soundthread
     flatpak install -y flathub \
         org.ardour.Ardour \
         info.puredata.Pd \
@@ -201,11 +267,11 @@ install-video:
         org.bunkus.mkvtoolnix-gui \
         org.gnome.gitlab.YaLTeR.VideoTrimmer \
         com.github.unrud.VideoDownloader \
-        com.obsproject.Studio
+        com.obsproject.Studio \
+        io.github.wartybix.Constrict
 
 # Install Compatibility Tools
-install-compatibility:
-    install-winboat
+install-compatibility: install-winboat
     flatpak install -y flathub \
         com.usebottles.bottles
 
@@ -228,10 +294,7 @@ install-gnome-dev:
         re.sonny.Workbench
 
 # Install Development Apps
-install-dev:
-    install-gnome-dev
-    install-zed
-    install-gemini-cli
+install-dev: install-gnome-dev install-zed install-gemini-cli
     flatpak install -y flathub \
         io.podman_desktop.PodmanDesktop \
         org.gnome.dspy \
@@ -248,112 +311,101 @@ install-bluefin-dx:
         org.pipewire.Helvum
 
 # Install Creative Suite
-install-creative:
-    install-audio
-    install-graphics
-    install-photos
-    install-video
-    install-notation
-    install-writing
+install-creative: install-audio install-graphics install-photos install-video install-notation install-writing
 
 
 # Level 2: Molecules (Logical Groups)
 
 # Install Matt's Bundle
-install-matt:
-    install-dev
-    install-bluefin-dx
-    install-creative
-    install-daily
-    install-productivity
-    install-compatibility
-    install-basic
-    install-comms
+install-matt: install-dev install-bluefin-dx install-creative install-daily install-productivity install-compatibility install-basic install-comms
 
 # Install Dewy's Bundle
-install-dewy:
-    install-zed
-    install-dropbox
-    install-basic
-    install-productivity
-    install-comms
+install-dewy: install-zed install-dropbox install-basic install-productivity install-comms
     flatpak install -y flathub \
         org.videolan.VLC \
         org.cvfosammmm.Setzer \
         net.pixieditor.PixiEditor \
-        com.spotify.Client
+        com.spotify.Client \
+        com.bambulab.BambuStudio
 
 # Install Normie Bundle
-install-normie:
-    install-basic
-    install-daily
-    install-productivity
-    install-comms
+install-normie: install-basic install-daily install-productivity install-comms
 
 
 # Level 3: Organisms (User Bootstraps & Configs)
 
+# --- CONFIG MOLECULES (User/Tool Setup) ---
+
 # Configure Dev Environment
-configure-dev:
-    configure-vscode
-    configure-cursor
+configure-dev: configure-vscode configure-cursor
 
 # Configure Matt's Environment
-configure-matt:
+configure-matt: configure-dev configure-text-editor-dev
     mkdir -p ~/dev
-    configure-dev
     # just runs hardware atoms here eventually
+    # e.g., fix-oryp9-mouse
 
 # Configure Dewy's Environment
-configure-dewy:
-    echo "TODO: Implement configure-dewy"
+configure-dewy: configure-text-editor-dev
 
 # Configure Fedora's Environment
-configure-fedora:
+configure-fedora: configure-text-editor-reset
     echo "TODO: Implement configure-fedora"
 
 # Configure Normie's Environment
-configure-normie:
+configure-normie: configure-text-editor-reset
     echo "TODO: Implement configure-normie"
 
+
+# --- LAYOUT MOLECULES (UX/Behavior/Positioning) ---
+
+# Layout Matt (Mac-like)
+layout-matt: sort-app-grid set-window-controls-left-gnome layout-tiling-default
+    # preset-dock-macos
+
+# Layout Dewy (Windows/Ubuntu-like)
+layout-dewy: sort-app-grid set-window-controls-right-full layout-tiling-dewy preset-dock-ubuntu
+
+# Layout Fedora (Vanilla)
+layout-fedora: default-app-grid set-window-controls-right-gnome layout-tiling-default
+    echo "TODO: Implement layout-fedora (reset)"
+
+# Layout Normie (Flexible)
+layout-normie: default-app-grid set-window-controls-left-gnome layout-tiling-default
+    echo "TODO: Implement layout-normie"
+
+
+# --- THEME MOLECULES (Visuals/Assets) ---
+
 # Theme Matt
-theme-matt:
-    sort-app-grid
-    set-window-controls-left-gnome
+theme-matt: theme-text-editor-default theme-sound-fedora
+    echo "Applying Matt's Visual Theme..."
+    # gsettings set org.gnome.desktop.interface gtk-theme 'Adwaita-dark'
+    # gsettings set org.gnome.desktop.background picture-uri 'file:///...'
 
 # Theme Dewy
-theme-dewy:
-    sort-app-grid
-    set-window-controls-right
-    preset-dock-ubuntu
+theme-dewy: theme-text-editor-dewy
+    echo "Applying Dewy's Visual Theme..."
+    # gsettings set org.gnome.desktop.interface gtk-theme 'Adwaita'
+    # theme-sound-bazzite
 
 # Theme Fedora
-theme-fedora:
-    echo "TODO: Implement theme-fedora (reset)"
+theme-fedora: theme-text-editor-default theme-sound-fedora
 
 # Theme Normie
-theme-normie:
-    echo "TODO: Implement theme-normie"
+theme-normie: theme-text-editor-default theme-sound-fedora
+
+
+# --- BOOTSTRAP ORGANISMS ---
 
 # Bootstrap Matt
-bootstrap-matt:
-    install-matt
-    theme-matt
-    configure-matt
+bootstrap-matt: install-matt theme-matt layout-matt configure-matt
 
 # Bootstrap Dewy
-bootstrap-dewy:
-    install-dewy
-    theme-dewy
-    configure-dewy
+bootstrap-dewy: install-dewy theme-dewy layout-dewy configure-dewy
 
 # Bootstrap Fedora
-bootstrap-fedora:
-    theme-fedora
-    configure-fedora
+bootstrap-fedora: theme-fedora layout-fedora configure-fedora
 
 # Bootstrap Normie
-bootstrap-normie:
-    install-normie
-    theme-normie
-    configure-normie
+bootstrap-normie: install-normie theme-normie layout-normie configure-normie
