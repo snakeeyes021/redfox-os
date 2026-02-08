@@ -100,6 +100,7 @@
     - [x] `install-matt`: Combines `install-dev`, `install-music`, `install-creative`, `install-productivity`, and `install-daily` if it is created.
     - [x] `install-dewy`
     - [x] `install-normie`: Combines `install-productivity`, `install-creative`, and `install-daily` if it is created.
+    - [ ] `install-fedora` (install at least all GNOME basics (might need to not use packs and just manually make a list))
 
 - [ ] **Config Molecules (User/Tool Setup):**
     - [ ] `configure-matt`:
