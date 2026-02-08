@@ -1,5 +1,12 @@
 # Level 1: Atoms (Single-Purpose Scripts)
 
+# Reset hostname to "redfox" (from whatever was inherited from upstream, likely "bazzite")
+fix-hostname:
+    @echo "Setting hostname to redfox..."
+    hostnamectl set-hostname redfox
+    hostnamectl set-hostname --pretty "RedFoxOS"
+    @echo "Done! Please reboot for all changes to take full effect."
+
 # Configure Git
 configure-git:
     echo "TODO: Implement configure-git"
