@@ -234,8 +234,7 @@ install-daily:
         com.spotify.Client
 
 # Install Audio Production Apps
-install-audio:
-    install-soundthread
+install-audio: install-soundthread
     flatpak install -y flathub \
         org.ardour.Ardour \
         info.puredata.Pd \
@@ -272,8 +271,7 @@ install-video:
         io.github.wartybix.Constrict
 
 # Install Compatibility Tools
-install-compatibility:
-    install-winboat
+install-compatibility: install-winboat
     flatpak install -y flathub \
         com.usebottles.bottles
 
@@ -296,10 +294,7 @@ install-gnome-dev:
         re.sonny.Workbench
 
 # Install Development Apps
-install-dev:
-    install-gnome-dev
-    install-zed
-    install-gemini-cli
+install-dev: install-gnome-dev install-zed install-gemini-cli
     flatpak install -y flathub \
         io.podman_desktop.PodmanDesktop \
         org.gnome.dspy \
@@ -316,35 +311,16 @@ install-bluefin-dx:
         org.pipewire.Helvum
 
 # Install Creative Suite
-install-creative:
-    install-audio
-    install-graphics
-    install-photos
-    install-video
-    install-notation
-    install-writing
+install-creative: install-audio install-graphics install-photos install-video install-notation install-writing
 
 
 # Level 2: Molecules (Logical Groups)
 
 # Install Matt's Bundle
-install-matt:
-    install-dev
-    install-bluefin-dx
-    install-creative
-    install-daily
-    install-productivity
-    install-compatibility
-    install-basic
-    install-comms
+install-matt: install-dev install-bluefin-dx install-creative install-daily install-productivity install-compatibility install-basic install-comms
 
 # Install Dewy's Bundle
-install-dewy:
-    install-zed
-    install-dropbox
-    install-basic
-    install-productivity
-    install-comms
+install-dewy: install-zed install-dropbox install-basic install-productivity install-comms
     flatpak install -y flathub \
         org.videolan.VLC \
         org.cvfosammmm.Setzer \
@@ -353,11 +329,7 @@ install-dewy:
         com.bambulab.BambuStudio
 
 # Install Normie Bundle
-install-normie:
-    install-basic
-    install-daily
-    install-productivity
-    install-comms
+install-normie: install-basic install-daily install-productivity install-comms
 
 
 # Level 3: Organisms (User Bootstraps & Configs)
@@ -365,47 +337,34 @@ install-normie:
 # --- CONFIG MOLECULES (User/Tool Setup) ---
 
 # Configure Dev Environment
-configure-dev:
-    configure-vscode
-    configure-cursor
+configure-dev: configure-vscode configure-cursor
 
 # Configure Matt's Environment
-configure-matt:
+configure-matt: configure-dev configure-text-editor-dev
     mkdir -p ~/dev
-    configure-dev
-    configure-text-editor-dev
     # just runs hardware atoms here eventually
     # e.g., fix-oryp9-mouse
 
 # Configure Dewy's Environment
-configure-dewy:
-    configure-text-editor-dev
+configure-dewy: configure-text-editor-dev
 
 # Configure Fedora's Environment
-configure-fedora:
-    configure-text-editor-reset
+configure-fedora: configure-text-editor-reset
     echo "TODO: Implement configure-fedora"
 
 # Configure Normie's Environment
-configure-normie:
-    configure-text-editor-reset
+configure-normie: configure-text-editor-reset
     echo "TODO: Implement configure-normie"
 
 
 # --- LAYOUT MOLECULES (UX/Behavior/Positioning) ---
 
 # Layout Matt (Mac-like)
-layout-matt:
-    sort-app-grid
-    set-window-controls-left-gnome
+layout-matt: sort-app-grid set-window-controls-left-gnome
     # preset-dock-macos
 
 # Layout Dewy (Windows/Ubuntu-like)
-layout-dewy:
-    sort-app-grid
-    set-window-controls-right-full
-    layout-tiling-dewy
-    preset-dock-ubuntu
+layout-dewy: sort-app-grid set-window-controls-right-full layout-tiling-dewy preset-dock-ubuntu
 
 # Layout Fedora (Vanilla)
 layout-fedora:
@@ -421,54 +380,35 @@ layout-normie:
 # --- THEME MOLECULES (Visuals/Assets) ---
 
 # Theme Matt
-theme-matt:
+theme-matt: theme-text-editor-default
     echo "Applying Matt's Visual Theme..."
-    theme-text-editor-default
     # gsettings set org.gnome.desktop.interface gtk-theme 'Adwaita-dark'
     # gsettings set org.gnome.desktop.background picture-uri 'file:///...'
     # theme-sound-fedora
 
 # Theme Dewy
-theme-dewy:
+theme-dewy: theme-text-editor-dewy
     echo "Applying Dewy's Visual Theme..."
-    theme-text-editor-dewy
     # gsettings set org.gnome.desktop.interface gtk-theme 'Adwaita'
     # theme-sound-bazzite
 
 # Theme Fedora
-theme-fedora:
-    theme-text-editor-default
+theme-fedora: theme-text-editor-default
 
 # Theme Normie
-theme-normie:
-    theme-text-editor-default
+theme-normie: theme-text-editor-default
 
 
 # --- BOOTSTRAP ORGANISMS ---
 
 # Bootstrap Matt
-bootstrap-matt:
-    install-matt
-    theme-matt
-    layout-matt
-    configure-matt
+bootstrap-matt: install-matt theme-matt layout-matt configure-matt
 
 # Bootstrap Dewy
-bootstrap-dewy:
-    install-dewy
-    theme-dewy
-    layout-dewy
-    configure-dewy
+bootstrap-dewy: install-dewy theme-dewy layout-dewy configure-dewy
 
 # Bootstrap Fedora
-bootstrap-fedora:
-    theme-fedora
-    layout-fedora
-    configure-fedora
+bootstrap-fedora: theme-fedora layout-fedora configure-fedora
 
 # Bootstrap Normie
-bootstrap-normie:
-    install-normie
-    theme-normie
-    layout-normie
-    configure-normie
+bootstrap-normie: install-normie theme-normie layout-normie configure-normie
