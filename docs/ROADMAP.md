@@ -32,6 +32,7 @@
     - [ ] **Appearance:** Shrink the dash (remove edge-to-edge).
 - [ ] **App Grid Defaults**
     - [ ] **Behavior:** Sort alphabetically (no folders).
+        - [ ] Add behavior to keep user's folders saved, so they can go back to them if they want
     - [ ] **Behavior:** Pinning to dock must not remove from grid.
 
 ## 📦 Default Software
@@ -154,5 +155,9 @@
     - [x] Set system default override to 'freedesktop' (Fedora default).
     - [x] Create ujust recipes: `theme-sound-fedora` (reset) and `theme-sound-bazzite` (set to 'bazzite').
 - [ ] Dock defaults
-- [ ] Set default hostname, etc (Implemented via static file `files/system/etc/hostname`) -- wrong, need to take a second swing at it (and remove the first attempt)
-- [ ] Determine 
+- [x] Set default hostname, etc (Implemented via static file `files/system/etc/hostname`) -- wrong, need to take a second swing at it (and remove the first attempt)
+
+## Running Dewy fixes
+- [ ] System Dropbox
+- [ ] Cursor ruff extension (in ujust)
+    - cursor --install-extension charliermarsh.ruff --force
