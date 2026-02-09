@@ -1,9 +1,23 @@
 [org/gnome/shell/extensions/dash-to-dock]
+# These largely mirror Ubuntu defaults (values pulled from Ubuntu's gschema override file, which does not behave exactly as it would in upstream Dash-to-Dock; so there are some differences)
+show-mounts-only-mounted=false
+show-mounts-network=true
 dock-position='LEFT'
 dock-fixed=true
+intellihide-mode='ALL_WINDOWS'
+icon-size-fixed=true
+custom-theme-shrink=true
 extend-height=true
-dash-max-icon-size=56
+scroll-action='switch-workspace'
+shift-click-action='launch'
+middle-click-action='launch'
+shift-middle-click-action='minimize'
 apply-custom-theme=true
+dash-max-icon-size=56
+isolate-workspaces=false
+# The following DO NOT match Ubuntu defaults; we just think they're better
+click-action='focus-minimize-or-previews'
+intellihide=false
 
 [org/gnome/shell/extensions/blur-my-shell/lockscreen]
 pipeline='pipeline_default'

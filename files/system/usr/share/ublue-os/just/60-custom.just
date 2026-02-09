@@ -179,7 +179,11 @@ default-app-grid:
     echo "TODO: Implement default-app-grid"
 
 preset-dock-ubuntu:
-    echo "TODO: Implement preset-dock-ubuntu"
+    gsettings reset-recursively org.gnome.shell.extensions.dash-to-dock
+    gnome-extensions enable dash-to-dock@micxgx.gmail.com
+
+preset-dock-gnome:
+    gnome-extensions disable dash-to-dock@micxgx.gmail.com
 
 preset-dock-win-classic:
     echo "TODO: Implement preset-dock-win-classic"
@@ -373,15 +377,17 @@ configure-normie: configure-text-editor-reset reset-hostname
 # --- LAYOUT MOLECULES (UX/Behavior/Positioning) ---
 
 # Layout Matt (Mac-like)
-layout-matt: sort-app-grid set-window-controls-left-gnome layout-tiling-default
-    # preset-dock-macos
+layout-matt: sort-app-grid set-window-controls-left-gnome layout-tiling-default preset-dock-gnome
+    gsettings reset-recursively org.gnome.shell.extensions.dash-to-dock  
 
 # Layout Dewy (Windows/Ubuntu-like)
 layout-dewy: sort-app-grid set-window-controls-right-full layout-tiling-dewy preset-dock-ubuntu
+    gsettings set org.gnome.shell.extensions.dash-to-dock isolate-workspaces true
+    gsettings set org.gnome.shell.extensions.dash-to-dock dash-max-icon-size 40         
 
 # Layout Fedora (Vanilla)
-layout-fedora: default-app-grid set-window-controls-right-gnome layout-tiling-default
-    echo "TODO: Implement layout-fedora (reset)"
+layout-fedora: default-app-grid set-window-controls-right-gnome layout-tiling-default preset-dock-gnome
+    gsettings reset-recursively org.gnome.shell.extensions.dash-to-dock
 
 # Layout Normie (Flexible)
 layout-normie: default-app-grid set-window-controls-left-gnome layout-tiling-default
