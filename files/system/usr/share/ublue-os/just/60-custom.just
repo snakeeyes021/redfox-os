@@ -397,7 +397,7 @@ layout-matt: sort-app-grid set-window-controls-left-gnome layout-tiling-default 
 # Layout Dewy
 layout-dewy: sort-app-grid set-window-controls-right-full layout-tiling-dewy preset-dock-ubuntu
     gsettings set org.gnome.shell.extensions.dash-to-dock isolate-workspaces true
-    gsettings set org.gnome.shell.extensions.dash-to-dock dash-max-icon-size 40         
+    gsettings set org.gnome.shell.extensions.dash-to-dock dash-max-icon-size 40
 
 # Layout Fedora (Vanilla)
 layout-fedora: default-app-grid set-window-controls-right-gnome layout-tiling-default preset-dock-gnome
