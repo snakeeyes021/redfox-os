@@ -157,8 +157,14 @@
 - [ ] Dock defaults
 - [x] Set default hostname, etc (Implemented via static file `files/system/etc/hostname`) -- wrong, need to take a second swing at it (and remove the first attempt)
 - [ ] Cursor Remote Tunnels fixes from AmyOS
+- [ ] desktop icons fix (would like to use discord icons in system tray, perhaps different app icon too)
 
 ## Running Dewy fixes
 - [ ] System Dropbox
 - [ ] Cursor ruff extension (in ujust)
     - cursor --install-extension charliermarsh.ruff --force
+- [ ] cursor dark modern theme
+- [ ] texlive auto select version (latest)
+- [ ] tray defaults (files, mission center, settings, terminal, firefox, brave, calculator, text editor, zed, cursor, spotify, slack, signal, vesktop
+- [ ] brave in install-dewy
+- [ ] slack in install-dewy
