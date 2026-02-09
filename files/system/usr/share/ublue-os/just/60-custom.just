@@ -392,7 +392,7 @@ configure-normie: configure-text-editor-reset reset-hostname
 
 # Layout Matt
 layout-matt: sort-app-grid set-window-controls-left-gnome layout-tiling-default preset-dock-gnome
-    gsettings reset-recursively org.gnome.shell.extensions.dash-to-dock  
+    gsettings reset-recursively org.gnome.shell.extensions.dash-to-dock
 
 # Layout Dewy
 layout-dewy: sort-app-grid set-window-controls-right-full layout-tiling-dewy preset-dock-ubuntu
