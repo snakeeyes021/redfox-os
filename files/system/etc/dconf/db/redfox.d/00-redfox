@@ -1,5 +1,6 @@
 [org/gnome/shell/extensions/dash-to-dock]
 # These largely mirror Ubuntu defaults (values pulled from Ubuntu's gschema override file, which does not behave exactly as it would in upstream Dash-to-Dock; so there are some differences)
+disable-overview-on-startup=true
 show-mounts-only-mounted=false
 show-mounts-network=true
 dock-position='LEFT'
