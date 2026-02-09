@@ -19,6 +19,7 @@ isolate-workspaces=false
 # The following DO NOT match Ubuntu defaults; we just think they're better
 click-action='focus-minimize-or-previews'
 intellihide=false
+hot-keys=false
 
 [org/gnome/shell/extensions/blur-my-shell/lockscreen]
 pipeline='pipeline_default'
