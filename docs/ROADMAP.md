@@ -157,7 +157,7 @@
 - [ ] Dock defaults
 - [x] Set default hostname, etc (Implemented via static file `files/system/etc/hostname`) -- wrong, need to take a second swing at it (and remove the first attempt)
 - [ ] Cursor Remote Tunnels fixes from AmyOS
-- [ ] desktop icons fix (would like to use discord icons in system tray, perhaps different app icon too)
+- [ ] vesktop icons fix (would like to use discord icons in system tray, perhaps different app icon too)
 
 ## Running Dewy fixes
 - [ ] System Dropbox
