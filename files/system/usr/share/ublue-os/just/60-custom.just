@@ -172,8 +172,22 @@ layout-tiling-default:
     gsettings reset org.gnome.shell.extensions.tilingshell move-window-right
     gsettings reset org.gnome.shell.extensions.tilingshell cycle-layouts
 
+# Flatten folders, alphabetize grid, and force dock apps to show
 sort-app-grid:
-    echo "TODO: Implement sort-app-grid"
+    # 1. Flatten folders
+    # This sets the list of folders to 'empty', dumping all apps into the root grid.
+    gsettings set org.gnome.desktop.app-folders folder-children "[]"
+    
+    # 2. Force alphabetical sort
+    # This does a one-time sort immediately so it looks right even before extensions load.
+    gsettings reset org.gnome.shell app-picker-layout
+
+    # 3. Enable extensions    
+    # Extension A: Alphabetical App Grid (Maintains the sort order persistently)
+    gnome-extensions enable AlphabeticalAppGrid@stuarthayhurst
+
+    # Extension B: Keep Pinned Apps (Forces dock apps back into the grid)
+    gnome-extensions enable pinned-apps-in-appgrid@brunosilva.io
 
 default-app-grid:
     echo "TODO: Implement default-app-grid"
@@ -376,11 +390,11 @@ configure-normie: configure-text-editor-reset reset-hostname
 
 # --- LAYOUT MOLECULES (UX/Behavior/Positioning) ---
 
-# Layout Matt (Mac-like)
+# Layout Matt
 layout-matt: sort-app-grid set-window-controls-left-gnome layout-tiling-default preset-dock-gnome
     gsettings reset-recursively org.gnome.shell.extensions.dash-to-dock  
 
-# Layout Dewy (Windows/Ubuntu-like)
+# Layout Dewy
 layout-dewy: sort-app-grid set-window-controls-right-full layout-tiling-dewy preset-dock-ubuntu
     gsettings set org.gnome.shell.extensions.dash-to-dock isolate-workspaces true
     gsettings set org.gnome.shell.extensions.dash-to-dock dash-max-icon-size 40         

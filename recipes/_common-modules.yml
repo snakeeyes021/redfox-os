@@ -55,6 +55,8 @@ modules:
     install:
       - 307  # Dash to Dock
       - 7065 # Tiling Shell
+      - 4269 # Alphabetical App Grid
+      - 7660  # Keep Pinned Apps in AppGrid
 
   - type: default-flatpaks
     configurations:
