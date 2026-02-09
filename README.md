@@ -10,7 +10,7 @@ Its primary raison d'être is to provide driver support for Pascal-series Nvidia
 ### Core Developer Experience
 - [x] **Containerization:** Docker (Engine & CLI), Podman (with Compose & TUI), Incus, LXC
 - [x] **Virtualization:** Libvirt/QEMU, Cockpit (Machines, Podman, Bridge), System-level GNOME Boxes + Virt-Manager
-- [x] **Development:** VS Code (System install), Android Tools, BPF Tools (bpftop, bpftrace), Sysprof
+- [x] **Development:** VS Code (system install), Android Tools, BPF Tools (bpftop, bpftrace), Sysprof, pixi/uv
 - [x] **CLI Utilities:** zsh, restic, rclone, ccache, ramalama (Local AI)
 - [x] **Editor:** Zed (ujust recipe installer)
 - [x] **Additional AI Utilities:** Cursor (system), Gemini CLI (ujust)
