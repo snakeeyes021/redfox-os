@@ -1,5 +1,12 @@
 # Level 1: Atoms (Single-Purpose Scripts)
 
+# Reset hostname to "redfox" (from whatever was inherited from upstream, likely "bazzite")
+reset-hostname:
+    @echo "Setting hostname to redfox..."
+    hostnamectl set-hostname redfox
+    hostnamectl set-hostname --pretty "RedFoxOS"
+    @echo "Done! Please reboot for all changes to take full effect."
+
 # Configure Git
 configure-git:
     echo "TODO: Implement configure-git"
@@ -165,14 +172,32 @@ layout-tiling-default:
     gsettings reset org.gnome.shell.extensions.tilingshell move-window-right
     gsettings reset org.gnome.shell.extensions.tilingshell cycle-layouts
 
+# Flatten folders, alphabetize grid, and force dock apps to show
 sort-app-grid:
-    echo "TODO: Implement sort-app-grid"
+    # 1. Flatten folders
+    # This sets the list of folders to 'empty', dumping all apps into the root grid.
+    gsettings set org.gnome.desktop.app-folders folder-children "[]"
+    
+    # 2. Force alphabetical sort
+    # This does a one-time sort immediately so it looks right even before extensions load.
+    gsettings reset org.gnome.shell app-picker-layout
+
+    # 3. Enable extensions    
+    # Extension A: Alphabetical App Grid (Maintains the sort order persistently)
+    gnome-extensions enable AlphabeticalAppGrid@stuarthayhurst
+
+    # Extension B: Keep Pinned Apps (Forces dock apps back into the grid)
+    gnome-extensions enable pinned-apps-in-appgrid@brunosilva.io
 
 default-app-grid:
     echo "TODO: Implement default-app-grid"
 
 preset-dock-ubuntu:
-    echo "TODO: Implement preset-dock-ubuntu"
+    gsettings reset-recursively org.gnome.shell.extensions.dash-to-dock
+    gnome-extensions enable dash-to-dock@micxgx.gmail.com
+
+preset-dock-gnome:
+    gnome-extensions disable dash-to-dock@micxgx.gmail.com
 
 preset-dock-win-classic:
     echo "TODO: Implement preset-dock-win-classic"
@@ -320,13 +345,19 @@ install-creative: install-audio install-graphics install-photos install-video in
 install-matt: install-dev install-bluefin-dx install-creative install-daily install-productivity install-compatibility install-basic install-comms
 
 # Install Dewy's Bundle
-install-dewy: install-zed install-dropbox install-basic install-productivity install-comms
+install-dewy: install-zed install-dropbox install-comms
     flatpak install -y flathub \
         org.videolan.VLC \
-        org.cvfosammmm.Setzer \
         net.pixieditor.PixiEditor \
         com.spotify.Client \
-        com.bambulab.BambuStudio
+        com.bambulab.BambuStudio \
+        org.gnome.SimpleScan \
+        org.libreoffice.LibreOffice \
+        be.alexandervanhee.gradia \
+        net.cozic.joplin_desktop \
+        app.drey.Warp \
+        org.texstudio.TeXstudio \
+        org.freedesktop.Sdk.Extension.texlive
 
 # Install Normie Bundle
 install-normie: install-basic install-daily install-productivity install-comms
@@ -340,35 +371,37 @@ install-normie: install-basic install-daily install-productivity install-comms
 configure-dev: configure-vscode configure-cursor
 
 # Configure Matt's Environment
-configure-matt: configure-dev configure-text-editor-dev
+configure-matt: configure-dev configure-text-editor-dev reset-hostname
     mkdir -p ~/dev
     # just runs hardware atoms here eventually
     # e.g., fix-oryp9-mouse
 
 # Configure Dewy's Environment
-configure-dewy: configure-text-editor-dev
+configure-dewy: configure-text-editor-dev reset-hostname
 
 # Configure Fedora's Environment
-configure-fedora: configure-text-editor-reset
+configure-fedora: configure-text-editor-reset reset-hostname
     echo "TODO: Implement configure-fedora"
 
 # Configure Normie's Environment
-configure-normie: configure-text-editor-reset
+configure-normie: configure-text-editor-reset reset-hostname
     echo "TODO: Implement configure-normie"
 
 
 # --- LAYOUT MOLECULES (UX/Behavior/Positioning) ---
 
-# Layout Matt (Mac-like)
-layout-matt: sort-app-grid set-window-controls-left-gnome layout-tiling-default
-    # preset-dock-macos
+# Layout Matt
+layout-matt: sort-app-grid set-window-controls-left-gnome layout-tiling-default preset-dock-gnome
+    gsettings reset-recursively org.gnome.shell.extensions.dash-to-dock
 
-# Layout Dewy (Windows/Ubuntu-like)
+# Layout Dewy
 layout-dewy: sort-app-grid set-window-controls-right-full layout-tiling-dewy preset-dock-ubuntu
+    gsettings set org.gnome.shell.extensions.dash-to-dock isolate-workspaces true
+    gsettings set org.gnome.shell.extensions.dash-to-dock dash-max-icon-size 40
 
 # Layout Fedora (Vanilla)
-layout-fedora: default-app-grid set-window-controls-right-gnome layout-tiling-default
-    echo "TODO: Implement layout-fedora (reset)"
+layout-fedora: default-app-grid set-window-controls-right-gnome layout-tiling-default preset-dock-gnome
+    gsettings reset-recursively org.gnome.shell.extensions.dash-to-dock
 
 # Layout Normie (Flexible)
 layout-normie: default-app-grid set-window-controls-left-gnome layout-tiling-default
