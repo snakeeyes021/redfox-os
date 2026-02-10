@@ -41,6 +41,7 @@ modules:
         - gnome-boxes
         - virt-manager
         - freerdp
+        - dropbox
 
   - type: systemd
     system:

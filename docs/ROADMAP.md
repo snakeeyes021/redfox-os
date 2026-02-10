@@ -38,7 +38,7 @@
 ## 📦 Default Software
 - [x] **Winboat:** Determine installation (DNF/Flatpak) and add to system defaults.
 - [ ] **Dropbox:** Install official Dropbox client (System/DNF/RPM)
-    - [ ] Remove maestral after dropbox is tested and experience is satisfactory (if maestral is not removed, improve maestral uninstall script to remove leftovers)
+    - [x] Remove maestral after dropbox is tested and experience is satisfactory (if maestral is not removed, improve maestral uninstall script to remove leftovers)
 - [x] **Implement** System-level GNOME Boxes + Virt-Manager
 - [ ] **Implement** Starship terminal prompt by default with light-theme terminal (steal from Bluefin)
     - [ ] **Implement** ujust "configure" recipes for starship bluefin (system default, "reset"), starship bazzite (deviation), starship off (deviation)
@@ -160,11 +160,11 @@
 - [ ] vesktop icons fix (would like to use discord icons in system tray, perhaps different app icon too)
 
 ## Running Dewy fixes
-- [ ] System Dropbox
+- [x] System Dropbox
 - [ ] Cursor ruff extension (in ujust)
     - cursor --install-extension charliermarsh.ruff --force
 - [ ] cursor dark modern theme
-- [ ] texlive auto select version (latest)
-- [ ] tray defaults (files, mission center, settings, terminal, firefox, brave, calculator, text editor, zed, cursor, spotify, slack, signal, vesktop
-- [ ] brave in install-dewy
-- [ ] slack in install-dewy
+- [x] texlive auto select version (latest)
+- [x] tray defaults (files, mission center, settings, terminal, firefox, brave, calculator, text editor, zed, cursor, spotify, slack, signal, vesktop
+- [x] brave in install-dewy
+- [x] slack in install-dewy

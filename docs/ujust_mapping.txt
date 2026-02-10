@@ -130,7 +130,6 @@ install-comms
 
 ujust install-dewy:
 ujust install-zed
-ujust install-dropbox               # Installs maestral gui
 ujust install-basic
 ujust install-daily
 ujust install-productivity
