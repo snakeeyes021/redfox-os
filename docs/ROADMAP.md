@@ -168,3 +168,4 @@
 - [x] tray defaults (files, mission center, settings, terminal, firefox, brave, calculator, text editor, zed, cursor, spotify, slack, signal, vesktop
 - [x] brave in install-dewy
 - [x] slack in install-dewy
+- [ ] square window corners (in as many situations as possible--libadwaita, gtk3, flatpak, etc.)
