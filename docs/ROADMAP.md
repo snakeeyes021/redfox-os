@@ -161,9 +161,9 @@
 
 ## Running Dewy fixes
 - [x] System Dropbox
-- [ ] Cursor ruff extension (in ujust)
+- [x] Cursor ruff extension (in ujust)
     - cursor --install-extension charliermarsh.ruff --force
-- [ ] cursor dark modern theme
+- [x] cursor dark modern theme
 - [x] texlive auto select version (latest)
 - [x] tray defaults (files, mission center, settings, terminal, firefox, brave, calculator, text editor, zed, cursor, spotify, slack, signal, vesktop
 - [x] brave in install-dewy

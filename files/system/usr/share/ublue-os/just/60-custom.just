@@ -368,8 +368,21 @@ configure-matt: configure-dev configure-text-editor-dev reset-hostname
     # just runs hardware atoms here eventually
     # e.g., fix-oryp9-mouse
 
+# Configure Cursor for Dewy
+configure-cursor-dewy:
+    echo "Configuring Cursor for Dewy..."
+    cursor --install-extension charliermarsh.ruff --force
+    SETTINGS_FILE="$HOME/.config/Cursor/User/settings.json"
+    mkdir -p "$(dirname "$SETTINGS_FILE")"
+    if [ -f "$SETTINGS_FILE" ]; then
+        tmp=$(mktemp)
+        jq '."workbench.colorTheme" = "Default Dark Modern"' "$SETTINGS_FILE" > "$tmp" && mv "$tmp" "$SETTINGS_FILE"
+    else
+        echo '{"workbench.colorTheme": "Default Dark Modern"}' > "$SETTINGS_FILE"
+    fi
+
 # Configure Dewy's Environment
-configure-dewy: configure-text-editor-dev reset-hostname
+configure-dewy: configure-text-editor-dev reset-hostname configure-cursor-dewy
 
 # Configure Fedora's Environment
 configure-fedora: configure-text-editor-reset reset-hostname
