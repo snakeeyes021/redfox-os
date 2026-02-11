@@ -348,8 +348,7 @@ install-dewy: install-zed install-comms
         com.brave.Browser \
         com.slack.Slack
     echo "Installing latest TexLive extension..."
-    TEXLIVE_VERSION=$(flatpak remote-ls flathub --columns=application,branch | grep org.freedesktop.Sdk.Extension.texlive | awk '{print $2}' | sort -V | tail -n 1)
-    flatpak install -y flathub org.freedesktop.Sdk.Extension.texlive//$TEXLIVE_VERSION
+    flatpak install -y flathub org.freedesktop.Sdk.Extension.texlive//$(flatpak remote-ls flathub --columns=application,branch | grep org.freedesktop.Sdk.Extension.texlive | awk '{print $2}' | sort -V | tail -n 1)
 
 # Install Normie Bundle
 install-normie: install-basic install-daily install-productivity install-comms
@@ -370,6 +369,7 @@ configure-matt: configure-dev configure-text-editor-dev reset-hostname
 
 # Configure Cursor for Dewy
 configure-cursor-dewy:
+    #!/usr/bin/bash
     echo "Configuring Cursor for Dewy..."
     cursor --install-extension charliermarsh.ruff --force
     SETTINGS_FILE="$HOME/.config/Cursor/User/settings.json"
