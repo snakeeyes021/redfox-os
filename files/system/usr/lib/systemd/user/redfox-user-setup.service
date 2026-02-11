@@ -1,0 +1,13 @@
+[Unit]
+Description=RedFoxOS User Setup Service
+After=default.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/redfox-user-setup
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

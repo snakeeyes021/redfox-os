@@ -51,6 +51,9 @@ modules:
         - libvirtd.service
         - bluefin-dx-groups.service
         - incus-workaround.service
+    user:
+      enabled:
+        - redfox-user-setup.service
 
   - type: gnome-extensions
     install:
