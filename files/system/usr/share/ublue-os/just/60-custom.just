@@ -115,6 +115,63 @@ fix-flatpak-theming:
     sudo flatpak mask org.gtk.Gtk3theme.adw-gtk3
     sudo flatpak mask org.gtk.Gtk3theme.adw-gtk3-dark
 
+# Force square corners on all windows (Libadwaita + GTK3 + Flatpak)
+theme-square-corners:
+    #!/usr/bin/bash
+    APP_ID="tech.redfoxlabs.square-corners" # specific ID for tracking changes
+    
+    # CSS to force square borders
+    CSS_CONTENT="
+    /* $APP_ID START */
+    window, window.background, .window-frame, .titlebar, .dialog, .messagedialog {
+        border-radius: 0px;
+    }
+    /* $APP_ID END */
+    "
+    
+    # 1. Apply to GTK 4 (Libadwaita)
+    GTK4_DIR="$HOME/.config/gtk-4.0"
+    mkdir -p "$GTK4_DIR"
+    # Remove old block if exists to avoid duplicates, then append
+    sed -i "/$APP_ID START/,/$APP_ID END/d" "$GTK4_DIR/gtk.css" 2>/dev/null
+    echo "$CSS_CONTENT" >> "$GTK4_DIR/gtk.css"
+    
+    # 2. Apply to GTK 3
+    GTK3_DIR="$HOME/.config/gtk-3.0"
+    mkdir -p "$GTK3_DIR"
+    sed -i "/$APP_ID START/,/$APP_ID END/d" "$GTK3_DIR/gtk.css" 2>/dev/null
+    echo "$CSS_CONTENT" >> "$GTK3_DIR/gtk.css"
+
+    # 3. Expose configs to Flatpak
+    # Explicitly allow flatpaks to read ~/.config/gtk-X.0
+    flatpak override --user --filesystem=xdg-config/gtk-4.0:ro
+    flatpak override --user --filesystem=xdg-config/gtk-3.0:ro
+    
+    echo "Square corners applied. Please restart your applications or log out/in."
+
+# Revert to default rounded corners
+theme-default-corners:
+    #!/usr/bin/bash
+    APP_ID="tech.redfoxlabs.square-corners"
+    
+    # 1. Clean GTK 4
+    GTK4_FILE="$HOME/.config/gtk-4.0/gtk.css"
+    if [ -f "$GTK4_FILE" ]; then
+        sed -i "/$APP_ID START/,/$APP_ID END/d" "$GTK4_FILE"
+    fi
+    
+    # 2. Clean GTK 3
+    GTK3_FILE="$HOME/.config/gtk-3.0/gtk.css"
+    if [ -f "$GTK3_FILE" ]; then
+        sed -i "/$APP_ID START/,/$APP_ID END/d" "$GTK3_FILE"
+    fi
+    
+    # Note: We do NOT remove the flatpak overrides here, because 
+    # it is harmless (and often beneficial) for Flatpaks to see 
+    # user configs even if they are empty.
+    
+    echo "Reverted to default rounded corners. Please restart your applications."
+
 theme-sound-fedora:
     gsettings reset org.gnome.desktop.sound theme-name
 
@@ -417,22 +474,22 @@ layout-normie: default-app-grid set-window-controls-left-gnome layout-tiling-def
 # --- THEME MOLECULES (Visuals/Assets) ---
 
 # Theme Matt
-theme-matt: theme-text-editor-default theme-sound-fedora
+theme-matt: theme-text-editor-default theme-sound-fedora theme-default-corners
     echo "Applying Matt's Visual Theme..."
     # gsettings set org.gnome.desktop.interface gtk-theme 'Adwaita-dark'
     # gsettings set org.gnome.desktop.background picture-uri 'file:///...'
 
 # Theme Dewy
-theme-dewy: theme-text-editor-dewy
+theme-dewy: theme-text-editor-dewy theme-square-corners
     echo "Applying Dewy's Visual Theme..."
     # gsettings set org.gnome.desktop.interface gtk-theme 'Adwaita'
     # theme-sound-bazzite
 
 # Theme Fedora
-theme-fedora: theme-text-editor-default theme-sound-fedora
+theme-fedora: theme-text-editor-default theme-sound-fedora theme-default-corners
 
 # Theme Normie
-theme-normie: theme-text-editor-default theme-sound-fedora
+theme-normie: theme-text-editor-default theme-sound-fedora theme-default-corners
 
 
 # --- BOOTSTRAP ORGANISMS ---
