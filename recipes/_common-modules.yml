@@ -12,13 +12,6 @@ modules:
   - type: dnf
     install:
       packages:
-        - speedtest.x86_64
-    options:
-      - --nogpgcheck
-
-  - type: dnf
-    install:
-      packages:
         - cursor
         - incus
         - incus-agent
