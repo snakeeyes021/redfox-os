@@ -1,0 +1,10 @@
+[ookla_speedtest-cli]
+name=ookla_speedtest-cli
+baseurl=https://packagecloud.io/ookla/speedtest-cli/fedora/$releasever/$basearch
+enabled=1
+gpgcheck=0
+repo_gpgcheck=1
+gpgkey=https://packagecloud.io/ookla/speedtest-cli/gpgkey
+sslverify=1
+sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+metadata_expire=300
