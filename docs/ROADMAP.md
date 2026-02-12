@@ -170,4 +170,4 @@
 - [x] slack in install-dewy
 - [x] square window corners (in as many situations as possible--libadwaita, gtk3, flatpak, etc.)
 - [ ] cli speedtest (speedtest.net cli--system install)
-- [ ] reverse screenshot shortcuts
+- [x] reverse screenshot shortcuts
