@@ -42,7 +42,7 @@ modules:
         - virt-manager
         - freerdp
         - dropbox
-        - speedtest
+        - speedtest.x86_64
 
   - type: systemd
     system:
