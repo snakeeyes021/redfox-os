@@ -169,5 +169,5 @@
 - [x] brave in install-dewy
 - [x] slack in install-dewy
 - [x] square window corners (in as many situations as possible--libadwaita, gtk3, flatpak, etc.)
-- [ ] cli speedtest (speedtest.net cli--system install)
+- [x] cli speedtest (speedtest.net cli--system install)
 - [x] reverse screenshot shortcuts
