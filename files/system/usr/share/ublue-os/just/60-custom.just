@@ -123,9 +123,7 @@ theme-square-corners:
     # CSS to force square borders
     CSS_CONTENT="
     /* $APP_ID START */
-    window, window.background, .window-frame, .titlebar, .dialog, .messagedialog {
-        border-radius: 0px;
-    }
+    window, window.background, .window-frame, .titlebar, .dialog, .messagedialog, .csd, decoration { border-radius: 0px; }
     /* $APP_ID END */
     "
     
