@@ -16,7 +16,7 @@ picture-uri-dark='file:///usr/share/backgrounds/redfox/background-d.jpg'
 picture-options='zoom'
 
 [org.gnome.shell]
-enabled-extensions=['user-theme@gnome-shell-extensions.gcampax.github.com', 'gsconnect@andyholmes.github.io', 'caffeine@patapon.info', 'add-to-steam@pupper.space', 'appindicatorsupport@rgcjonas.gmail.com', 'restartto@tiagoporsch.github.io', 'blur-my-shell@aunetx', 'tilingshell@ferrarodomenico.com']
+enabled-extensions=['user-theme@gnome-shell-extensions.gcampax.github.com', 'gsconnect@andyholmes.github.io', 'caffeine@patapon.info', 'add-to-steam@pupper.space', 'appindicatorsupport@rgcjonas.gmail.com', 'restartto@tiagoporsch.github.io', 'blur-my-shell@aunetx', 'tilingshell@ferrarodomenico.com', 'bazaar-integration@kolunmi.github.io']
 
 [org.gnome.mutter]
 edge-tiling=false
