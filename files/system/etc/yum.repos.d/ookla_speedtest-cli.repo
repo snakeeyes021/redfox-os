@@ -8,3 +8,4 @@ gpgkey=https://packagecloud.io/ookla/speedtest-cli/gpgkey
 sslverify=1
 sslcacert=/etc/pki/tls/certs/ca-bundle.crt
 metadata_expire=300
+cost=10
