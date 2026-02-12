@@ -413,11 +413,15 @@ install-normie: install-basic install-daily install-productivity install-comms
 
 # --- CONFIG MOLECULES (User/Tool Setup) ---
 
+# Reset Keybindings to Default
+configure-keybindings-default:
+    gsettings reset-recursively org.gnome.shell.keybindings
+
 # Configure Dev Environment
 configure-dev: configure-vscode configure-cursor
 
 # Configure Matt's Environment
-configure-matt: configure-dev configure-text-editor-dev reset-hostname
+configure-matt: configure-keybindings-default configure-dev configure-text-editor-dev reset-hostname
     mkdir -p ~/dev
     # just runs hardware atoms here eventually
     # e.g., fix-oryp9-mouse
@@ -437,14 +441,16 @@ configure-cursor-dewy:
     fi
 
 # Configure Dewy's Environment
-configure-dewy: configure-text-editor-dev reset-hostname configure-cursor-dewy
+configure-dewy: configure-keybindings-default configure-text-editor-dev reset-hostname configure-cursor-dewy
+    gsettings set org.gnome.shell.keybindings show-screenshot-ui "['Print']"
+    gsettings set org.gnome.shell.keybindings screenshot "['<Shift><Super>s']"
 
 # Configure Fedora's Environment
-configure-fedora: configure-text-editor-reset reset-hostname
+configure-fedora: configure-keybindings-default configure-text-editor-reset reset-hostname
     echo "TODO: Implement configure-fedora"
 
 # Configure Normie's Environment
-configure-normie: configure-text-editor-reset reset-hostname
+configure-normie: configure-keybindings-default configure-text-editor-reset reset-hostname
     echo "TODO: Implement configure-normie"
 
 
