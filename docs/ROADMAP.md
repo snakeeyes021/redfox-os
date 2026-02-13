@@ -24,12 +24,12 @@
         - [x] Window Move: `Shift`+`Super`+`Arrow`.
         - [x] Tiling Snap: `Super`+`Arrow`.
         - [x] Close Window: `Super`+`q`.
-- [ ] **Dash to Dock (Disabled by default, but configured)**
-    - [ ] **Behavior:** Isolate Workspaces (`true`).
-    - [ ] **Click Action:** `minimize-or-previews` (Focus, minimize, or show previews).
-    - [ ] **Size:** Fixed icon size (Scroll to reveal).
-    - [ ] **Size:** Icon size limit (40px).
-    - [ ] **Appearance:** Shrink the dash (remove edge-to-edge).
+- [x] **Dash to Dock (Disabled by default, but configured)**
+    - [x] **Behavior:** Isolate Workspaces (`true`).
+    - [x] **Click Action:** `minimize-or-previews` (Focus, minimize, or show previews).
+    - [x] **Size:** Fixed icon size (Scroll to reveal).
+    - [x] **Size:** Icon size limit (40px).
+    - [x] **Appearance:** Shrink the dash (remove edge-to-edge).
 - [ ] **App Grid Defaults**
     - [ ] **Behavior:** Sort alphabetically (no folders).
         - [ ] Add behavior to keep user's folders saved, so they can go back to them if they want
@@ -37,7 +37,7 @@
 
 ## 📦 Default Software
 - [x] **Winboat:** Determine installation (DNF/Flatpak) and add to system defaults.
-- [ ] **Dropbox:** Install official Dropbox client (System/DNF/RPM)
+- [x] **Dropbox:** Install official Dropbox client (flatpak)
     - [x] Remove maestral after dropbox is tested and experience is satisfactory (if maestral is not removed, improve maestral uninstall script to remove leftovers)
 - [x] **Implement** System-level GNOME Boxes + Virt-Manager
 - [ ] **Implement** Starship terminal prompt by default with light-theme terminal (steal from Bluefin)
@@ -52,10 +52,10 @@
 
 ### Level 1: Atoms (Single-Purpose Scripts)
 - [ ] `configure-git`: Interactive setup (User/Email/SSH) using `gh` CLI.
-- [ ] `setup-vscode`:
-    - [ ] **Task:** Compile final list of extensions.
-    - [ ] **Task:** Implement `jq` script to inject settings (Theme, Fonts, etc.).
-- [ ] `setup-cursor`: Mirror `setup-vscode` logic.
+- [x] `setup-vscode`:
+    - [x] **Task:** Compile final list of extensions.
+    - [x] **Task:** Implement `jq` script to inject settings (Theme, Fonts, etc.).
+- [x] `setup-cursor`: Mirror `setup-vscode` logic.
 - [x] `install-zed`: Script to install Zed via `curl | sh` to `~/.local`.
 - [x] `install-gemini-cli`: `brew install gemini-cli`.
 - [ ] `configure-heroic`:
