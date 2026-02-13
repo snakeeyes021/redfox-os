@@ -102,3 +102,4 @@ modules:
       - fix-cursor-icon.sh
       - install-pixi.sh
       - install-uv.sh
+      - install-speedtest.sh
