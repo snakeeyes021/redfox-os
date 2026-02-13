@@ -403,8 +403,7 @@ install-dewy: install-zed install-comms
         com.brave.Browser \
         com.slack.Slack
     echo "Installing latest TexLive extension..."
-    flatpak install -y flathub org.freedesktop.Sdk.Extension.texlive//$(flatpak remote-ls flathub --columns=application,branch | grep org.freedesktop.Sdk.Extension.texlive | awk '{print $2}' | sort -V | tail -n 1)
-
+    flatpak install -y flathub "org.freedesktop.Sdk.Extension.texlive//$(flatpak remote-ls flathub --columns=application,branch | grep org.freedesktop.Sdk.Extension.texlive | awk '{print $2}' | sort -V | tail -n 1)"
 # Install Normie Bundle
 install-normie: install-basic install-daily install-productivity install-comms
 
