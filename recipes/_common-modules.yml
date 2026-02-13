@@ -43,6 +43,7 @@ modules:
         - freerdp
         - dropbox
         - python3-gpg
+        - libappindicator
 
   - type: systemd
     system:
