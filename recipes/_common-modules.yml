@@ -41,6 +41,8 @@ modules:
         - gnome-boxes
         - virt-manager
         - freerdp
+        - python3-gpg
+        - libappindicator
 
   - type: systemd
     system:
@@ -50,6 +52,9 @@ modules:
         - libvirtd.service
         - bluefin-dx-groups.service
         - incus-workaround.service
+    user:
+      enabled:
+        - redfox-user-setup.service
 
   - type: gnome-extensions
     install:
@@ -98,3 +103,4 @@ modules:
       - fix-cursor-icon.sh
       - install-pixi.sh
       - install-uv.sh
+      - install-speedtest.sh

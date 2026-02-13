@@ -9,7 +9,6 @@ intellihide-mode='ALL_WINDOWS'
 icon-size-fixed=true
 custom-theme-shrink=true
 extend-height=true
-scroll-action='switch-workspace'
 shift-click-action='launch'
 middle-click-action='launch'
 shift-middle-click-action='minimize'
@@ -20,6 +19,7 @@ isolate-workspaces=false
 click-action='focus-minimize-or-previews'
 intellihide=false
 hot-keys=false
+scroll-action='do-nothing'
 
 [org/gnome/shell/extensions/blur-my-shell/lockscreen]
 pipeline='pipeline_default'

@@ -1,0 +1,23 @@
+#!/usr/bin/bash
+
+# Define where your hooks live
+HOOKS_DIR="/usr/share/redfox/user-setup.hooks.d"
+
+# Ensure directory exists to avoid errors
+if [ ! -d "$HOOKS_DIR" ]; then
+    echo "RedFoxOS: No hooks directory found at $HOOKS_DIR"
+    exit 0
+fi
+
+echo "RedFoxOS: Starting user setup hooks..."
+
+# Iterate through scripts in lexical order (00-99)
+for script in "$HOOKS_DIR"/*.sh; do
+    # Only run if it is actually a file and executable
+    if [ -f "$script" ] && [ -x "$script" ]; then
+        echo "RedFoxOS: Running $(basename "$script")..."
+        "$script" || echo "RedFoxOS: Warning: $(basename "$script") returned error status."
+    fi
+done
+
+echo "RedFoxOS: User setup complete."

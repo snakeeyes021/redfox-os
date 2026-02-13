@@ -81,18 +81,6 @@ uninstall-gemini-cli:
     brew uninstall gemini-cli
     echo "Gemini CLI uninstalled!"
 
-# Install Dropbox
-install-dropbox:
-    echo "Installing Maestral (Dropbox Client)..."
-    pip install --upgrade 'maestral[gui]'
-    echo "Maestral installed!"
-
-# Uninstall Dropbox
-uninstall-dropbox:
-    echo "Uninstalling Maestral (Dropbox Client)..."
-    pip uninstall -y maestral
-    echo "Maestral uninstalled!"
-
 # Configure Heroic
 configure-heroic:
     echo "TODO: Implement configure-heroic"
@@ -126,6 +114,61 @@ fix-flatpak-theming:
     sudo flatpak override --filesystem=xdg-data/themes
     sudo flatpak mask org.gtk.Gtk3theme.adw-gtk3
     sudo flatpak mask org.gtk.Gtk3theme.adw-gtk3-dark
+
+# Force square corners on all windows (Libadwaita + GTK3 + Flatpak)
+theme-square-corners:
+    #!/usr/bin/bash
+    APP_ID="tech.redfoxlabs.square-corners" # specific ID for tracking changes
+    
+    # CSS to force square borders
+    CSS_CONTENT="
+    /* $APP_ID START */
+    window, window.background, .window-frame, .titlebar, .dialog, .messagedialog, .csd, decoration { border-radius: 0px; }
+    /* $APP_ID END */
+    "
+    
+    # 1. Apply to GTK 4 (Libadwaita)
+    GTK4_DIR="$HOME/.config/gtk-4.0"
+    mkdir -p "$GTK4_DIR"
+    # Remove old block if exists to avoid duplicates, then append
+    sed -i "/$APP_ID START/,/$APP_ID END/d" "$GTK4_DIR/gtk.css" 2>/dev/null
+    echo "$CSS_CONTENT" >> "$GTK4_DIR/gtk.css"
+    
+    # 2. Apply to GTK 3
+    GTK3_DIR="$HOME/.config/gtk-3.0"
+    mkdir -p "$GTK3_DIR"
+    sed -i "/$APP_ID START/,/$APP_ID END/d" "$GTK3_DIR/gtk.css" 2>/dev/null
+    echo "$CSS_CONTENT" >> "$GTK3_DIR/gtk.css"
+
+    # 3. Expose configs to Flatpak
+    # Explicitly allow flatpaks to read ~/.config/gtk-X.0
+    flatpak override --user --filesystem=xdg-config/gtk-4.0:ro
+    flatpak override --user --filesystem=xdg-config/gtk-3.0:ro
+    
+    echo "Square corners applied. Please restart your applications or log out/in."
+
+# Revert to default rounded corners
+theme-default-corners:
+    #!/usr/bin/bash
+    APP_ID="tech.redfoxlabs.square-corners"
+    
+    # 1. Clean GTK 4
+    GTK4_FILE="$HOME/.config/gtk-4.0/gtk.css"
+    if [ -f "$GTK4_FILE" ]; then
+        sed -i "/$APP_ID START/,/$APP_ID END/d" "$GTK4_FILE"
+    fi
+    
+    # 2. Clean GTK 3
+    GTK3_FILE="$HOME/.config/gtk-3.0/gtk.css"
+    if [ -f "$GTK3_FILE" ]; then
+        sed -i "/$APP_ID START/,/$APP_ID END/d" "$GTK3_FILE"
+    fi
+    
+    # Note: We do NOT remove the flatpak overrides here, because 
+    # it is harmless (and often beneficial) for Flatpaks to see 
+    # user configs even if they are empty.
+    
+    echo "Reverted to default rounded corners. Please restart your applications."
 
 theme-sound-fedora:
     gsettings reset org.gnome.desktop.sound theme-name
@@ -345,7 +388,7 @@ install-creative: install-audio install-graphics install-photos install-video in
 install-matt: install-dev install-bluefin-dx install-creative install-daily install-productivity install-compatibility install-basic install-comms
 
 # Install Dewy's Bundle
-install-dewy: install-zed install-dropbox install-comms
+install-dewy: install-zed install-comms
     flatpak install -y flathub \
         org.videolan.VLC \
         net.pixieditor.PixiEditor \
@@ -357,8 +400,11 @@ install-dewy: install-zed install-dropbox install-comms
         net.cozic.joplin_desktop \
         app.drey.Warp \
         org.texstudio.TeXstudio \
-        org.freedesktop.Sdk.Extension.texlive
-
+        com.brave.Browser \
+        com.slack.Slack \
+        com.dropbox.Client
+    echo "Installing latest TexLive extension..."
+    flatpak install -y flathub "org.freedesktop.Sdk.Extension.texlive//$(flatpak remote-ls flathub --columns=application,branch | grep org.freedesktop.Sdk.Extension.texlive | awk '{print $2}' | sort -V | tail -n 1)"
 # Install Normie Bundle
 install-normie: install-basic install-daily install-productivity install-comms
 
@@ -367,24 +413,44 @@ install-normie: install-basic install-daily install-productivity install-comms
 
 # --- CONFIG MOLECULES (User/Tool Setup) ---
 
+# Reset Keybindings to Default
+configure-keybindings-default:
+    gsettings reset-recursively org.gnome.shell.keybindings
+
 # Configure Dev Environment
 configure-dev: configure-vscode configure-cursor
 
 # Configure Matt's Environment
-configure-matt: configure-dev configure-text-editor-dev reset-hostname
+configure-matt: configure-keybindings-default configure-dev configure-text-editor-dev reset-hostname
     mkdir -p ~/dev
     # just runs hardware atoms here eventually
     # e.g., fix-oryp9-mouse
 
+# Configure Cursor for Dewy
+configure-cursor-dewy:
+    #!/usr/bin/bash
+    echo "Configuring Cursor for Dewy..."
+    cursor --install-extension charliermarsh.ruff --force
+    SETTINGS_FILE="$HOME/.config/Cursor/User/settings.json"
+    mkdir -p "$(dirname "$SETTINGS_FILE")"
+    if [ -f "$SETTINGS_FILE" ]; then
+        tmp=$(mktemp)
+        jq '."workbench.colorTheme" = "Default Dark Modern"' "$SETTINGS_FILE" > "$tmp" && mv "$tmp" "$SETTINGS_FILE"
+    else
+        echo '{"workbench.colorTheme": "Default Dark Modern"}' > "$SETTINGS_FILE"
+    fi
+
 # Configure Dewy's Environment
-configure-dewy: configure-text-editor-dev reset-hostname
+configure-dewy: configure-keybindings-default configure-text-editor-dev reset-hostname configure-cursor-dewy
+    gsettings set org.gnome.shell.keybindings show-screenshot-ui "['Print']"
+    gsettings set org.gnome.shell.keybindings screenshot "['<Shift><Super>s']"
 
 # Configure Fedora's Environment
-configure-fedora: configure-text-editor-reset reset-hostname
+configure-fedora: configure-keybindings-default configure-text-editor-reset reset-hostname
     echo "TODO: Implement configure-fedora"
 
 # Configure Normie's Environment
-configure-normie: configure-text-editor-reset reset-hostname
+configure-normie: configure-keybindings-default configure-text-editor-reset reset-hostname
     echo "TODO: Implement configure-normie"
 
 
@@ -398,6 +464,7 @@ layout-matt: sort-app-grid set-window-controls-left-gnome layout-tiling-default 
 layout-dewy: sort-app-grid set-window-controls-right-full layout-tiling-dewy preset-dock-ubuntu
     gsettings set org.gnome.shell.extensions.dash-to-dock isolate-workspaces true
     gsettings set org.gnome.shell.extensions.dash-to-dock dash-max-icon-size 40
+    gsettings set org.gnome.shell favorite-apps "['org.gnome.Nautilus.desktop', 'io.missioncenter.MissionCenter.desktop', 'org.gnome.Settings.desktop', 'org.gnome.Ptyxis.desktop', 'org.mozilla.firefox.desktop', 'com.brave.Browser.desktop', 'org.gnome.Calculator.desktop', 'org.gnome.TextEditor.desktop', 'dev.zed.Zed.desktop', 'cursor.desktop', 'com.spotify.Client.desktop', 'com.slack.Slack.desktop', 'org.signal.Signal.desktop', 'dev.vencord.Vesktop.desktop']"
 
 # Layout Fedora (Vanilla)
 layout-fedora: default-app-grid set-window-controls-right-gnome layout-tiling-default preset-dock-gnome
@@ -411,22 +478,22 @@ layout-normie: default-app-grid set-window-controls-left-gnome layout-tiling-def
 # --- THEME MOLECULES (Visuals/Assets) ---
 
 # Theme Matt
-theme-matt: theme-text-editor-default theme-sound-fedora
+theme-matt: theme-text-editor-default theme-sound-fedora theme-default-corners
     echo "Applying Matt's Visual Theme..."
     # gsettings set org.gnome.desktop.interface gtk-theme 'Adwaita-dark'
     # gsettings set org.gnome.desktop.background picture-uri 'file:///...'
 
 # Theme Dewy
-theme-dewy: theme-text-editor-dewy
+theme-dewy: theme-text-editor-dewy theme-square-corners
     echo "Applying Dewy's Visual Theme..."
     # gsettings set org.gnome.desktop.interface gtk-theme 'Adwaita'
     # theme-sound-bazzite
 
 # Theme Fedora
-theme-fedora: theme-text-editor-default theme-sound-fedora
+theme-fedora: theme-text-editor-default theme-sound-fedora theme-default-corners
 
 # Theme Normie
-theme-normie: theme-text-editor-default theme-sound-fedora
+theme-normie: theme-text-editor-default theme-sound-fedora theme-default-corners
 
 
 # --- BOOTSTRAP ORGANISMS ---
