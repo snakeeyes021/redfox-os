@@ -401,7 +401,8 @@ install-dewy: install-zed install-comms
         app.drey.Warp \
         org.texstudio.TeXstudio \
         com.brave.Browser \
-        com.slack.Slack
+        com.slack.Slack \
+        com.dropbox.Client
     echo "Installing latest TexLive extension..."
     flatpak install -y flathub "org.freedesktop.Sdk.Extension.texlive//$(flatpak remote-ls flathub --columns=application,branch | grep org.freedesktop.Sdk.Extension.texlive | awk '{print $2}' | sort -V | tail -n 1)"
 # Install Normie Bundle

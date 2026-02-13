@@ -41,7 +41,6 @@ modules:
         - gnome-boxes
         - virt-manager
         - freerdp
-        - dropbox
         - python3-gpg
         - libappindicator
 
@@ -105,4 +104,3 @@ modules:
       - install-pixi.sh
       - install-uv.sh
       - install-speedtest.sh
-      - install-dropbox-daemon.sh
