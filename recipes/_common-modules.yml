@@ -109,3 +109,4 @@ modules:
       - install-pixi.sh
       - install-uv.sh
       - install-speedtest.sh
+      - fix-tilix-vte.sh

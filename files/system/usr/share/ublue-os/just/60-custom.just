@@ -422,7 +422,7 @@ configure-terminal-tilix:
     @echo "Activating Tilix integration..."
     # 1. Configure the extension to use Tilix
     gsettings set com.github.stunkymonkey.nautilus-open-any-terminal terminal tilix
-    gsettings set com.github.stunkymonkey.nautilus-open-any-terminal key-bindings '<Ctrl><Alt>t'
+    gsettings set com.github.stunkymonkey.nautilus-open-any-terminal keybindings '<Ctrl><Alt>t'
     gsettings set com.github.stunkymonkey.nautilus-open-any-terminal new-tab true
     
     # 2. Set the GNOME global shortcut (<Ctrl><Alt>T)
@@ -441,7 +441,7 @@ configure-terminal-default:
     @echo "Restoring system default terminal (Ptyxis)..."
     # 1. Reset the extension to defaults (it defaults to 'kgx' or 'gnome-terminal')
     gsettings reset com.github.stunkymonkey.nautilus-open-any-terminal terminal
-    gsettings reset com.github.stunkymonkey.nautilus-open-any-terminal key-bindings
+    gsettings reset com.github.stunkymonkey.nautilus-open-any-terminal keybindings
     
     # 2. Clear the custom shortcut so the system default (Ptyxis) takes over
     dconf reset /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/name
