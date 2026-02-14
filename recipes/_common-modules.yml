@@ -10,6 +10,9 @@ modules:
       - zz99-redfox.gschema.override
 
   - type: dnf
+    repos:
+      copr:
+        - stunkymonkey/nautilus-open-any-terminal
     install:
       packages:
         - cursor
@@ -41,8 +44,10 @@ modules:
         - gnome-boxes
         - virt-manager
         - freerdp
-        - python3-gpg
-        - libappindicator
+        - python3-gpg # Not sure these are needed anymore (was for system Dropbox)
+        - libappindicator # Not sure these are needed anymore (was for system Dropbox)
+        - tilix
+        - nautilus-open-any-terminal
 
   - type: systemd
     system:

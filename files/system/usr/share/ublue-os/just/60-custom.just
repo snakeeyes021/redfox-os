@@ -417,11 +417,48 @@ install-normie: install-basic install-daily install-productivity install-comms
 configure-keybindings-default:
     gsettings reset-recursively org.gnome.shell.keybindings
 
+# Enable Tilix as the default terminal (Shortcuts + Context Menu)
+configure-terminal-tilix:
+    @echo "Activating Tilix integration..."
+    # 1. Configure the extension to use Tilix
+    gsettings set com.github.stunkymonkey.nautilus-open-any-terminal terminal tilix
+    gsettings set com.github.stunkymonkey.nautilus-open-any-terminal key-bindings '<Ctrl><Alt>t'
+    gsettings set com.github.stunkymonkey.nautilus-open-any-terminal new-tab true
+    
+    # 2. Set the GNOME global shortcut (<Ctrl><Alt>T)
+    # We use a custom keybinding slot to override the default Ptyxis behavior reliably.
+    dconf write /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/name "'Tilix'"
+    dconf write /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/command "'tilix'"
+    dconf write /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/binding "'<Control><Alt>t'"
+    dconf write /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings "['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/']"
+    
+    # 3. Reload Nautilus to pick up the extension config
+    nautilus -q
+    @echo "Done. Tilix is now the default."
+
+# Restore the default terminal (Ptyxis)
+configure-terminal-default:
+    @echo "Restoring system default terminal (Ptyxis)..."
+    # 1. Reset the extension to defaults (it defaults to 'kgx' or 'gnome-terminal')
+    gsettings reset com.github.stunkymonkey.nautilus-open-any-terminal terminal
+    gsettings reset com.github.stunkymonkey.nautilus-open-any-terminal key-bindings
+    
+    # 2. Clear the custom shortcut so the system default (Ptyxis) takes over
+    dconf reset /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/name
+    dconf reset /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/command
+    dconf reset /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/binding
+    # Note: We leave the custom-keybindings array alone or empty it if this was the only one
+    dconf write /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings "[]"
+    
+    # 3. Reload Nautilus
+    nautilus -q
+    @echo "Done. Restored to Ptyxis."
+
 # Configure Dev Environment
 configure-dev: configure-vscode configure-cursor
 
 # Configure Matt's Environment
-configure-matt: configure-keybindings-default configure-dev configure-text-editor-dev reset-hostname
+configure-matt: configure-keybindings-default configure-dev configure-text-editor-dev reset-hostname configure-terminal-default
     mkdir -p ~/dev
     # just runs hardware atoms here eventually
     # e.g., fix-oryp9-mouse
@@ -441,7 +478,7 @@ configure-cursor-dewy:
     fi
 
 # Configure Dewy's Environment
-configure-dewy: configure-keybindings-default configure-text-editor-dev reset-hostname configure-cursor-dewy
+configure-dewy: configure-keybindings-default configure-text-editor-dev reset-hostname configure-cursor-dewy configure-terminal-tilix
     gsettings set org.gnome.shell.keybindings show-screenshot-ui "['Print']"
     gsettings set org.gnome.shell.keybindings screenshot "['<Shift><Super>s']"
 
