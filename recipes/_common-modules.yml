@@ -12,7 +12,8 @@ modules:
   - type: dnf
     repos:
       copr:
-        - stunkymonkey/nautilus-open-any-terminal
+        enable:
+          - stunkymonkey/nautilus-open-any-terminal
     install:
       packages:
         - cursor
