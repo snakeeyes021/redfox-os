@@ -159,6 +159,9 @@
 - [ ] Cursor Remote Tunnels fixes from AmyOS
 - [ ] vesktop icons fix (would like to use discord icons in system tray, perhaps different app icon too)
 
+## Running Matt fixes
+- [ ] Post-GNOME Builder install fix to reset file associations (GNOME builder steals just about any type of code file, python, json, sh, etc.)
+
 ## Running Dewy fixes
 - [x] System Dropbox
 - [x] Cursor ruff extension (in ujust)
@@ -171,3 +174,16 @@
 - [x] square window corners (in as many situations as possible--libadwaita, gtk3, flatpak, etc.)
 - [x] cli speedtest (speedtest.net cli--system install)
 - [x] reverse screenshot shortcuts
+- [ ] dewy: nightlight off
+- [ ] dewy: accent color: teal
+- [ ] dewy: when plugged in: automatic screen blank and automatic suspend off (on battery: 15 minutes)
+- [ ] dewy: tilix settings:
+    - follow instructions at: https://gnunn1.github.io/tilix-web/manual/vteconfig/ preferences->profiles->Default->Command-> click "Run command as login shell" (NOTE: this step has already been attempted and there are still outstanding issues. The instructions are subsequently known to be either incomplete, insufficient, or incorrect for this project and more investigation is needed--specifically, while we do ensure that vte.sh is sourced from /etc/profile.d, where it definitely already exists and is probably already being sourced anyways, we're still getting the warning on tilix on each startup... maybe tilix always shows that? probably not; it seems to say that a configuration issue is DETECTED--it seems to work when using fish as our shell, so at least our solution there seems to either be working or superfluous)
+    - General Tab -> custom font size = 16
+    - goto Color Tab
+    -> set color scheme "Orchis"
+    -> set background color to dark grey (e.g. #161616) (black too hard to see on black backgrounds)
+    -> set transparency to 25% and unfocused dim to 50%
+- [ ] GDM has monitors switched. Suspect we can simply have a ujust that takes user settings and applies them globally to whatever's in /etc/
+- [ ] get vpn settings file
+- [ ] dewy: qbittorent in flatpak recipe
