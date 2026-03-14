@@ -145,7 +145,7 @@ while IFS= read -r line || [ -n "$line" ]; do
         filepath="$TEMP_DIR/$safe_filename.ovpn"
 
         # This cleanly skips the canary we already imported or any existing connections
-        if nmcli -f NAME connection show | grep -q "^${description}$"; then
+        if nmcli -t -f NAME connection show | grep -q "^${description}$"; then
              echo "  [SKIP] $description (already configured/exists)"
              continue
         fi
@@ -189,22 +189,24 @@ echo -e "\nPhase 2: Setting sort order (Touching Top 8)..."
 
 # Extract valid connection names from the top 8 lines of config
 # We use grep to ensure we only get lines with the " - https" pattern
-grep " - https" "$CONFIG_FILE" | head -n 8 | tac | while read -r line; do
-    if [[ "$line" =~ ^(.*)\ -\ https://.*$ ]]; then
-        conn_name="${BASH_REMATCH[1]}"
-        
-        echo -n "  Touching: $conn_name... "
-        
-        # We use 'timeout 5s' to try connecting. 
-        # Even if it fails or times out, NetworkManager updates the timestamp.
-        # We suppress output to keep it clean.
-        timeout 5s nmcli connection up "$conn_name" >/dev/null 2>&1
-        
-        # Ensure it's disconnected immediately
-        nmcli connection down "$conn_name" >/dev/null 2>&1
-        
-        echo "Done."
-    fi
+for i in 1 2; do
+    grep " - https" "$CONFIG_FILE" | head -n 8 | tac | while read -r line; do
+        if [[ "$line" =~ ^(.*)\ -\ https://.*$ ]]; then
+            conn_name="${BASH_REMATCH[1]}"
+            
+            echo -n "  Touching: $conn_name... "
+            
+            # We use 'timeout 5s' to try connecting. 
+            # Even if it fails or times out, NetworkManager updates the timestamp.
+            # We suppress output to keep it clean.
+            timeout 5s nmcli connection up "$conn_name" >/dev/null 2>&1
+            
+            # Ensure it's disconnected immediately
+            nmcli connection down "$conn_name" >/dev/null 2>&1
+            
+            echo "Done."
+        fi
+    done
 done
 
 echo -e "\nSuccess. NordVPN setup complete and Top 8 connections are pinned."
