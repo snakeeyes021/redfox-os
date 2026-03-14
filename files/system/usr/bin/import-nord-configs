@@ -1,0 +1,210 @@
+#!/bin/bash
+# Description: Automates downloading and importing NordVPN OVPN configurations.
+#              Updates GNOME Quick Settings "MRU" (Most Recently Used) list
+#              by briefly triggering connection attempts on the top 8 items.
+# Usage: sudo import-nord-configs
+
+# 1. PRELIMINARY CHECKS
+if [ "$EUID" -ne 0 ]; then
+    echo "Error: This script must be run as root."
+    exit 1
+fi
+
+# Check for required dependencies
+for cmd in nmcli curl timeout tac grep; do
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+        echo "Error: $cmd is required but not installed."
+        exit 1
+    fi
+done
+
+TEMP_DIR=$(mktemp -d)
+trap 'rm -rf "$TEMP_DIR"' EXIT
+
+echo "================================================================="
+echo "                RedFoxOS NordVPN Configuration                   "
+echo "================================================================="
+
+# --- STEP 1: FETCH CONFIGURATION FILE ---
+CONFIG_FILE="$TEMP_DIR/nordvpn-connections.txt"
+fetch_success=false
+
+while [ "$fetch_success" = false ]; do
+    echo "Please provide the path to your server list."
+    echo "This can be a local file path (e.g., /home/matt/vpns.txt)"
+    echo "or a raw URL (e.g., https://gist.githubusercontent.com/...)"
+    read -p "Path/URL: " input_source
+
+    if [[ "$input_source" =~ ^https?:// ]]; then
+        echo "Fetching from URL..."
+        if curl -sS -f -o "$CONFIG_FILE" "$input_source"; then
+            fetch_success=true
+        else
+            echo "Error: Could not fetch from URL (Check link or network)."
+        fi
+    else
+        eval input_source="$input_source"
+        if [ -f "$input_source" ]; then
+            cp "$input_source" "$CONFIG_FILE"
+            fetch_success=true
+        else
+            echo "Error: Local file not found at $input_source."
+        fi
+    fi
+
+    if [ "$fetch_success" = false ]; then
+        read -p "Would you like to try providing the path/URL again? (y/N): " retry
+        if [[ "$retry" != [yY] && "$retry" != [yY][eE][sS] ]]; then
+            echo "Exiting VPN configuration gracefully."
+            exit 0
+        fi
+    fi
+done
+
+# Prepare the Canary variables
+canary_line=$(grep -m 1 " - https://" "$CONFIG_FILE")
+if [[ "$canary_line" =~ ^(.*)\ -\ (https://.*)$ ]]; then
+    canary_desc="${BASH_REMATCH[1]}"
+    canary_url="${BASH_REMATCH[2]}"
+    canary_safe=$(echo "$canary_desc" | tr -dc 'a-zA-Z0-9 -')
+    canary_file="$TEMP_DIR/$canary_safe.ovpn"
+else
+    echo "Error: No valid NordVPN links found in the provided configuration."
+    exit 1
+fi
+
+# --- STEP 2: CREDENTIALS & CANARY TEST ---
+echo -e "\n================================================================="
+echo "                  NordVPN Credentials Required                   "
+echo "-----------------------------------------------------------------"
+echo " NOTE: Do NOT use your standard NordVPN email and password."
+echo " You must use your NordVPN 'Service Credentials' (a long string"
+echo " of random characters). Find these on your Nord Account"
+echo " dashboard under: Services > NordVPN > Manual setup."
+echo "================================================================="
+
+while true; do
+    read -p "Service Username: " VPN_USER
+    read -sp "Service Password: " VPN_PASS
+    echo -e "\n\nTesting credentials on $canary_desc (10s timeout)..."
+
+    # Download and import Canary
+    curl -sS -o "$canary_file" "$canary_url"
+    nmcli connection import type openvpn file "$canary_file" >/dev/null 2>&1
+    
+    # Configure Auth: Password + TLS
+    nmcli connection modify "$canary_safe" -vpn.data connection-type 2>/dev/null
+    nmcli connection modify "$canary_safe" +vpn.data connection-type=password-tls
+    
+    # Inject Credentials & Settings
+    nmcli connection modify "$canary_safe" +vpn.data username="$VPN_USER"
+    nmcli connection modify "$canary_safe" +vpn.secrets password="$VPN_PASS"
+    nmcli connection modify "$canary_safe" +vpn.data password-flags=0
+    
+    # Enforce clean name
+    nmcli connection modify "$canary_safe" connection.id "$canary_desc"
+
+    # The Canary Test
+    if timeout 10s nmcli connection up "$canary_desc" >/dev/null 2>&1; then
+        echo "  [SUCCESS] Credentials verified!"
+        nmcli connection down "$canary_desc" >/dev/null 2>&1
+        break
+    else
+        echo "  [FAILED] Could not connect. Credentials may be wrong, or the server/internet is down."
+        read -p "Choose action: [R]etry creds, [I]gnore & continue, [S]kip setup: " action
+        case "$action" in
+            [iI]*)
+                echo "Ignoring failure. Proceeding with import..."
+                break
+                ;;
+            [sS]*)
+                echo "Skipping VPN setup."
+                nmcli connection delete "$canary_desc" >/dev/null 2>&1
+                exit 0
+                ;;
+            *)
+                echo "Retrying..."
+                nmcli connection delete "$canary_desc" >/dev/null 2>&1
+                ;;
+        esac
+    fi
+done
+
+# --- STEP 3: IMPORT REMAINING CONFIGS ---
+echo -e "\nPhase 1: Importing remaining configurations..."
+
+# 3. IMPORT LOOP
+while IFS= read -r line || [ -n "$line" ]; do
+    [[ -z "$line" || "$line" =~ ^# ]] && continue
+
+    if [[ "$line" =~ ^(.*)\ -\ (https://.*)$ ]]; then
+        description="${BASH_REMATCH[1]}"
+        url="${BASH_REMATCH[2]}"
+        
+        safe_filename=$(echo "$description" | tr -dc 'a-zA-Z0-9 -')
+        filepath="$TEMP_DIR/$safe_filename.ovpn"
+
+        # This cleanly skips the canary we already imported or any existing connections
+        if nmcli -f NAME connection show | grep -q "^${description}$"; then
+             echo "  [SKIP] $description (already configured/exists)"
+             continue
+        fi
+
+        echo "  Downloading: $description..."
+        if curl -sS -o "$filepath" "$url"; then
+            # Import (suppress output)
+            nmcli connection import type openvpn file "$filepath" >/dev/null 2>&1
+            if [ $? -eq 0 ]; then
+                # Capture the ID (usually defaults to filename)
+                conn_id="$safe_filename"
+                
+                # Configure Auth: Password + TLS
+                nmcli connection modify "$conn_id" -vpn.data connection-type 2>/dev/null
+                nmcli connection modify "$conn_id" +vpn.data connection-type=password-tls
+                
+                # Inject Credentials & Settings
+                nmcli connection modify "$conn_id" +vpn.data username="$VPN_USER"
+                nmcli connection modify "$conn_id" +vpn.secrets password="$VPN_PASS"
+                nmcli connection modify "$conn_id" +vpn.data password-flags=0
+                
+                # Enforce clean name
+                nmcli connection modify "$conn_id" connection.id "$description"
+                
+                echo "  [OK] Imported: $description"
+            else
+                echo "  [ERROR] Import failed for $description"
+            fi
+        else
+            echo "  [ERROR] Download failed for $url"
+        fi
+    fi
+done < "$CONFIG_FILE"
+
+# --- STEP 4: GNOME SORTING HACK ---
+# We take the top 8 lines of the file, reverse them (tac), and trigger a connection.
+# Reversing ensures the 1st line in the file is the LAST one touched, 
+# putting it at the absolute top of the GNOME list.
+
+echo -e "\nPhase 2: Setting sort order (Touching Top 8)..."
+
+# Extract valid connection names from the top 8 lines of config
+# We use grep to ensure we only get lines with the " - https" pattern
+grep " - https" "$CONFIG_FILE" | head -n 8 | tac | while read -r line; do
+    if [[ "$line" =~ ^(.*)\ -\ https://.*$ ]]; then
+        conn_name="${BASH_REMATCH[1]}"
+        
+        echo -n "  Touching: $conn_name... "
+        
+        # We use 'timeout 5s' to try connecting. 
+        # Even if it fails or times out, NetworkManager updates the timestamp.
+        # We suppress output to keep it clean.
+        timeout 5s nmcli connection up "$conn_name" >/dev/null 2>&1
+        
+        # Ensure it's disconnected immediately
+        nmcli connection down "$conn_name" >/dev/null 2>&1
+        
+        echo "Done."
+    fi
+done
+
+echo -e "\nSuccess. NordVPN setup complete and Top 8 connections are pinned."

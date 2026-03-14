@@ -261,6 +261,16 @@ fix-acer-nouveau:
 fix-4k-scaling:
     echo "TODO: Implement fix-4k-scaling"
 
+# Configure NordVPN interactively (requires path/URL and Service Credentials)
+configure-nordvpn:
+    @echo "Configuring NordVPN..."
+    sudo /usr/bin/import-nord-configs
+
+# Nuke all VPN connections
+nuke-vpns:
+    @echo "WARNING: This will permanently delete all configured VPNs."
+    sudo /usr/bin/nuke-vpn-configs
+
 
 # Level 1.5: Small-ecules (Software packs)
 
@@ -458,7 +468,7 @@ configure-terminal-default:
 configure-dev: configure-vscode configure-cursor
 
 # Configure Matt's Environment
-configure-matt: configure-keybindings-default configure-dev configure-text-editor-dev reset-hostname configure-terminal-default
+configure-matt: configure-keybindings-default configure-dev configure-text-editor-dev reset-hostname configure-terminal-default configure-nordvpn
     mkdir -p ~/dev
     # just runs hardware atoms here eventually
     # e.g., fix-oryp9-mouse
@@ -478,7 +488,7 @@ configure-cursor-dewy:
     fi
 
 # Configure Dewy's Environment
-configure-dewy: configure-keybindings-default configure-text-editor-dev reset-hostname configure-cursor-dewy configure-terminal-tilix
+configure-dewy: configure-keybindings-default configure-text-editor-dev reset-hostname configure-cursor-dewy configure-terminal-tilix configure-nordvpn
     gsettings set org.gnome.shell.keybindings show-screenshot-ui "['Print']"
     gsettings set org.gnome.shell.keybindings screenshot "['<Shift><Super>s']"
 
