@@ -162,6 +162,7 @@
 ## Running Matt fixes
 - [ ] Post-GNOME Builder install fix to reset file associations (GNOME builder steals just about any type of code file, python, json, sh, etc.)
 - [ ] Text Editor should not open previous session by default
+- [ ] Android studio (add copr repo and package)
 
 ## Running Dewy fixes
 - [x] System Dropbox
