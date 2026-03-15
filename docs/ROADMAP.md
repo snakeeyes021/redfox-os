@@ -186,6 +186,7 @@
     -> set color scheme "Orchis"
     -> set background color to dark grey (e.g. #161616) (black too hard to see on black backgrounds)
     -> set transparency to 25% and unfocused dim to 50%
+    - additional tilix issues: getting tilix set as the nautilus context menu "Open in terminal" is not working yet either. There is a nautilus extension for this called "nautilus-open-any-terminal" but we have yet to get this working also.
 - [ ] GDM has monitors switched. Suspect we can simply have a ujust that takes user settings and applies them globally to whatever's in /etc/
 - [ ] get vpn settings file
 - [ ] dewy: qbittorent in flatpak recipe
