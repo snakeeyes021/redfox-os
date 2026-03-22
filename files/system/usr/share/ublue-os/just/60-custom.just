@@ -271,6 +271,35 @@ nuke-vpns:
     @echo "WARNING: This will permanently delete all configured VPNs."
     sudo /usr/bin/nuke-vpn-configs
 
+# Create and enable a swapfile (Default: 16G)
+add-swap size="16G":
+    #!/usr/bin/bash
+    set -euo pipefail
+    echo "Creating {{size}} swapfile in /var/swapfile..."
+    # We use the native btrfs command to safely handle Copy-On-Write (NOCOW) requirements
+    sudo btrfs filesystem mkswapfile --size {{size}} /var/swapfile
+    sudo swapon /var/swapfile
+    echo "Making swap persistent in /etc/fstab..."
+    # Check if it already exists to avoid duplicate entries
+    if ! grep -q '^/var/swapfile' /etc/fstab; then
+        echo "/var/swapfile none swap defaults 0 0" | sudo tee -a /etc/fstab
+    fi
+    echo "Swapfile successfully created and enabled!"
+    swapon --show | grep "/var/swapfile"
+
+# Disable and remove the swapfile
+remove-swap:
+    #!/usr/bin/bash
+    set -euo pipefail
+    echo "Disabling swapfile..."
+    sudo swapoff /var/swapfile || true
+    echo "Removing from /etc/fstab..."
+    # Safely delete the line starting with /var/swapfile from fstab
+    sudo sed -i '/^\/var\/swapfile/d' /etc/fstab
+    echo "Deleting the swapfile..."
+    sudo rm -f /var/swapfile
+    echo "Swapfile successfully removed!"
+
 
 # Level 1.5: Small-ecules (Software packs)
 

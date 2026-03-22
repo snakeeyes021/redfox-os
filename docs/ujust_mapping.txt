@@ -148,3 +148,6 @@ CONFIG
 ujust configure-dev:
 ujust configure-vscode
 ujust configure-cursor
+SYSTEM
+ujust add-swap:                     # Create and enable a swapfile
+ujust remove-swap:                  # Disable and remove the swapfile
