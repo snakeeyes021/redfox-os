@@ -11,6 +11,8 @@ modules:
 
   - type: dnf
     repos:
+      keys:
+        - https://d2t3ff60b2tol4.cloudfront.net/repomd.xml.key
       copr:
         - monkeygold/nautilus-open-any-terminal
     install:
@@ -48,6 +50,8 @@ modules:
         - libappindicator # Not sure these are needed anymore (was for system Dropbox)
         - tilix
         - nautilus-open-any-terminal
+        - insync
+        - insync-nautilus
 
   - type: systemd
     system:
