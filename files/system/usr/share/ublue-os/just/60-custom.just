@@ -497,7 +497,7 @@ configure-terminal-default:
 configure-dev: configure-vscode configure-cursor
 
 # Configure Matt's Environment
-configure-matt: configure-keybindings-default configure-dev configure-text-editor-dev reset-hostname configure-terminal-default configure-nordvpn
+configure-matt: add-swap configure-nordvpn reset-hostname configure-keybindings-default configure-dev configure-text-editor-dev configure-terminal-default
     mkdir -p ~/dev
     # just runs hardware atoms here eventually
     # e.g., fix-oryp9-mouse
@@ -575,10 +575,10 @@ theme-normie: theme-text-editor-default theme-sound-fedora theme-default-corners
 # --- BOOTSTRAP ORGANISMS ---
 
 # Bootstrap Matt
-bootstrap-matt: install-matt theme-matt layout-matt configure-matt
+bootstrap-matt: configure-matt install-matt theme-matt layout-matt
 
 # Bootstrap Dewy
-bootstrap-dewy: install-dewy theme-dewy layout-dewy configure-dewy
+bootstrap-dewy: configure-dewy install-dewy theme-dewy layout-dewy
 
 # Bootstrap Fedora
 bootstrap-fedora: theme-fedora layout-fedora configure-fedora
