@@ -501,11 +501,27 @@ configure-powersaver-default:
 configure-powersaver-no-suspend:
     gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type 'nothing'
 
+# Disable xwayland-native-scaling (Deviation)
+configure-xway-scale-off:
+    #!/usr/bin/bash
+    CURRENT=$(gsettings get org.gnome.mutter experimental-features)
+    NEW=$(python3 -c "import sys, ast; val=sys.argv[1]; val=val[4:] if val.startswith('@as ') else val; val='[]' if not val else val; lst=ast.literal_eval(val) if val != '[]' else []; lst.remove('xwayland-native-scaling') if 'xwayland-native-scaling' in lst else None; print(repr(lst))" "$CURRENT" 2>/dev/null || echo "[]")
+    gsettings set org.gnome.mutter experimental-features "$NEW"
+    echo "Disabled xwayland-native-scaling"
+
+# Enable xwayland-native-scaling (Deviation)
+configure-xway-scale-on:
+    #!/usr/bin/bash
+    CURRENT=$(gsettings get org.gnome.mutter experimental-features)
+    NEW=$(python3 -c "import sys, ast; val=sys.argv[1]; val=val[4:] if val.startswith('@as ') else val; val='[]' if not val else val; lst=ast.literal_eval(val) if val != '[]' else []; lst.append('xwayland-native-scaling') if 'xwayland-native-scaling' not in lst else None; print(repr(lst))" "$CURRENT" 2>/dev/null || echo "['xwayland-native-scaling']")
+    gsettings set org.gnome.mutter experimental-features "$NEW"
+    echo "Enabled xwayland-native-scaling"
+
 # Configure Dev Environment
 configure-dev: configure-vscode configure-cursor
 
 # Configure Matt's Environment
-configure-matt: add-swap configure-nordvpn reset-hostname configure-keybindings-default configure-dev configure-text-editor-dev configure-terminal-default configure-powersaver-no-suspend
+configure-matt: add-swap configure-nordvpn reset-hostname configure-keybindings-default configure-dev configure-text-editor-dev configure-terminal-default configure-powersaver-no-suspend configure-xway-scale-off
     mkdir -p ~/dev
     gnome-extensions enable unblank@sun.wxg@gmail.com
     # just runs hardware atoms here eventually
@@ -526,17 +542,17 @@ configure-cursor-dewy:
     fi
 
 # Configure Dewy's Environment
-configure-dewy: configure-keybindings-default configure-text-editor-dev reset-hostname configure-cursor-dewy configure-terminal-tilix configure-nordvpn configure-powersaver-default
+configure-dewy: configure-keybindings-default configure-text-editor-dev reset-hostname configure-cursor-dewy configure-terminal-tilix configure-nordvpn configure-powersaver-default configure-xway-scale-on
     gsettings set org.gnome.shell.keybindings show-screenshot-ui "['Print']"
     gsettings set org.gnome.shell.keybindings screenshot "['<Shift><Super>s']"
     gnome-extensions disable unblank@sun.wxg@gmail.com
 
 # Configure Fedora's Environment
-configure-fedora: configure-keybindings-default configure-text-editor-reset reset-hostname configure-powersaver-default
+configure-fedora: configure-keybindings-default configure-text-editor-reset reset-hostname configure-powersaver-default configure-xway-scale-on
     gnome-extensions disable unblank@sun.wxg@gmail.com
 
 # Configure Normie's Environment
-configure-normie: configure-keybindings-default configure-text-editor-reset reset-hostname configure-powersaver-no-suspend
+configure-normie: configure-keybindings-default configure-text-editor-reset reset-hostname configure-powersaver-no-suspend configure-xway-scale-off
     gnome-extensions enable unblank@sun.wxg@gmail.com
 
 

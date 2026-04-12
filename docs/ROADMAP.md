@@ -84,10 +84,11 @@
     - [ ] `preset-dock-win-classic` (Deviation): Configure Dash to Dock (Bottom, Taskbar style, icons on left). Turn on Dash to Dock.
     - [ ] `preset-dock-win-new` (Deviation): Configure Dash to Dock (Bottom, Taskbar style, icons on centered). Turn on Dash to Dock.
     - [ ] `preset-dock-macos` (Deviation): Configure Dash to Dock (Bottom, Floating). Turn on Dash to Dock.
+    - [x] `configure-xway-scale-off` (Reset): Disable `xwayland-native-scaling`.
+    - [x] `configure-xway-scale-on` (Deviation): Enable `xwayland-native-scaling`.
 - [ ] **Hardware Atoms (Must include Host Checks):**
     - [ ] `fix-oryp9-mouse`: Udev rule (Run only if Oryp9).
     - [ ] `fix-acer-nouveau`: Kernel args (Run only if Acer).
-    - [ ] `fix-4k-scaling`: Remove `xwayland-native-scaling`.
 
 ### Level 1.5: Small-ecules (Software packs)
 - [x] `install-productivity`: Flatpak list (Office, etc.).
@@ -106,13 +107,17 @@
 - [ ] **Config Molecules (User/Tool Setup):**
     - [ ] `configure-matt`:
         - [ ] Runs Hardware Atoms (Logic checks happen inside atoms or here).
+        - [x] Runs `configure-xway-scale-off`.
         - [ ] Runs `configure-git`.
         - [ ] Runs `configure-heroic` (if configure-heroic remains a ujust recipe and not a system default)
     - [ ] `configure-dewy`:
+        - [x] Runs `configure-xway-scale-on`.
         - [ ] **Task:** Determine configs and sub-recipes.
     - [ ] `configure-fedora`:
+        - [x] Runs `configure-xway-scale-on`.
         - [ ] **Task:** Determine configs and sub-recipes.
     - [ ] `configure-normie`:
+        - [x] Runs `configure-xway-scale-off`.
         - [ ] **Task:** Determine configs and sub-recipes.
 
 - [ ] **Layout Molecules (UX/Behavior/Positioning):**
@@ -158,7 +163,7 @@
 - [x] Set default hostname, etc (Implemented via static file `files/system/etc/hostname`) -- wrong, need to take a second swing at it (and remove the first attempt)
 - [ ] Cursor Remote Tunnels fixes from AmyOS
 - [ ] vesktop icons fix (would like to use discord icons in system tray, perhaps different app icon too)
-- [ ] Android studio (add copr repo and package to main recipe) -- Not sure I want to keep this one (there are other methods than baking it in, including brew casks or whatever they're called; there's one for jetbrains; there's also a ujust that does basically the same thing--both have a pathing issue that needs a workaround on systems with the whole /var/home/ setup)
+- [ ] Android studio (add copr repo and package to main recipe) -- Not sure I want to keep this one (there are other methods than baking it in, including brew casks or whatever theyre called; there's one for jetbrains; there's also a ujust that does basically the same thing--both have a pathing issue that needs a workaround on systems with the whole /var/home/ setup)
 
 ## Running Matt fixes
 - [ ] Post-GNOME Builder install fix to reset file associations (GNOME builder steals just about any type of code file, python, json, sh, etc.)
