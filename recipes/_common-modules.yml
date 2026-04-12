@@ -71,6 +71,7 @@ modules:
       - 7065 # Tiling Shell
       - 4269 # Alphabetical App Grid
       - 7660  # Keep Pinned Apps in AppGrid
+      - 1414 # Unblank lock screen
 
   - type: default-flatpaks
     configurations:

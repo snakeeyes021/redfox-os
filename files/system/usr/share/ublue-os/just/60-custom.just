@@ -493,12 +493,21 @@ configure-terminal-default:
     nautilus -q
     @echo "Done. Restored to Ptyxis."
 
+# Configure Power Saver, Suspend (default)
+configure-powersaver-default:
+    gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type 'suspend'
+
+# Configure Power Saver, No Suspend (tweak)
+configure-powersaver-no-suspend:
+    gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type 'nothing'
+
 # Configure Dev Environment
 configure-dev: configure-vscode configure-cursor
 
 # Configure Matt's Environment
-configure-matt: add-swap configure-nordvpn reset-hostname configure-keybindings-default configure-dev configure-text-editor-dev configure-terminal-default
+configure-matt: add-swap configure-nordvpn reset-hostname configure-keybindings-default configure-dev configure-text-editor-dev configure-terminal-default configure-powersaver-no-suspend
     mkdir -p ~/dev
+    gnome-extensions enable unblank@sun.wxg@gmail.com
     # just runs hardware atoms here eventually
     # e.g., fix-oryp9-mouse
 
@@ -517,17 +526,18 @@ configure-cursor-dewy:
     fi
 
 # Configure Dewy's Environment
-configure-dewy: configure-keybindings-default configure-text-editor-dev reset-hostname configure-cursor-dewy configure-terminal-tilix configure-nordvpn
+configure-dewy: configure-keybindings-default configure-text-editor-dev reset-hostname configure-cursor-dewy configure-terminal-tilix configure-nordvpn configure-powersaver-default
     gsettings set org.gnome.shell.keybindings show-screenshot-ui "['Print']"
     gsettings set org.gnome.shell.keybindings screenshot "['<Shift><Super>s']"
+    gnome-extensions disable unblank@sun.wxg@gmail.com
 
 # Configure Fedora's Environment
-configure-fedora: configure-keybindings-default configure-text-editor-reset reset-hostname
-    echo "TODO: Implement configure-fedora"
+configure-fedora: configure-keybindings-default configure-text-editor-reset reset-hostname configure-powersaver-default
+    gnome-extensions disable unblank@sun.wxg@gmail.com
 
 # Configure Normie's Environment
-configure-normie: configure-keybindings-default configure-text-editor-reset reset-hostname
-    echo "TODO: Implement configure-normie"
+configure-normie: configure-keybindings-default configure-text-editor-reset reset-hostname configure-powersaver-no-suspend
+    gnome-extensions enable unblank@sun.wxg@gmail.com
 
 
 # --- LAYOUT MOLECULES (UX/Behavior/Positioning) ---
