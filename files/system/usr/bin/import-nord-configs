@@ -25,41 +25,51 @@ echo "================================================================="
 echo "                RedFoxOS NordVPN Configuration                   "
 echo "================================================================="
 
+SECRETS_DIR="/var/home/$(logname)/.config/redfox"
+CONFIG_FILE="$SECRETS_DIR/nordvpn-connections.txt"
+SECRETS_FILE="$SECRETS_DIR/secrets.env"
+
 # --- STEP 1: FETCH CONFIGURATION FILE ---
-CONFIG_FILE="$TEMP_DIR/nordvpn-connections.txt"
-fetch_success=false
+if [ -f "$CONFIG_FILE" ] && [ -f "$SECRETS_FILE" ]; then
+    echo "Found pre-configured secrets. Running non-interactively..."
+    source "$SECRETS_FILE"
+else
+    # Fallback to interactive mode if setup-secrets was not run
+    CONFIG_FILE="$TEMP_DIR/nordvpn-connections.txt"
+    fetch_success=false
 
-while [ "$fetch_success" = false ]; do
-    echo "Please provide the path to your server list."
-    echo "This can be a local file path (e.g., /home/matt/vpns.txt)"
-    echo "or a raw URL (e.g., https://gist.githubusercontent.com/...)"
-    read -p "Path/URL: " input_source
+    while [ "$fetch_success" = false ]; do
+        echo "Please provide the path to your server list."
+        echo "This can be a local file path (e.g., /home/matt/nordvpn-connections.txt)"
+        echo "or a raw URL (e.g., https://gist.githubusercontent.com/...)"
+        read -p "Path/URL: " input_source
 
-    if [[ "$input_source" =~ ^https?:// ]]; then
-        echo "Fetching from URL..."
-        if curl -sS -f -o "$CONFIG_FILE" "$input_source"; then
-            fetch_success=true
+        if [[ "$input_source" =~ ^https?:// ]]; then
+            echo "Fetching from URL..."
+            if curl -sS -f -o "$CONFIG_FILE" "$input_source"; then
+                fetch_success=true
+            else
+                echo "Error: Could not fetch from URL (Check link or network)."
+            fi
         else
-            echo "Error: Could not fetch from URL (Check link or network)."
+            eval input_source="$input_source"
+            if [ -f "$input_source" ]; then
+                cp "$input_source" "$CONFIG_FILE"
+                fetch_success=true
+            else
+                echo "Error: Local file not found at $input_source."
+            fi
         fi
-    else
-        eval input_source="$input_source"
-        if [ -f "$input_source" ]; then
-            cp "$input_source" "$CONFIG_FILE"
-            fetch_success=true
-        else
-            echo "Error: Local file not found at $input_source."
-        fi
-    fi
 
-    if [ "$fetch_success" = false ]; then
-        read -p "Would you like to try providing the path/URL again? (y/N): " retry
-        if [[ "$retry" != [yY] && "$retry" != [yY][eE][sS] ]]; then
-            echo "Exiting VPN configuration gracefully."
-            exit 0
+        if [ "$fetch_success" = false ]; then
+            read -p "Would you like to try providing the path/URL again? (y/N): " retry
+            if [[ "$retry" != [yY] && "$retry" != [yY][eE][sS] ]]; then
+                echo "Exiting VPN configuration gracefully."
+                exit 0
+            fi
         fi
-    fi
-done
+    done
+fi
 
 # Prepare the Canary variables
 canary_line=$(grep -m 1 " - https://" "$CONFIG_FILE")
@@ -74,61 +84,83 @@ else
 fi
 
 # --- STEP 2: CREDENTIALS & CANARY TEST ---
-echo -e "\n================================================================="
-echo "                  NordVPN Credentials Required                   "
-echo "-----------------------------------------------------------------"
-echo " NOTE: Do NOT use your standard NordVPN email and password."
-echo " You must use your NordVPN 'Service Credentials' (a long string"
-echo " of random characters). Find these on your Nord Account"
-echo " dashboard under: Services > NordVPN > Manual setup."
-echo "================================================================="
+if [ -z "${VPN_USER:-}" ] || [ -z "${VPN_PASS:-}" ]; then
+    echo -e "\n================================================================="
+    echo "                  NordVPN Credentials Required                   "
+    echo "-----------------------------------------------------------------"
+    echo " NOTE: Do NOT use your standard NordVPN email and password."
+    echo " You must use your NordVPN 'Service Credentials' (a long string"
+    echo " of random characters). Find these on your Nord Account"
+    echo " dashboard under: Services > NordVPN > Manual setup."
+    echo "================================================================="
 
-while true; do
-    read -p "Service Username: " VPN_USER
-    read -sp "Service Password: " VPN_PASS
-    echo -e "\n\nTesting credentials on $canary_desc (10s timeout)..."
+    while true; do
+        read -p "Service Username: " VPN_USER
+        read -sp "Service Password: " VPN_PASS
+        echo -e "\n\nTesting credentials on $canary_desc (10s timeout)..."
 
-    # Download and import Canary
+        # Download and import Canary
+        curl -sS -o "$canary_file" "$canary_url"
+        nmcli connection import type openvpn file "$canary_file" >/dev/null 2>&1
+        
+        # Configure Auth: Password + TLS
+        nmcli connection modify "$canary_safe" -vpn.data connection-type 2>/dev/null
+        nmcli connection modify "$canary_safe" +vpn.data connection-type=password-tls
+        
+        # Inject Credentials & Settings
+        nmcli connection modify "$canary_safe" +vpn.data username="$VPN_USER"
+        nmcli connection modify "$canary_safe" +vpn.secrets password="$VPN_PASS"
+        nmcli connection modify "$canary_safe" +vpn.data password-flags=0
+        
+        # Enforce clean name
+        nmcli connection modify "$canary_safe" connection.id "$canary_desc"
+
+        # The Canary Test
+        if timeout 10s nmcli connection up "$canary_desc" >/dev/null 2>&1; then
+            echo "  [SUCCESS] Credentials verified!"
+            nmcli connection down "$canary_desc" >/dev/null 2>&1
+            break
+        else
+            echo "  [FAILED] Could not connect. Credentials may be wrong, or the server/internet is down."
+            read -p "Choose action: [R]etry creds, [I]gnore & continue, [S]kip setup: " action
+            case "$action" in
+                [iI]*)
+                    echo "Ignoring failure. Proceeding with import..."
+                    break
+                    ;;
+                [sS]*)
+                    echo "Skipping VPN setup."
+                    nmcli connection delete "$canary_desc" >/dev/null 2>&1
+                    exit 0
+                    ;;
+                *)
+                    echo "Retrying..."
+                    nmcli connection delete "$canary_desc" >/dev/null 2>&1
+                    ;;
+            esac
+        fi
+    done
+else
+    # Silent mode validation
+    echo "Testing pre-configured credentials on $canary_desc..."
     curl -sS -o "$canary_file" "$canary_url"
     nmcli connection import type openvpn file "$canary_file" >/dev/null 2>&1
-    
-    # Configure Auth: Password + TLS
     nmcli connection modify "$canary_safe" -vpn.data connection-type 2>/dev/null
     nmcli connection modify "$canary_safe" +vpn.data connection-type=password-tls
-    
-    # Inject Credentials & Settings
     nmcli connection modify "$canary_safe" +vpn.data username="$VPN_USER"
     nmcli connection modify "$canary_safe" +vpn.secrets password="$VPN_PASS"
     nmcli connection modify "$canary_safe" +vpn.data password-flags=0
-    
-    # Enforce clean name
     nmcli connection modify "$canary_safe" connection.id "$canary_desc"
 
-    # The Canary Test
     if timeout 10s nmcli connection up "$canary_desc" >/dev/null 2>&1; then
         echo "  [SUCCESS] Credentials verified!"
         nmcli connection down "$canary_desc" >/dev/null 2>&1
-        break
     else
-        echo "  [FAILED] Could not connect. Credentials may be wrong, or the server/internet is down."
-        read -p "Choose action: [R]etry creds, [I]gnore & continue, [S]kip setup: " action
-        case "$action" in
-            [iI]*)
-                echo "Ignoring failure. Proceeding with import..."
-                break
-                ;;
-            [sS]*)
-                echo "Skipping VPN setup."
-                nmcli connection delete "$canary_desc" >/dev/null 2>&1
-                exit 0
-                ;;
-            *)
-                echo "Retrying..."
-                nmcli connection delete "$canary_desc" >/dev/null 2>&1
-                ;;
-        esac
+        echo "  [FAILED] Could not connect silently. Skipping VPN setup."
+        nmcli connection delete "$canary_desc" >/dev/null 2>&1
+        exit 1
     fi
-done
+fi
 
 # --- STEP 3: IMPORT REMAINING CONFIGS ---
 echo -e "\nPhase 1: Importing remaining configurations..."

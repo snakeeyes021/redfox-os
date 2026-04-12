@@ -50,6 +50,14 @@
 > *   **Deviation Recipes** (e.g., `set-window-controls-right`) use `gsettings set` to apply specific user preferences.
 > *   **Reset/Default Recipes** (e.g., `set-window-controls-left-gnome`) use `gsettings reset` to clear user overrides and revert to the system-wide baseline defined in `gschema-overrides`.
 
+> **Architecture Note: Interactivity Strategy (The "Front Desk" Pattern)**
+> *   **Goal:** To allow a user to run a long recipe (like `bootstrap-matt`) and immediately walk away without the script hanging 20 minutes later asking for a password or configuration link.
+> *   **Implementation:** 
+>     1. **`setup-secrets` Atom:** A dedicated atom acts as the "Front Desk." It is the *only* place interactivity (prompts for URLs, VPN credentials, etc.) is allowed. It caches these answers securely in `~/.config/redfox/secrets.env`.
+>     2. **Dependency Chaining:** Any recipe (Level 1, 2, or 3) that requires a secret or `sudo` MUST list `setup-secrets` as its very first dependency. `just` handles deduplication, meaning `setup-secrets` will only run once per `just` invocation, even if 10 sub-recipes depend on it.
+>     3. **Sudo Caching:** `setup-secrets` runs `sudo -v` immediately to cache the root password.
+>     4. **Silent Execution:** All other scripts/atoms must be completely non-interactive. They read from the cached `secrets.env` file or fail gracefully if it is missing.
+
 ### Level 1: Atoms (Single-Purpose Scripts)
 - [ ] `configure-git`: Interactive setup (User/Email/SSH) using `gh` CLI.
 - [x] `setup-vscode`:

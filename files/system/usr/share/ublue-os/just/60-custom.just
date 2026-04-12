@@ -1,5 +1,67 @@
 # Level 1: Atoms (Single-Purpose Scripts)
 
+# Setup Secrets (The "Front Desk" Pattern)
+# This recipe MUST be the first dependency for any recipe chain requiring secrets or sudo.
+# It runs exactly once per `just` invocation, caching sudo and downloading required secrets.
+redfox-init-secrets:
+    #!/usr/bin/bash
+    set -euo pipefail
+
+    echo "================================================================="
+    echo "                 RedFoxOS Secrets Setup                          "
+    echo "================================================================="
+    
+    # 1. Cache Sudo Immediately
+    echo "Please provide your password to cache sudo for this setup run."
+    sudo -v
+
+    # Keep sudo alive in the background until this script exits
+    while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
+
+    # 2. Check if secrets already exist
+    SECRETS_DIR="$HOME/.config/redfox"
+    SECRETS_FILE="$SECRETS_DIR/secrets.env"
+    
+    if [ -f "$SECRETS_FILE" ]; then
+        echo "[OK] Secrets already configured."
+        exit 0
+    fi
+
+    mkdir -p "$SECRETS_DIR"
+    
+    # 3. Prompt for Gist URL
+    echo -e "\nPlease provide the base RAW URL of your secret RedFox Gist."
+    echo "Example: https://gist.githubusercontent.com/username/hash/raw"
+    read -p "Gist URL: " GIST_URL
+    
+    # Remove trailing slash if present
+    GIST_URL=${GIST_URL%/}
+
+    # Download Gist files
+    echo -e "\nDownloading configurations..."
+    curl -sS -f -o "$SECRETS_DIR/hardware-mapping.txt" "$GIST_URL/hardware-mapping.txt" || echo "  [WARN] Could not download hardware-mapping.txt"
+    curl -sS -f -o "$SECRETS_DIR/nordvpn-connections.txt" "$GIST_URL/nordvpn-connections.txt" || echo "  [WARN] Could not download nordvpn-connections.txt"
+
+    # 4. Prompt for VPN Credentials
+    echo -e "\n-----------------------------------------------------------------"
+    echo "                  NordVPN Credentials Required                   "
+    echo "-----------------------------------------------------------------"
+    echo " NOTE: Do NOT use your standard NordVPN email and password."
+    echo " You must use your NordVPN 'Service Credentials' (a long string"
+    echo " of random characters). Find these on your Nord Account"
+    echo " dashboard under: Services > NordVPN > Manual setup."
+    echo "-----------------------------------------------------------------"
+    read -p "Service Username: " VPN_USER
+    read -sp "Service Password: " VPN_PASS
+    echo ""
+
+    # 5. Save securely
+    echo "VPN_USER=\"$VPN_USER\"" > "$SECRETS_FILE"
+    echo "VPN_PASS=\"$VPN_PASS\"" >> "$SECRETS_FILE"
+    chmod 600 "$SECRETS_FILE"
+
+    echo -e "\n[SUCCESS] Secrets setup complete."
+
 # Reset hostname to "redfox" (from whatever was inherited from upstream, likely "bazzite")
 reset-hostname:
     @echo "Setting hostname to redfox..."
@@ -253,7 +315,11 @@ preset-dock-macos:
 
 # Hardware Atoms
 fix-oryp9-mouse:
-    echo "TODO: Implement fix-oryp9-mouse"
+    @echo "Applying udev rule to ignore ghost PS/2 mouse..."
+    @echo 'ACTION=="add|change", KERNEL=="event*", ATTRS{name}=="*PS/2*Mouse", ENV{LIBINPUT_IGNORE_DEVICE}="1"' | sudo tee /etc/udev/rules.d/99-block-ghost-mouse.rules
+    @echo "Reloading udev rules..."
+    @sudo udevadm control --reload-rules && sudo udevadm trigger
+    @echo "Done."
 
 fix-acer-nouveau:
     echo "TODO: Implement fix-acer-nouveau"
@@ -261,8 +327,39 @@ fix-acer-nouveau:
 fix-4k-scaling:
     echo "TODO: Implement fix-4k-scaling"
 
-# Configure NordVPN interactively (requires path/URL and Service Credentials)
-configure-nordvpn:
+apply-hardware-quirks: redfox-init-secrets
+    #!/usr/bin/bash
+    set -euo pipefail
+    
+    MAPPING_FILE="$HOME/.config/redfox/hardware-mapping.txt"
+    if [ ! -f "$MAPPING_FILE" ]; then
+        echo "No hardware mapping file found at $MAPPING_FILE. Skipping hardware quirks."
+        exit 0
+    fi
+    
+    # Require sudo to read the DMI serial safely
+    # (Since redfox-init-secrets just ran, this won't prompt)
+    SERIAL=$(sudo cat /sys/class/dmi/id/product_serial 2>/dev/null || echo "Unknown")
+    
+    if [ "$SERIAL" == "Unknown" ]; then
+        echo "Could not read hardware serial number. Skipping hardware quirks."
+        exit 0
+    fi
+    
+    echo "Checking for hardware quirks for this device..."
+    
+    # Look for a line matching 'SERIAL:QUIRK_NAME'
+    QUIRK=$(grep "^${SERIAL}:" "$MAPPING_FILE" | cut -d':' -f2 || true)
+    
+    if [ -n "$QUIRK" ]; then
+        echo "Hardware match found! Applying quirk: $QUIRK"
+        just "$QUIRK"
+    else
+        echo "No specific hardware quirks mapped for this device."
+    fi
+
+# Configure NordVPN silently (relies on redfox-init-secrets)
+configure-nordvpn: redfox-init-secrets
     @echo "Configuring NordVPN..."
     sudo /usr/bin/import-nord-configs
 
@@ -521,7 +618,7 @@ configure-xway-scale-on:
 configure-dev: configure-vscode configure-cursor
 
 # Configure Matt's Environment
-configure-matt: add-swap configure-nordvpn reset-hostname configure-keybindings-default configure-dev configure-text-editor-dev configure-terminal-default configure-powersaver-no-suspend configure-xway-scale-off
+configure-matt: setup-secrets apply-hardware-quirks add-swap configure-nordvpn reset-hostname configure-keybindings-default configure-dev configure-text-editor-dev configure-terminal-default configure-powersaver-no-suspend configure-xway-scale-off
     mkdir -p ~/dev
     gnome-extensions enable unblank@sun.wxg@gmail.com
     # just runs hardware atoms here eventually
@@ -542,7 +639,7 @@ configure-cursor-dewy:
     fi
 
 # Configure Dewy's Environment
-configure-dewy: configure-keybindings-default configure-text-editor-dev reset-hostname configure-cursor-dewy configure-terminal-tilix configure-nordvpn configure-powersaver-default configure-xway-scale-on
+configure-dewy: setup-secrets configure-keybindings-default configure-text-editor-dev reset-hostname configure-cursor-dewy configure-terminal-tilix configure-nordvpn configure-powersaver-default configure-xway-scale-on
     gsettings set org.gnome.shell.keybindings show-screenshot-ui "['Print']"
     gsettings set org.gnome.shell.keybindings screenshot "['<Shift><Super>s']"
     gnome-extensions disable unblank@sun.wxg@gmail.com
