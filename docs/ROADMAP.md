@@ -86,17 +86,17 @@
     - [x] `set-window-controls-right-full` (Deviation): Sets `:minimize,maximize,close`.
     - [x] `set-window-controls-right-gnome` (Deviation): Sets `:close`.
     - [x] `set-window-controls-left-gnome` (Reset): Sets `close:` (reverts to system default).
-    - [ ] `sort-app-grid` (Deviation): Removes folders and sorts alphabetically.
+    - [x] `sort-app-grid` (Deviation): Removes folders and sorts alphabetically.
     - [ ] `default-app-grid` (Reset): Restores folders and sorts with default sorting.
-    - [ ] `preset-dock-ubuntu` (Reset): Configure Dash to Dock (Left side). Turn on Dash to Dock.
+    - [x] `preset-dock-ubuntu` (Reset): Configure Dash to Dock (Left side). Turn on Dash to Dock.
     - [ ] `preset-dock-win-classic` (Deviation): Configure Dash to Dock (Bottom, Taskbar style, icons on left). Turn on Dash to Dock.
     - [ ] `preset-dock-win-new` (Deviation): Configure Dash to Dock (Bottom, Taskbar style, icons on centered). Turn on Dash to Dock.
     - [ ] `preset-dock-macos` (Deviation): Configure Dash to Dock (Bottom, Floating). Turn on Dash to Dock.
     - [x] `configure-xway-scale-off` (Reset): Disable `xwayland-native-scaling`.
     - [x] `configure-xway-scale-on` (Deviation): Enable `xwayland-native-scaling`.
 - [ ] **Hardware Atoms (Must include Host Checks):**
-    - [ ] `fix-oryp9-mouse`: Udev rule (Run only if Oryp9).
-    - [ ] `fix-acer-nouveau`: Kernel args (Run only if Acer).
+    - [x] `fix-oryp9-mouse`: Udev rule (Run only if Oryp9).
+    - [x] `fix-acer-nouveau`: Kernel args (Run only if Acer).
 
 ### Level 1.5: Small-ecules (Software packs)
 - [x] `install-productivity`: Flatpak list (Office, etc.).
@@ -114,7 +114,7 @@
 
 - [ ] **Config Molecules (User/Tool Setup):**
     - [ ] `configure-matt`:
-        - [ ] Runs Hardware Atoms (Logic checks happen inside atoms or here).
+        - [x] Runs Hardware Atoms (Logic checks happen inside atoms or here).
         - [x] Runs `configure-xway-scale-off`.
         - [ ] Runs `configure-git`.
         - [ ] Runs `configure-heroic` (if configure-heroic remains a ujust recipe and not a system default)
@@ -130,12 +130,12 @@
 
 - [ ] **Layout Molecules (UX/Behavior/Positioning):**
     - [ ] `layout-matt` (Renamed from theme-matt):
-        - [ ] runs `sort-app-grid`.
-        - [ ] runs `set-window-controls-left-gnome`.
+        - [x] runs `sort-app-grid`.
+        - [x] runs `set-window-controls-left-gnome`.
     - [ ] `layout-dewy` (Renamed from theme-dewy):
-        - [ ] Runs `sort-app-grid`.
-        - [ ] Runs `set-window-controls-right-full`.
-        - [ ] Runs `preset-dock-ubuntu` (or custom Dewy dock settings).
+        - [x] Runs `sort-app-grid`.
+        - [x] Runs `set-window-controls-right-full`.
+        - [x] Runs `preset-dock-ubuntu` (or custom Dewy dock settings).
     - [ ] `layout-fedora`: "Reset" recipe to restore Vanilla Fedora layout.
     - [ ] `layout-normie`: Flexible layout switcher?
 
@@ -167,15 +167,15 @@
 - [x] Add sound theme change -- ujust (set default sound theme to normal fedora default, "reset". set sound to bazzite, "deviation")
     - [x] Set system default override to 'freedesktop' (Fedora default).
     - [x] Create ujust recipes: `theme-sound-fedora` (reset) and `theme-sound-bazzite` (set to 'bazzite').
-- [ ] Dock defaults
-- [x] Set default hostname, etc (Implemented via static file `files/system/etc/hostname`) -- wrong, need to take a second swing at it (and remove the first attempt)
+- [x] Dock defaults
+- [x] Set default hostname, etc (Implemented via static file `files/system/etc/hostname`) -- wrong, need to take a second swing at it (and remove the first attempt) -- Did we get this right? I think we did, but we should determine that and say so if so
 - [ ] Cursor Remote Tunnels fixes from AmyOS
 - [ ] vesktop icons fix (would like to use discord icons in system tray, perhaps different app icon too)
 - [ ] Android studio (add copr repo and package to main recipe) -- Not sure I want to keep this one (there are other methods than baking it in, including brew casks or whatever theyre called; there's one for jetbrains; there's also a ujust that does basically the same thing--both have a pathing issue that needs a workaround on systems with the whole /var/home/ setup)
 
 ## Running Matt fixes
 - [ ] Post-GNOME Builder install fix to reset file associations (GNOME builder steals just about any type of code file, python, json, sh, etc.)
-- [ ] Text Editor should not open previous session by default
+- [x] Text Editor should not open previous session by default
 
 ## Running Dewy fixes
 - [x] System Dropbox
