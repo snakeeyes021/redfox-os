@@ -151,11 +151,11 @@
 - [ ] `bootstrap-normie`: Runs `install-normie`, `theme-normie`, `layout-normie`, `configure-normie`.
 
 ## 🛠️ Ujust Idempotency Fixes
-- [ ] **Research & Fix:** Identify and resolve recipes that fail or cause issues when run multiple times.
+- [x] **Research & Fix:** Identify and resolve recipes that fail or cause issues when run multiple times.
     - [x] `add-swap`: Idempotent; offers to recreate or skips if already active.
-    - [ ] `install-gemini-cli`: Fails if already installed via Homebrew. (this may be fine as is--it's *supposed* to be installed via homebrew)
-    - [ ] `uninstall-gemini-cli`: Fails if not installed via Homebrew. (this may be fine as is--it's *supposed* to be installed via homebrew)
-    - [ ] `install-zed`: Should check for existing installation before running `curl | sh`. (note: this might not be necessary; investigate the installer)
+    - [x] `install-gemini-cli`: Fails if already installed via Homebrew. (No, this is fine as is--it's *supposed* to be installed via homebrew, and running this will update it)
+    - [x] `uninstall-gemini-cli`: Fails if not installed. Now fixed.
+    - [x] `install-zed`: Should check for existing installation before running `curl | sh`. (No, this is not necessary; re-running will simply update it)
     - [x] `fix-oryp9-mouse`: Idempotent; checks if udev rule already exists and matches content.
     - [x] `configure-nordvpn`: Idempotent; `import-nord-configs` now deduplicates connections and always enforces sort order.
 

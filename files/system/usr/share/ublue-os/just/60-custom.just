@@ -202,9 +202,16 @@ install-gemini-cli:
 
 # Uninstall Gemini CLI
 uninstall-gemini-cli:
-    echo "Uninstalling Gemini CLI..."
-    brew uninstall gemini-cli
-    echo "Gemini CLI uninstalled!"
+    #!/usr/bin/bash
+    set -euo pipefail
+    echo "Checking Gemini CLI status..."
+    if brew list gemini-cli &>/dev/null; then
+        echo "Uninstalling Gemini CLI..."
+        brew uninstall gemini-cli
+        echo "Gemini CLI uninstalled!"
+    else
+        echo "[OK] Gemini CLI is not installed. Nothing to do."
+    fi
 
 # Configure Heroic
 configure-heroic:
