@@ -30,15 +30,18 @@ redfox-init-secrets:
     mkdir -p "$SECRETS_DIR"
     
     # 3. Prompt for Gist URL
-    echo -e "\nPlease provide the base RAW URL of your secret RedFox Gist."
-    echo "Example: https://gist.githubusercontent.com/username/hash/raw"
+    echo -e "\nPlease provide the URL of your secret RedFox Gist."
+    echo "Example: https://gist.github.com/username/hash"
     read -p "Gist URL: " GIST_URL
     
-    # Remove trailing slash if present
+    # Normalize URL: Remove trailing slash, then ensure it ends in /raw
     GIST_URL=${GIST_URL%/}
+    if [[ "$GIST_URL" != */raw ]]; then
+        GIST_URL="${GIST_URL}/raw"
+    fi
 
     # Download Gist files
-    echo -e "\nDownloading configurations..."
+    echo -e "\nDownloading configurations from: $GIST_URL"
     curl -sS -f -o "$SECRETS_DIR/hardware-mapping.txt" "$GIST_URL/hardware-mapping.txt" || echo "  [WARN] Could not download hardware-mapping.txt"
     curl -sS -f -o "$SECRETS_DIR/nordvpn-connections.txt" "$GIST_URL/nordvpn-connections.txt" || echo "  [WARN] Could not download nordvpn-connections.txt"
 
