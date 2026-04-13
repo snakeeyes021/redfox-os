@@ -378,11 +378,20 @@ preset-dock-macos:
 
 # Hardware Atoms
 fix-oryp9-mouse:
-    @echo "Applying udev rule to ignore ghost PS/2 mouse..."
-    @echo 'ACTION=="add|change", KERNEL=="event*", ATTRS{name}=="*PS/2*Mouse", ENV{LIBINPUT_IGNORE_DEVICE}="1"' | sudo tee /etc/udev/rules.d/99-block-ghost-mouse.rules
-    @echo "Reloading udev rules..."
-    @sudo udevadm control --reload-rules && sudo udevadm trigger
-    @echo "Done."
+    #!/usr/bin/bash
+    RULE_PATH="/etc/udev/rules.d/99-block-ghost-mouse.rules"
+    RULE_CONTENT='ACTION=="add|change", KERNEL=="event*", ATTRS{name}=="*PS/2*Mouse", ENV{LIBINPUT_IGNORE_DEVICE}="1"'
+    
+    if [ -f "$RULE_PATH" ] && grep -qF "$RULE_CONTENT" "$RULE_PATH"; then
+        echo "[OK] udev rule already exists. No action needed."
+        exit 0
+    fi
+
+    echo "Applying udev rule to ignore ghost PS/2 mouse..."
+    echo "$RULE_CONTENT" | sudo tee "$RULE_PATH" > /dev/null
+    echo "Reloading udev rules..."
+    sudo udevadm control --reload-rules && sudo udevadm trigger
+    echo "Done."
 
 fix-acer-nouveau:
     #!/usr/bin/bash
