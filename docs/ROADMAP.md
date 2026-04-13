@@ -152,12 +152,12 @@
 
 ## 🛠️ Ujust Idempotency Fixes
 - [ ] **Research & Fix:** Identify and resolve recipes that fail or cause issues when run multiple times.
-    - [ ] `add-swap`: Fails if `/var/swapfile` exists or is already active.
+    - [x] `add-swap`: Fails if `/var/swapfile` exists or is already active.
     - [ ] `install-gemini-cli`: Fails if already installed via Homebrew. (this may be fine as is--it's *supposed* to be installed via homebrew)
     - [ ] `uninstall-gemini-cli`: Fails if not installed via Homebrew. (this may be fine as is--it's *supposed* to be installed via homebrew)
     - [ ] `install-zed`: Should check for existing installation before running `curl | sh`. (note: this might not be necessary; investigate the installer)
     - [ ] `fix-oryp9-mouse`: Should check if udev rule already exists to avoid redundant `tee`.
-    - [ ] `configure-nordvpn`: `import-nord-configs` `import-nord-configs` duplicates the Canary connection and re-runs the slow sorting hack on every execution.
+    - [x] `configure-nordvpn`: `import-nord-configs` `import-nord-configs` duplicates the Canary connection and re-runs the slow sorting hack on every execution.
 
 ## 🎨 Branding & Aesthetics
 - [ ] **Wallpapers**

@@ -69,8 +69,14 @@ redfox-init-secrets:
         fi
 
         echo "    Downloading configurations from: $GIST_URL"
-        curl -sS -f -o "$SECRETS_DIR/hardware-mapping.txt" "$GIST_URL/hardware-mapping.txt" || { echo "Error: Could not download hardware-mapping.txt"; exit 1; }
-        curl -sS -f -o "$SECRETS_DIR/nordvpn-connections.txt" "$GIST_URL/nordvpn-connections.txt" || { echo "Error: Could not download nordvpn-connections.txt"; exit 1; }
+        curl -sS -f -L -o "$SECRETS_DIR/hardware-mapping.txt" "$GIST_URL/hardware-mapping.txt" || { echo "Error: Could not download hardware-mapping.txt"; exit 1; }
+        curl -sS -f -L -o "$SECRETS_DIR/nordvpn-connections.txt" "$GIST_URL/nordvpn-connections.txt" || { echo "Error: Could not download nordvpn-connections.txt"; exit 1; }
+        
+        # Validation: Ensure files aren't empty
+        if [ ! -s "$SECRETS_DIR/hardware-mapping.txt" ] || [ ! -s "$SECRETS_DIR/nordvpn-connections.txt" ]; then
+            echo "Error: Downloaded files are empty. Check your Gist URL and file names."
+            exit 1
+        fi
         echo "    [SUCCESS] Gist files updated."
     fi
 

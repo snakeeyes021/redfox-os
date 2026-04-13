@@ -46,7 +46,7 @@ else
 
         if [[ "$input_source" =~ ^https?:// ]]; then
             echo "Fetching from URL..."
-            if curl -sS -f -o "$CONFIG_FILE" "$input_source"; then
+            if curl -sS -f -L -o "$CONFIG_FILE" "$input_source"; then
                 fetch_success=true
             else
                 echo "Error: Could not fetch from URL (Check link or network)."
@@ -83,67 +83,34 @@ else
     exit 1
 fi
 
-# --- STEP 2: CREDENTIALS & CANARY TEST ---
-if [ -z "${VPN_USER:-}" ] || [ -z "${VPN_PASS:-}" ]; then
-    echo -e "\n================================================================="
-    echo "                  NordVPN Credentials Required                   "
-    echo "-----------------------------------------------------------------"
-    echo " NOTE: Do NOT use your standard NordVPN email and password."
-    echo " You must use your NordVPN 'Service Credentials' (a long string"
-    echo " of random characters). Find these on your Nord Account"
-    echo " dashboard under: Services > NordVPN > Manual setup."
-    echo "================================================================="
-
-    while true; do
-        read -p "Service Username: " VPN_USER
-        read -sp "Service Password: " VPN_PASS
-        echo -e "\n\nTesting credentials on $canary_desc (10s timeout)..."
-
-        # Download and import Canary
-        curl -sS -o "$canary_file" "$canary_url"
-        nmcli connection import type openvpn file "$canary_file" >/dev/null 2>&1
+# --- STEP 2: DEDUPLICATION PHASE ---
+echo "Phase 0: Cleaning up duplicate connections..."
+while IFS= read -r line || [ -n "$line" ]; do
+    [[ -z "$line" || "$line" =~ ^# ]] && continue
+    if [[ "$line" =~ ^(.*)\ -\ (https://.*)$ ]]; then
+        description="${BASH_REMATCH[1]}"
+        # Get all UUIDs for this name
+        uuids=$(nmcli -t -f UUID,NAME connection show | grep ":${description}$" | cut -d: -f1 || true)
+        count=$(echo "$uuids" | grep -c . || echo 0)
         
-        # Configure Auth: Password + TLS
-        nmcli connection modify "$canary_safe" -vpn.data connection-type 2>/dev/null
-        nmcli connection modify "$canary_safe" +vpn.data connection-type=password-tls
-        
-        # Inject Credentials & Settings
-        nmcli connection modify "$canary_safe" +vpn.data username="$VPN_USER"
-        nmcli connection modify "$canary_safe" +vpn.secrets password="$VPN_PASS"
-        nmcli connection modify "$canary_safe" +vpn.data password-flags=0
-        
-        # Enforce clean name
-        nmcli connection modify "$canary_safe" connection.id "$canary_desc"
-
-        # The Canary Test
-        if timeout 10s nmcli connection up "$canary_desc" >/dev/null 2>&1; then
-            echo "  [SUCCESS] Credentials verified!"
-            nmcli connection down "$canary_desc" >/dev/null 2>&1
-            break
-        else
-            echo "  [FAILED] Could not connect. Credentials may be wrong, or the server/internet is down."
-            read -p "Choose action: [R]etry creds, [I]gnore & continue, [S]kip setup: " action
-            case "$action" in
-                [iI]*)
-                    echo "Ignoring failure. Proceeding with import..."
-                    break
-                    ;;
-                [sS]*)
-                    echo "Skipping VPN setup."
-                    nmcli connection delete "$canary_desc" >/dev/null 2>&1
-                    exit 0
-                    ;;
-                *)
-                    echo "Retrying..."
-                    nmcli connection delete "$canary_desc" >/dev/null 2>&1
-                    ;;
-            esac
+        if [ "$count" -gt 1 ]; then
+            echo "  [FIX] Removing $count duplicates for: $description"
+            # Keep the first one, delete the rest
+            echo "$uuids" | tail -n +2 | while read -r extra_uuid; do
+                nmcli connection delete uuid "$extra_uuid" >/dev/null 2>&1
+            done
         fi
-    done
+    fi
+done < "$CONFIG_FILE"
+
+# --- STEP 3: CREDENTIALS & CANARY TEST ---
+echo -e "\nPhase 1: Testing credentials..."
+# Ensure canary is unique before testing (redundant but safe)
+if nmcli connection show "$canary_desc" >/dev/null 2>&1; then
+    echo "  [OK] Using existing connection: $canary_desc"
 else
-    # Silent mode validation
-    echo "Testing pre-configured credentials on $canary_desc..."
-    curl -sS -o "$canary_file" "$canary_url"
+    echo "  [INFO] Importing $canary_desc for testing..."
+    curl -sS -L -o "$canary_file" "$canary_url"
     nmcli connection import type openvpn file "$canary_file" >/dev/null 2>&1
     nmcli connection modify "$canary_safe" -vpn.data connection-type 2>/dev/null
     nmcli connection modify "$canary_safe" +vpn.data connection-type=password-tls
@@ -151,21 +118,20 @@ else
     nmcli connection modify "$canary_safe" +vpn.secrets password="$VPN_PASS"
     nmcli connection modify "$canary_safe" +vpn.data password-flags=0
     nmcli connection modify "$canary_safe" connection.id "$canary_desc"
-
-    if timeout 10s nmcli connection up "$canary_desc" >/dev/null 2>&1; then
-        echo "  [SUCCESS] Credentials verified!"
-        nmcli connection down "$canary_desc" >/dev/null 2>&1
-    else
-        echo "  [FAILED] Could not connect silently. Skipping VPN setup."
-        nmcli connection delete "$canary_desc" >/dev/null 2>&1
-        exit 1
-    fi
 fi
 
-# --- STEP 3: IMPORT REMAINING CONFIGS ---
-echo -e "\nPhase 1: Importing remaining configurations..."
+if timeout 15s nmcli connection up "$canary_desc" >/dev/null 2>&1; then
+    echo "  [SUCCESS] Credentials verified!"
+    nmcli connection down "$canary_desc" >/dev/null 2>&1
+else
+    echo "  [FAILED] Could not connect. Check credentials or internet."
+    # If interactive, we'd prompt here, but in non-interactive we just fail
+    [ -n "${VPN_PASS:-}" ] && exit 1
+fi
 
-# 3. IMPORT LOOP
+# --- STEP 4: IMPORT MISSING CONFIGS ---
+echo -e "\nPhase 2: Importing remaining configurations..."
+
 while IFS= read -r line || [ -n "$line" ]; do
     [[ -z "$line" || "$line" =~ ^# ]] && continue
 
@@ -176,32 +142,22 @@ while IFS= read -r line || [ -n "$line" ]; do
         safe_filename=$(echo "$description" | tr -dc 'a-zA-Z0-9 -')
         filepath="$TEMP_DIR/$safe_filename.ovpn"
 
-        # This cleanly skips the canary we already imported or any existing connections
-        if nmcli -t -f NAME connection show | grep -q "^${description}$"; then
-             echo "  [SKIP] $description (already configured/exists)"
+        if nmcli connection show "$description" >/dev/null 2>&1; then
+             echo "  [SKIP] $description (already exists)"
              continue
         fi
 
         echo "  Downloading: $description..."
-        if curl -sS -o "$filepath" "$url"; then
-            # Import (suppress output)
+        if curl -sS -L -o "$filepath" "$url"; then
             nmcli connection import type openvpn file "$filepath" >/dev/null 2>&1
             if [ $? -eq 0 ]; then
-                # Capture the ID (usually defaults to filename)
                 conn_id="$safe_filename"
-                
-                # Configure Auth: Password + TLS
                 nmcli connection modify "$conn_id" -vpn.data connection-type 2>/dev/null
                 nmcli connection modify "$conn_id" +vpn.data connection-type=password-tls
-                
-                # Inject Credentials & Settings
                 nmcli connection modify "$conn_id" +vpn.data username="$VPN_USER"
                 nmcli connection modify "$conn_id" +vpn.secrets password="$VPN_PASS"
                 nmcli connection modify "$conn_id" +vpn.data password-flags=0
-                
-                # Enforce clean name
                 nmcli connection modify "$conn_id" connection.id "$description"
-                
                 echo "  [OK] Imported: $description"
             else
                 echo "  [ERROR] Import failed for $description"
@@ -212,30 +168,16 @@ while IFS= read -r line || [ -n "$line" ]; do
     fi
 done < "$CONFIG_FILE"
 
-# --- STEP 4: GNOME SORTING HACK ---
-# We take the top 8 lines of the file, reverse them (tac), and trigger a connection.
-# Reversing ensures the 1st line in the file is the LAST one touched, 
-# putting it at the absolute top of the GNOME list.
+# --- STEP 5: GNOME SORTING HACK (Always Run) ---
+echo -e "\nPhase 3: Enforcing sort order (Touching Top 8)..."
 
-echo -e "\nPhase 2: Setting sort order (Touching Top 8)..."
-
-# Extract valid connection names from the top 8 lines of config
-# We use grep to ensure we only get lines with the " - https" pattern
 for i in 1 2; do
     grep " - https" "$CONFIG_FILE" | head -n 8 | tac | while read -r line; do
         if [[ "$line" =~ ^(.*)\ -\ https://.*$ ]]; then
             conn_name="${BASH_REMATCH[1]}"
-            
             echo -n "  Touching: $conn_name... "
-            
-            # We use 'timeout 5s' to try connecting. 
-            # Even if it fails or times out, NetworkManager updates the timestamp.
-            # We suppress output to keep it clean.
             timeout 5s nmcli connection up "$conn_name" >/dev/null 2>&1
-            
-            # Ensure it's disconnected immediately
             nmcli connection down "$conn_name" >/dev/null 2>&1
-            
             echo "Done."
         fi
     done
