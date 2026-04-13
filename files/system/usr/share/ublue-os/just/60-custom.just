@@ -18,52 +18,104 @@ redfox-init-secrets:
     # Keep sudo alive in the background until this script exits
     while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
 
-    # 2. Check if secrets already exist
+    # 2. Check State
     SECRETS_DIR="$HOME/.config/redfox"
     SECRETS_FILE="$SECRETS_DIR/secrets.env"
-    
-    if [ -f "$SECRETS_FILE" ]; then
-        echo "[OK] Secrets already configured."
-        exit 0
-    fi
-
     mkdir -p "$SECRETS_DIR"
     
-    # 3. Prompt for Gist URL
-    echo -e "\nPlease provide the URL of your secret RedFox Gist."
-    echo "Example: https://gist.github.com/username/hash"
-    read -p "Gist URL: " GIST_URL
-    
-    # Normalize URL: Remove trailing slash, then ensure it ends in /raw
-    GIST_URL=${GIST_URL%/}
-    if [[ "$GIST_URL" != */raw ]]; then
-        GIST_URL="${GIST_URL}/raw"
+    # Load existing secrets if they exist
+    GIST_URL=""
+    VPN_USER=""
+    VPN_PASS=""
+    if [ -f "$SECRETS_FILE" ]; then
+        # Use a subshell to avoid polluting the script environment before validation
+        eval "$(grep '^GIST_URL=' "$SECRETS_FILE" || true)"
+        eval "$(grep '^VPN_USER=' "$SECRETS_FILE" || true)"
+        eval "$(grep '^VPN_PASS=' "$SECRETS_FILE" || true)"
     fi
 
-    # Download Gist files
-    echo -e "\nDownloading configurations from: $GIST_URL"
-    curl -sS -f -o "$SECRETS_DIR/hardware-mapping.txt" "$GIST_URL/hardware-mapping.txt" || echo "  [WARN] Could not download hardware-mapping.txt"
-    curl -sS -f -o "$SECRETS_DIR/nordvpn-connections.txt" "$GIST_URL/nordvpn-connections.txt" || echo "  [WARN] Could not download nordvpn-connections.txt"
+    # --- PART 1: GIST CONFIGURATIONS ---
+    GIST_FILES_EXIST=true
+    if [ ! -f "$SECRETS_DIR/hardware-mapping.txt" ] || [ ! -f "$SECRETS_DIR/nordvpn-connections.txt" ]; then
+        GIST_FILES_EXIST=false
+    fi
 
-    # 4. Prompt for VPN Credentials
-    echo -e "\n-----------------------------------------------------------------"
-    echo "                  NordVPN Credentials Required                   "
-    echo "-----------------------------------------------------------------"
-    echo " NOTE: Do NOT use your standard NordVPN email and password."
-    echo " You must use your NordVPN 'Service Credentials' (a long string"
-    echo " of random characters). Find these on your Nord Account"
-    echo " dashboard under: Services > NordVPN > Manual setup."
-    echo "-----------------------------------------------------------------"
-    read -p "Service Username: " VPN_USER
-    read -sp "Service Password: " VPN_PASS
-    echo ""
+    DO_GIST_UPDATE=false
+    if [ "$GIST_FILES_EXIST" = "false" ] || [ -z "$GIST_URL" ]; then
+        echo -e "\n[!] Gist configurations are incomplete."
+        DO_GIST_UPDATE=true
+    else
+        echo -e "\n[OK] Gist configurations are present ($GIST_URL)."
+        read -p "    Update Gist URL and/or re-download files? [y/N]: " RE_GIST
+        if [[ "$RE_GIST" =~ ^[yY] ]]; then
+            DO_GIST_UPDATE=true
+        fi
+    fi
 
-    # 5. Save securely
-    echo "VPN_USER=\"$VPN_USER\"" > "$SECRETS_FILE"
-    echo "VPN_PASS=\"$VPN_PASS\"" >> "$SECRETS_FILE"
-    chmod 600 "$SECRETS_FILE"
+    if [ "$DO_GIST_UPDATE" = "true" ]; then
+        PROMPT_GIST="${GIST_URL:-}"
+        read -p "    Provide Gist URL (Enter to keep current): " INPUT_GIST
+        GIST_URL="${INPUT_GIST:-$PROMPT_GIST}"
 
-    echo -e "\n[SUCCESS] Secrets setup complete."
+        if [ -z "$GIST_URL" ]; then
+            echo "Error: Gist URL is required to continue."
+            exit 1
+        fi
+
+        # Normalize URL
+        GIST_URL=${GIST_URL%/}
+        if [[ "$GIST_URL" != */raw ]]; then
+            GIST_URL="${GIST_URL}/raw"
+        fi
+
+        echo "    Downloading configurations from: $GIST_URL"
+        curl -sS -f -o "$SECRETS_DIR/hardware-mapping.txt" "$GIST_URL/hardware-mapping.txt" || { echo "Error: Could not download hardware-mapping.txt"; exit 1; }
+        curl -sS -f -o "$SECRETS_DIR/nordvpn-connections.txt" "$GIST_URL/nordvpn-connections.txt" || { echo "Error: Could not download nordvpn-connections.txt"; exit 1; }
+        echo "    [SUCCESS] Gist files updated."
+    fi
+
+    # --- PART 2: VPN CREDENTIALS ---
+    DO_VPN_UPDATE=false
+    if [ -z "$VPN_USER" ] || [ -z "$VPN_PASS" ]; then
+        echo -e "\n[!] NordVPN credentials are missing."
+        DO_VPN_UPDATE=true
+    else
+        echo -e "\n[OK] NordVPN credentials are present ($VPN_USER)."
+        read -p "    Update VPN credentials? [y/N]: " RE_VPN
+        if [[ "$RE_VPN" =~ ^[yY] ]]; then
+            DO_VPN_UPDATE=true
+        fi
+    fi
+
+    if [ "$DO_VPN_UPDATE" = "true" ]; then
+        echo "-----------------------------------------------------------------"
+        echo " NOTE: Do NOT use your standard NordVPN email and password."
+        echo " You must use your NordVPN 'Service Credentials' (a long string"
+        echo " of random characters). Find these on your Nord Account"
+        echo " dashboard under: Services > NordVPN > Manual setup."
+        echo "-----------------------------------------------------------------"
+        read -p "    Service Username: " VPN_USER
+        read -sp "    Service Password: " VPN_PASS
+        echo -e "\n    [SUCCESS] VPN credentials updated."
+    fi
+
+    # --- PART 3: ATOMIC SAVE ---
+    TMP_FILE=$(mktemp)
+    echo "GIST_URL=\"$GIST_URL\"" > "$TMP_FILE"
+    echo "VPN_USER=\"$VPN_USER\"" >> "$TMP_FILE"
+    echo "VPN_PASS=\"$VPN_PASS\"" >> "$TMP_FILE"
+    chmod 600 "$TMP_FILE"
+    mv "$TMP_FILE" "$SECRETS_FILE"
+
+    echo -e "\n[COMPLETE] Secrets setup is synchronized."
+
+# Permanently delete all saved secrets and configuration files
+redfox-reset-secrets:
+    @echo "WARNING: This will permanently delete your Gist configurations and VPN credentials."
+    @echo "Are you sure? [y/N]: "
+    @read -r confirm && [[ "$$confirm" == [yY] ]]
+    rm -rf "$HOME/.config/redfox"
+    @echo "Secrets reset. Run 'just redfox-init-secrets' to re-configure."
 
 # Reset hostname to "redfox" (from whatever was inherited from upstream, likely "bazzite")
 reset-hostname:
