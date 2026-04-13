@@ -645,7 +645,7 @@ configure-xway-scale-on:
 configure-dev: configure-vscode configure-cursor
 
 # Configure Matt's Environment
-configure-matt: setup-secrets apply-hardware-quirks add-swap configure-nordvpn reset-hostname configure-keybindings-default configure-dev configure-text-editor-dev configure-terminal-default configure-powersaver-no-suspend configure-xway-scale-off
+configure-matt: redfox-init-secrets apply-hardware-quirks add-swap configure-nordvpn reset-hostname configure-keybindings-default configure-dev configure-text-editor-dev configure-terminal-default configure-powersaver-no-suspend configure-xway-scale-off
     mkdir -p ~/dev
     gnome-extensions enable unblank@sun.wxg@gmail.com
     # just runs hardware atoms here eventually
@@ -666,7 +666,7 @@ configure-cursor-dewy:
     fi
 
 # Configure Dewy's Environment
-configure-dewy: setup-secrets configure-keybindings-default configure-text-editor-dev reset-hostname configure-cursor-dewy configure-terminal-tilix configure-nordvpn configure-powersaver-default configure-xway-scale-on
+configure-dewy: redfox-init-secrets configure-keybindings-default configure-text-editor-dev reset-hostname configure-cursor-dewy configure-terminal-tilix configure-nordvpn configure-powersaver-default configure-xway-scale-on
     gsettings set org.gnome.shell.keybindings show-screenshot-ui "['Print']"
     gsettings set org.gnome.shell.keybindings screenshot "['<Shift><Super>s']"
     gnome-extensions disable unblank@sun.wxg@gmail.com
