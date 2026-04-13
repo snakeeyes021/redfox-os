@@ -687,6 +687,20 @@ configure-normie: configure-keybindings-default configure-text-editor-reset rese
 # Layout Matt
 layout-matt: sort-app-grid set-window-controls-left-gnome layout-tiling-default preset-dock-gnome
     gsettings reset-recursively org.gnome.shell.extensions.dash-to-dock
+    gsettings set org.gnome.shell favorite-apps "[\
+      'org.gnome.Ptyxis.desktop', \
+      'org.gnome.Nautilus.desktop', \
+      'com.getmailspring.Mailspring.desktop', \
+      'org.mozilla.firefox.desktop', \
+      'org.signal.Signal.desktop', \
+      'org.gnome.TextEditor.desktop', \
+      'code.desktop', \
+      'com.spotify.Client.desktop', \
+      'steam.desktop', \
+      'net.cozic.joplin_desktop.desktop', \
+      'io.github.kolunmi.Bazaar.desktop', \
+      'org.gnome.Settings.desktop']"
+    # Note: Add Gemini Web App ID and Dorico 6 once stabilized.
 
 # Layout Dewy
 layout-dewy: sort-app-grid set-window-controls-right-full layout-tiling-dewy preset-dock-ubuntu
@@ -694,14 +708,28 @@ layout-dewy: sort-app-grid set-window-controls-right-full layout-tiling-dewy pre
     gsettings set org.gnome.shell.extensions.dash-to-dock dash-max-icon-size 40
     gsettings set org.gnome.shell favorite-apps "['org.gnome.Nautilus.desktop', 'io.missioncenter.MissionCenter.desktop', 'org.gnome.Settings.desktop', 'org.gnome.Ptyxis.desktop', 'org.mozilla.firefox.desktop', 'com.brave.Browser.desktop', 'org.gnome.Calculator.desktop', 'org.gnome.TextEditor.desktop', 'dev.zed.Zed.desktop', 'cursor.desktop', 'com.spotify.Client.desktop', 'com.slack.Slack.desktop', 'org.signal.Signal.desktop', 'dev.vencord.Vesktop.desktop']"
 
-# Layout Fedora (Vanilla)
+# Layout Fedora (Mostly Vanilla Fedora 43 Defaults)
 layout-fedora: default-app-grid set-window-controls-right-gnome layout-tiling-default preset-dock-gnome
     gsettings reset-recursively org.gnome.shell.extensions.dash-to-dock
+    gsettings set org.gnome.shell favorite-apps "['org.mozilla.firefox.desktop', 'org.gnome.Calendar.desktop', 'org.gnome.Nautilus.desktop', 'io.github.kolunmi.Bazaar.desktop', 'org.gnome.TextEditor.desktop', 'org.gnome.Calculator.desktop']"
 
-# Layout Normie (Flexible)
+# Layout Normie (Consumer-focused Experience)
 layout-normie: default-app-grid set-window-controls-left-gnome layout-tiling-default
-    echo "TODO: Implement layout-normie"
-
+    gsettings set org.gnome.shell favorite-apps "[\
+      'org.gnome.Nautilus.desktop', \
+      'com.getmailspring.Mailspring.desktop', \
+      'org.mozilla.firefox.desktop', \
+      'org.signal.Signal.desktop', \
+      'org.gnome.Calendar.desktop', \
+      'org.libreoffice.LibreOffice.writer.desktop', \
+      'com.spotify.Client.desktop', \
+      'net.cozic.joplin_desktop.desktop', \
+      'steam.desktop', \
+      'io.gitlab.news_flash.NewsFlash.desktop', \
+      'dev.geopjr.Tuba.desktop', \
+      'app.drey.Warp.desktop', \
+      'io.github.kolunmi.Bazaar.desktop', \
+      'org.gnome.Settings.desktop']"
 
 # --- THEME MOLECULES (Visuals/Assets) ---
 
