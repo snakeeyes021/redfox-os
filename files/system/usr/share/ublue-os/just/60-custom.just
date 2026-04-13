@@ -456,29 +456,52 @@ nuke-vpns:
 add-swap size="16G":
     #!/usr/bin/bash
     set -euo pipefail
+    if [ -f /var/swapfile ]; then
+        if swapon --show | grep -q "/var/swapfile"; then
+            echo "[OK] Swapfile is already active at /var/swapfile."
+            read -p "    Recreate swapfile with size {{size}}? [y/N]: " RECONF
+            if [[ ! "$RECONF" =~ ^[yY] ]]; then
+                echo "    Skipping recreation. Swap remains active."
+                exit 0
+            fi
+            echo "    Disabling existing swap..."
+            sudo swapoff /var/swapfile
+        fi
+        echo "    Removing existing swapfile..."
+        sudo rm -f /var/swapfile
+    fi
+
     echo "Creating {{size}} swapfile in /var/swapfile..."
     # We use the native btrfs command to safely handle Copy-On-Write (NOCOW) requirements
     sudo btrfs filesystem mkswapfile --size {{size}} /var/swapfile
     sudo swapon /var/swapfile
-    echo "Making swap persistent in /etc/fstab..."
-    # Check if it already exists to avoid duplicate entries
+    
+    echo "Ensuring swap is persistent in /etc/fstab..."
     if ! grep -q '^/var/swapfile' /etc/fstab; then
         echo "/var/swapfile none swap defaults 0 0" | sudo tee -a /etc/fstab
     fi
-    echo "Swapfile successfully created and enabled!"
+    echo "Swapfile successfully enabled!"
     swapon --show | grep "/var/swapfile"
 
 # Disable and remove the swapfile
 remove-swap:
     #!/usr/bin/bash
     set -euo pipefail
+    if [ ! -f /var/swapfile ] && ! grep -q '^/var/swapfile' /etc/fstab; then
+        echo "[OK] No swapfile found at /var/swapfile and none in fstab. Nothing to do."
+        exit 0
+    fi
+
     echo "Disabling swapfile..."
     sudo swapoff /var/swapfile || true
+    
     echo "Removing from /etc/fstab..."
-    # Safely delete the line starting with /var/swapfile from fstab
     sudo sed -i '/^\/var\/swapfile/d' /etc/fstab
-    echo "Deleting the swapfile..."
-    sudo rm -f /var/swapfile
+    
+    if [ -f /var/swapfile ]; then
+        echo "Deleting the swapfile..."
+        sudo rm -f /var/swapfile
+    fi
     echo "Swapfile successfully removed!"
 
 
