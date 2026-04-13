@@ -713,7 +713,7 @@ configure-terminal-default:
     dconf reset /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/command
     dconf reset /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/binding
     # Note: We leave the custom-keybindings array alone or empty it if this was the only one
-    dconf write /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings "[]"
+    dconf write /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings "@as []"
     
     # 3. Reload Nautilus
     nautilus -q
