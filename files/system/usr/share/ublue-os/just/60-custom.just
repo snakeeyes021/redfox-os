@@ -86,12 +86,14 @@ configure-text-editor-dev:
     echo "Configuring Text Editor for Development (Spaces, 4 per tab)..."
     flatpak run --command=gsettings org.gnome.TextEditor set org.gnome.TextEditor indent-style 'space'
     flatpak run --command=gsettings org.gnome.TextEditor set org.gnome.TextEditor tab-width 4
+    flatpak run --command=gsettings org.gnome.TextEditor set org.gnome.TextEditor restore-session false
 
 # Reset Text Editor Configuration (Indentation)
 configure-text-editor-reset:
     echo "Resetting Text Editor indentation to defaults..."
     flatpak run --command=gsettings org.gnome.TextEditor reset org.gnome.TextEditor indent-style
     flatpak run --command=gsettings org.gnome.TextEditor reset org.gnome.TextEditor tab-width
+    flatpak run --command=gsettings org.gnome.TextEditor reset org.gnome.TextEditor restore-session
 
 # Theme Text Editor Dewy (Visuals)
 theme-text-editor-dewy:
