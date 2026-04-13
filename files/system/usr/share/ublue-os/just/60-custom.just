@@ -322,10 +322,37 @@ fix-oryp9-mouse:
     @echo "Done."
 
 fix-acer-nouveau:
-    echo "TODO: Implement fix-acer-nouveau"
-
-fix-4k-scaling:
-    echo "TODO: Implement fix-4k-scaling"
+    #!/usr/bin/bash
+    set -euo pipefail
+    
+    echo "Gathering NVIDIA PCI IDs..."
+    # Extracts the PCI IDs for the Nvidia GPU and its Audio component (e.g., 10de:1c8c,10de:0fb9)
+    NV_IDS=$(lspci -nn | grep -i NVIDIA | grep -o '\[10de:[0-9a-fA-F]*\]' | tr -d '[]' | paste -sd "," -)
+    
+    if [ -z "$NV_IDS" ]; then
+        echo "No NVIDIA devices found. Skipping."
+        exit 0
+    fi
+    
+    echo "Found NVIDIA devices: $NV_IDS"
+    
+    # Check if kargs are already set to avoid triggering an ostree deployment loop
+    if ! rpm-ostree kargs | grep -q "vfio-pci.ids=$NV_IDS"; then
+        echo "Binding dead dGPU to vfio-pci to force D3 sleep state..."
+        
+        # 1. rd.driver.pre=vfio-pci : Loads the stub driver into the initramfs before anything else.
+        # 2. vfio-pci.ids=... : Tells the stub driver to permanently claim your specific Acer GPU.
+        # 3. module_blacklist : Failsafe to ensure nouveau/nvidia don't race the stub driver and hit the bad VRAM.
+        sudo rpm-ostree kargs \
+            --append-if-missing="rd.driver.pre=vfio-pci" \
+            --append-if-missing="vfio-pci.ids=$NV_IDS" \
+            --append-if-missing="module_blacklist=nouveau" \
+            --append-if-missing="module_blacklist=nvidia"
+            
+        echo "Success! The dead dGPU will be permanently isolated and put to sleep on the next reboot."
+    else
+        echo "The Acer dGPU is already quarantined. No action needed."
+    fi
 
 apply-hardware-quirks: redfox-init-secrets
     #!/usr/bin/bash
