@@ -698,7 +698,7 @@ configure-terminal-tilix:
     dconf write /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings "['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/']"
     
     # 3. Reload Nautilus to pick up the extension config
-    nautilus -q
+    nautilus -q || true    
     @echo "Done. Tilix is now the default."
 
 # Restore the default terminal (Ptyxis)
@@ -716,7 +716,7 @@ configure-terminal-default:
     dconf write /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings "@as []"
     
     # 3. Reload Nautilus
-    nautilus -q
+    nautilus -q || true
     @echo "Done. Restored to Ptyxis."
 
 # Configure Power Saver, Suspend (default)

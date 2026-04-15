@@ -115,3 +115,4 @@ modules:
       - install-uv.sh
       - install-speedtest.sh
       - fix-tilix-vte.sh
+      - patch-insyc.sh
