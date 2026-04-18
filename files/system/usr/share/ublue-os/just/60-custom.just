@@ -549,6 +549,7 @@ install-productivity:
         be.alexandervanhee.gradia \
         net.cozic.joplin_desktop \
         app.drey.Warp
+        # Consider OnlyOffice for PDF capabilities
 
 # Install Communication Apps
 install-comms:
@@ -575,6 +576,7 @@ install-audio: install-soundthread
         org.audacityteam.Audacity \
         net.sourceforge.VMPK \
         org.pipewire.Helvum
+        # Consider FamiStudio
 
 # Install Graphics Apps
 install-graphics:
@@ -651,6 +653,8 @@ install-creative: install-audio install-graphics install-photos install-video in
 
 # Install Matt's Bundle
 install-matt: install-dev install-bluefin-dx install-creative install-daily install-productivity install-compatibility install-basic install-comms
+    flatpak install -y flathub \
+        com.jeffser.Alpaca
 
 # Install Dewy's Bundle
 install-dewy: install-zed install-comms
