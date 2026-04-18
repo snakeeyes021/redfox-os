@@ -59,10 +59,19 @@ if [ -z "$INSTALLED_PATH" ]; then
     exit 1
 fi
 
-flatpak run it.mijorus.gearlever --set-update-source "$INSTALLED_PATH" \
-    --manager "$MANAGER" \
-    repo_url="$REPO_URL" \
-    repo_filename="$FILE_PATTERN" \
-    allow_prereleases="$PRERELEASE"
+if [ "$MANAGER" == "GithubUpdater" ]; then
+    flatpak run it.mijorus.gearlever --set-update-source "$INSTALLED_PATH" \
+        --manager "$MANAGER" \
+        repo="$REPO_SLUG" \
+        repo_filename="$FILE_PATTERN" \
+        allow_prereleases="$PRERELEASE"
+elif [ "$MANAGER" == "StaticFileUpdater" ]; then
+    flatpak run it.mijorus.gearlever --set-update-source "$INSTALLED_PATH" \
+        --manager "$MANAGER" \
+        url="$REPO_URL"
+else
+    echo "Error: Unsupported manager $MANAGER"
+    exit 1
+fi
 
 echo "=== $APP_NAME Setup Complete ==="
