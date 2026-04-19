@@ -115,4 +115,5 @@ modules:
       - install-uv.sh
       - install-speedtest.sh
       - fix-tilix-vte.sh
+      - install-smooth-overview.sh
       # - patch-insync.sh # TODO: This may not have worked as intended. Difficult to say. Investigate. 
