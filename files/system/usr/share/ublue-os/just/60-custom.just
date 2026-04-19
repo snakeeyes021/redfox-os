@@ -399,12 +399,12 @@ _enable-dash-to-dock-gap-hack GAP="5":
     
     cat << 'EOF' >> "${LOCAL_PATH}/${EXT_ID}/stylesheet.css"
 
-/* --- REDFOX OS CUSTOM OVERRIDES --- */
-#dashtodockContainer.bottom #dash { margin: 0px {{ GAP }}px {{ GAP }}px {{ GAP }}px !important; }
-#dashtodockContainer.top #dash { margin: {{ GAP }}px {{ GAP }}px 0px {{ GAP }}px !important; }
-#dashtodockContainer.left #dash { margin: {{ GAP }}px 0px {{ GAP }}px {{ GAP }}px !important; }
-#dashtodockContainer.right #dash { margin: {{ GAP }}px {{ GAP }}px {{ GAP }}px 0px !important; }
-EOF
+    /* --- REDFOX OS CUSTOM OVERRIDES --- */
+    #dashtodockContainer.bottom #dash { margin: 0px {{ GAP }}px {{ GAP }}px {{ GAP }}px !important; }
+    #dashtodockContainer.top #dash { margin: {{ GAP }}px {{ GAP }}px 0px {{ GAP }}px !important; }
+    #dashtodockContainer.left #dash { margin: {{ GAP }}px 0px {{ GAP }}px {{ GAP }}px !important; }
+    #dashtodockContainer.right #dash { margin: {{ GAP }}px {{ GAP }}px {{ GAP }}px 0px !important; }
+    EOF
 
 # Disable the Dash to Dock floating gap hack and revert to system default
 _disable-dash-to-dock-gap-hack:
@@ -425,7 +425,8 @@ _preset-dock-redfox GAP="5": (_enable-dash-to-dock-gap-hack GAP)
     #!/usr/bin/bash
     echo "Deploying RedFox Dock Preset..."
     
-    # Enable the Smooth Overview extension we built
+    # Enable extensions
+    gnome-extensions enable dash-to-dock@micxgx.gmail.com
     gnome-extensions enable smooth-overview@redfoxlabs.tech
 
     # Configure Blur My Shell and Dash to Dock via dconf
@@ -616,7 +617,7 @@ install-productivity:
         be.alexandervanhee.gradia \
         net.cozic.joplin_desktop \
         app.drey.Warp
-        # Consider OnlyOffice for PDF capabilities
+# Consider OnlyOffice for PDF capabilities
 
 # Install Communication Apps
 install-comms:
@@ -643,7 +644,7 @@ install-audio: install-soundthread
         org.audacityteam.Audacity \
         net.sourceforge.VMPK \
         org.pipewire.Helvum
-        # Consider FamiStudio
+# Consider FamiStudio
 
 # Install Graphics Apps
 install-graphics:
