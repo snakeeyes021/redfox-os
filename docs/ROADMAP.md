@@ -88,7 +88,12 @@
     - [x] `set-window-controls-left-gnome` (Reset): Sets `close:` (reverts to system default).
     - [x] `sort-app-grid` (Deviation): Removes folders and sorts alphabetically.
     - [ ] `default-app-grid` (Reset): Restores folders and sorts with default sorting.
-    - [x] `preset-dock-ubuntu` (Reset): Configure Dash to Dock (Left side). Turn on Dash to Dock.
+    - [x] `preset-dock-gnome` (Reset): Reset to default Gnome Dash (dash in overview)
+    - [ ] `_preset-dock-redfox` (Hybrid): TODO: A hacky stub of a recipe has been implemented; it works, but should be considered a proof of concept.
+        - Default behavior will be to automatically switch between GNOME style dash and redfox style dock depending on monitor size (and scaling) -- this means we may need to create an additional recipe that sets the user to the default switching behavior and likely a systemd service to monitor monitor size(s)
+        - The stub recipe requires logging out and logging in any time it is switched to or from
+        - A true fix will likely involve forking (or getting a PR accepted with) Dash to Dock.  
+    - [x] `preset-dock-ubuntu` (Deviation): Configure Dash to Dock (Left side). Turn on Dash to Dock.
     - [ ] `preset-dock-win-classic` (Deviation): Configure Dash to Dock (Bottom, Taskbar style, icons on left). Turn on Dash to Dock.
     - [ ] `preset-dock-win-new` (Deviation): Configure Dash to Dock (Bottom, Taskbar style, icons on centered). Turn on Dash to Dock.
     - [ ] `preset-dock-macos` (Deviation): Configure Dash to Dock (Bottom, Floating). Turn on Dash to Dock.
@@ -181,6 +186,8 @@
 - [ ] Cursor Remote Tunnels fixes from AmyOS
 - [ ] vesktop icons fix (would like to use discord icons in system tray, perhaps different app icon too)
 - [ ] Android studio (add copr repo and package to main recipe) -- Not sure I want to keep this one (there are other methods than baking it in, including brew casks or whatever theyre called; there's one for jetbrains; there's also a ujust that does basically the same thing--both have a pathing issue that needs a workaround on systems with the whole /var/home/ setup)
+- [ ] Bake Ollama
+- [ ] implement 6 openclaw recipes (installs for openclaw, openclaw orchestrator, openclaw worker, and uninstalls for openclaw, orchestrator, and worker)
 
 ## Running Matt fixes
 - [ ] Post-GNOME Builder install fix to reset file associations (GNOME builder steals just about any type of code file, python, json, sh, etc.)
