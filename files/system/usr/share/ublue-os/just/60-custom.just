@@ -367,21 +367,86 @@ sort-app-grid:
 default-app-grid:
     echo "TODO: Implement default-app-grid"
 
-preset-dock-ubuntu:
+preset-dock-ubuntu: _disable-redfox-dock-hacks
     gsettings reset-recursively org.gnome.shell.extensions.dash-to-dock
     gnome-extensions enable dash-to-dock@micxgx.gmail.com
 
-preset-dock-gnome:
+preset-dock-gnome: _disable-redfox-dock-hacks
     gnome-extensions disable dash-to-dock@micxgx.gmail.com
 
-preset-dock-win-classic:
+preset-dock-win-classic: _disable-redfox-dock-hacks
     echo "TODO: Implement preset-dock-win-classic"
 
-preset-dock-win-new:
+preset-dock-win-new: _disable-redfox-dock-hacks
     echo "TODO: Implement preset-dock-win-new"
 
-preset-dock-macos:
+preset-dock-macos: _disable-redfox-dock-hacks
     echo "TODO: Implement preset-dock-macos"
+
+# --- REDFOX DOCK PRESET RECIPE AND UTILITIES ---
+
+# Enable the Dash to Dock floating gap hack (Alpha) - Supports optional pixel argument
+_enable-dash-to-dock-gap-hack GAP="5":
+    #!/usr/bin/bash
+    EXT_ID="dash-to-dock@micxgx.gmail.com"
+    SYS_PATH="/usr/share/gnome-shell/extensions/${EXT_ID}"
+    LOCAL_PATH="${HOME}/.local/share/gnome-shell/extensions"
+    
+    echo "Applying Dash to Dock gap: {{ GAP }}px"
+    mkdir -p "${LOCAL_PATH}"
+    rm -rf "${LOCAL_PATH}/${EXT_ID}"
+    cp -r "${SYS_PATH}" "${LOCAL_PATH}/"
+    
+    cat << 'EOF' >> "${LOCAL_PATH}/${EXT_ID}/stylesheet.css"
+
+/* --- REDFOX OS CUSTOM OVERRIDES --- */
+#dashtodockContainer.bottom #dash { margin: 0px {{ GAP }}px {{ GAP }}px {{ GAP }}px !important; }
+#dashtodockContainer.top #dash { margin: {{ GAP }}px {{ GAP }}px 0px {{ GAP }}px !important; }
+#dashtodockContainer.left #dash { margin: {{ GAP }}px 0px {{ GAP }}px {{ GAP }}px !important; }
+#dashtodockContainer.right #dash { margin: {{ GAP }}px {{ GAP }}px {{ GAP }}px 0px !important; }
+EOF
+
+# Disable the Dash to Dock floating gap hack and revert to system default
+_disable-dash-to-dock-gap-hack:
+    #!/usr/bin/bash
+    EXT_ID="dash-to-dock@micxgx.gmail.com"
+    LOCAL_PATH="${HOME}/.local/share/gnome-shell/extensions/${EXT_ID}"
+    
+    if [ -d "${LOCAL_PATH}" ]; then
+        echo "Removing local Dash to Dock override..."
+        rm -rf "${LOCAL_PATH}"
+        echo "Reverted to system default. Please log out and back in."
+    else
+        echo "No local override found. Nothing to do."
+    fi
+
+# Fully apply RedFox Dock aesthetics (Gap Hack, Smooth Overview, Blur My Shell)
+_preset-dock-redfox GAP="5": (_enable-dash-to-dock-gap-hack GAP)
+    #!/usr/bin/bash
+    echo "Deploying RedFox Dock Preset..."
+    
+    # Enable the Smooth Overview extension we built
+    gnome-extensions enable smooth-overview@redfoxlabs.tech
+
+    # Configure Blur My Shell via dconf
+    dconf write /org/gnome/shell/extensions/blur-my-shell/dash-to-dock/pipeline "'pipeline_default_rounded'"
+    dconf write /org/gnome/shell/extensions/blur-my-shell/pipelines "{'pipeline_default': {'name': <'Default'>, 'effects': <[<{'type': <'native_static_gaussian_blur'>, 'id': <'effect_000000000000'>, 'params': <{'radius': <30>, 'brightness': <0.59999999999999998>}>}>]>}, 'pipeline_default_rounded': {'name': <'Default rounded'>, 'effects': <[<{'type': <'native_static_gaussian_blur'>, 'id': <'effect_000000000001'>, 'params': <{'radius': <30>, 'brightness': <0.59999999999999998>}>}>, <{'type': <'corner'>, 'id': <'effect_000000000002'>, 'params': <{'radius': <20>}>}>]>}}"
+
+    echo "RedFox aesthetics applied. Please log out to refresh the Dash to Dock CSS."
+
+# Disable all RedFox dock hacks and return to system defaults
+_disable-redfox-dock-hacks: _disable-dash-to-dock-gap-hack
+    #!/usr/bin/bash
+    echo "Reverting RedFox Dock customizations..."
+
+    # Disable Smooth Overview
+    gnome-extensions disable smooth-overview@redfoxlabs.tech
+
+    # Reset Blur My Shell settings
+    dconf write /org/gnome/shell/extensions/blur-my-shell/dash-to-dock/pipeline "'pipeline_default'"
+    dconf reset /org/gnome/shell/extensions/blur-my-shell/pipelines
+
+    echo "Reverted to defaults. Please log out for a full refresh."
 
 # Hardware Atoms
 fix-oryp9-mouse:
