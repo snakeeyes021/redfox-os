@@ -386,7 +386,7 @@ preset-dock-macos: _disable-redfox-dock-hacks
 # --- REDFOX DOCK PRESET RECIPE AND UTILITIES ---
 
 # Enable the Dash to Dock floating gap hack (Alpha) - Supports optional pixel argument
-_enable-dash-to-dock-gap-hack GAP="5":
+_enable-dash-to-dock-gap-hack GAP="8":
     #!/usr/bin/bash
     EXT_ID="dash-to-dock@micxgx.gmail.com"
     SYS_PATH="/usr/share/gnome-shell/extensions/${EXT_ID}"
@@ -400,6 +400,12 @@ _enable-dash-to-dock-gap-hack GAP="5":
     cat << 'EOF' >> "${LOCAL_PATH}/${EXT_ID}/stylesheet.css"
 
     /* --- REDFOX OS CUSTOM OVERRIDES --- */
+    /* 1. Zero out the internal margins to remove the 4px phantom gap */
+    #dashtodockContainer #dash .dash-background {
+        margin: 0px !important;
+    }
+
+    /* 2. Apply the full gap to screen edges, and 0px to the window-facing edge */
     #dashtodockContainer.bottom #dash { margin: 0px {{ GAP }}px {{ GAP }}px {{ GAP }}px !important; }
     #dashtodockContainer.top #dash { margin: {{ GAP }}px {{ GAP }}px 0px {{ GAP }}px !important; }
     #dashtodockContainer.left #dash { margin: {{ GAP }}px 0px {{ GAP }}px {{ GAP }}px !important; }
