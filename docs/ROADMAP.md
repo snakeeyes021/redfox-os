@@ -187,7 +187,7 @@
 - [ ] vesktop icons fix (would like to use discord icons in system tray, perhaps different app icon too)
 - [ ] Android studio (add copr repo and package to main recipe) -- Not sure I want to keep this one (there are other methods than baking it in, including brew casks or whatever theyre called; there's one for jetbrains; there's also a ujust that does basically the same thing--both have a pathing issue that needs a workaround on systems with the whole /var/home/ setup)
 - [ ] Bake Ollama
-- [ ] implement 6 openclaw recipes (installs for openclaw, openclaw orchestrator, openclaw worker, and uninstalls for openclaw, orchestrator, and worker)
+- [ ] implement 6 openclaw recipes (installs for openclaw, openclaw orchestrator, openclaw worker, and uninstalls for openclaw, orchestrator, and worker) -- see standalone to-do doc
 
 ## Running Matt fixes
 - [ ] Post-GNOME Builder install fix to reset file associations (GNOME builder steals just about any type of code file, python, json, sh, etc.)
