@@ -92,7 +92,8 @@
     - [ ] `_preset-dock-redfox` (Hybrid): TODO: A hacky stub of a recipe has been implemented; it works, but should be considered a proof of concept.
         - Default behavior will be to automatically switch between GNOME style dash and redfox style dock depending on monitor size (and scaling) -- this means we may need to create an additional recipe that sets the user to the default switching behavior and likely a systemd service to monitor monitor size(s)
         - The stub recipe requires logging out and logging in any time it is switched to or from
-        - A true fix will likely involve forking (or getting a PR accepted with) Dash to Dock.  
+        - A true fix will likely involve forking (or getting a PR accepted with) Dash to Dock.
+        - [ ] Don't disable overview on startup (in dash to dock) -- it's a nice touch starting up to the overview
     - [x] `preset-dock-ubuntu` (Deviation): Configure Dash to Dock (Left side). Turn on Dash to Dock.
     - [ ] `preset-dock-win-classic` (Deviation): Configure Dash to Dock (Bottom, Taskbar style, icons on left). Turn on Dash to Dock.
     - [ ] `preset-dock-win-new` (Deviation): Configure Dash to Dock (Bottom, Taskbar style, icons on centered). Turn on Dash to Dock.
