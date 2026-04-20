@@ -427,7 +427,7 @@ _disable-dash-to-dock-gap-hack:
     fi
 
 # Fully apply RedFox Dock aesthetics (Gap Hack, Smooth Overview, Blur My Shell)
-_preset-dock-redfox GAP="5": (_enable-dash-to-dock-gap-hack GAP)
+_preset-dock-redfox GAP="8": (_enable-dash-to-dock-gap-hack GAP)
     #!/usr/bin/bash
     echo "Deploying RedFox Dock Preset..."
     
