@@ -94,6 +94,7 @@
         - The stub recipe requires logging out and logging in any time it is switched to or from
         - A true fix will likely involve forking (or getting a PR accepted with) Dash to Dock.
         - [ ] Don't disable overview on startup (in dash to dock) -- it's a nice touch starting up to the overview
+        - [ ] Clock and Overview search should probably remain centered even if the usable workspace size changes
     - [x] `preset-dock-ubuntu` (Deviation): Configure Dash to Dock (Left side). Turn on Dash to Dock.
     - [ ] `preset-dock-win-classic` (Deviation): Configure Dash to Dock (Bottom, Taskbar style, icons on left). Turn on Dash to Dock.
     - [ ] `preset-dock-win-new` (Deviation): Configure Dash to Dock (Bottom, Taskbar style, icons on centered). Turn on Dash to Dock.
