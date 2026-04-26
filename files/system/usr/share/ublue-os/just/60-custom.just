@@ -836,14 +836,18 @@ configure-cursor-dewy:
     #!/usr/bin/bash
     echo "Configuring Cursor for Dewy..."
     cursor --install-extension charliermarsh.ruff --force
+    
     SETTINGS_FILE="$HOME/.config/Cursor/User/settings.json"
     mkdir -p "$(dirname "$SETTINGS_FILE")"
-    if [ -f "$SETTINGS_FILE" ]; then
-        tmp=$(mktemp)
-        jq '."workbench.colorTheme" = "Default Dark Modern"' "$SETTINGS_FILE" > "$tmp" && mv "$tmp" "$SETTINGS_FILE"
-    else
-        echo '{"workbench.colorTheme": "Default Dark Modern"}' > "$SETTINGS_FILE"
+    
+    if [ ! -f "$SETTINGS_FILE" ]; then
+        echo "{}" > "$SETTINGS_FILE"
     fi
+
+    # Use the RedFox helper script to patch settings
+    /usr/bin/redfox-patch-json "$SETTINGS_FILE" "workbench.colorTheme" "Default Dark Modern"
+    
+    echo "Cursor configured successfully!"
 
 # Configure Dewy's Environment
 configure-dewy: redfox-init-secrets configure-keybindings-default configure-text-editor-dev reset-hostname configure-cursor-dewy configure-terminal-tilix configure-nordvpn configure-powersaver-default configure-xway-scale-on

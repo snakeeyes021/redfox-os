@@ -1,0 +1,93 @@
+#!/usr/bin/env python3
+import sys
+import os
+import re
+import json
+
+def format_value(val_str):
+    """Intelligently casts string inputs to JSON-compliant raw strings."""
+    val_lower = val_str.lower()
+    
+    # Booleans and Null
+    if val_lower == "true": return "true"
+    if val_lower == "false": return "false"
+    if val_lower == "null": return "null"
+    
+    # Catch integers, floats, and negative numbers
+    try:
+        float(val_str)
+        return val_str
+    except ValueError:
+        # If it fails, it's a string. Ensure it's wrapped in double quotes.
+        return f'"{val_str}"'
+
+def validate_jsonc(text_content):
+    """
+    Validates JSONC in memory by stripping comments/commas and parsing it via AST.
+    Raises json.JSONDecodeError if the resulting structure is invalid.
+    """
+    # Strip single and multi-line comments
+    clean = re.sub(r"//.*?\n|/\*.*?\*/", "", text_content, flags=re.S)
+    # Strip trailing commas
+    clean = re.sub(r",\s*([\]}])", r"\1", clean)
+    # Attempt to load into AST (throws error if invalid)
+    json.loads(clean if clean.strip() else "{}")
+
+def patch_jsonc_text(filepath, key, value_str):
+    new_value = format_value(value_str)
+    
+    # Ensure directory exists
+    os.makedirs(os.path.dirname(os.path.abspath(filepath)), exist_ok=True)
+
+    # 1. GENERATE THE NEW CONTENT (IN MEMORY)
+    if not os.path.exists(filepath):
+        new_content = f'{{\n    "{key}": {new_value}\n}}\n'
+    else:
+        with open(filepath, "r") as f:
+            content = f.read()
+
+        # Regex precisely targets the value while ignoring surrounding comments
+        pattern = re.compile(
+            rf'("{re.escape(key)}"\s*:\s*)'
+            rf'(".*?(?<!\\)"|-?\d+(?:\.\d+)?|true|false|null)',
+            re.MULTILINE
+        )
+
+        if pattern.search(content):
+            # Key exists: Surgically replace only the value
+            new_content = pattern.sub(rf'\g<1>{new_value}', content, count=1)
+        else:
+            # Key doesn't exist: Inject it before the last closing brace
+            last_brace_idx = content.rfind('}')
+            if last_brace_idx != -1:
+                before_brace = content[:last_brace_idx].strip()
+                needs_comma = not before_brace.endswith('{') and not before_brace.endswith(',')
+                
+                comma = "," if needs_comma else ""
+                insertion = f'{comma}\n    "{key}": {new_value}\n'
+                
+                new_content = content[:last_brace_idx].rstrip() + insertion + content[last_brace_idx:]
+            else:
+                # Malformed file (no closing brace), fallback to appending
+                new_content = content + f'\n// Appended by RedFox\n"{key}": {new_value}'
+
+    # 2. VALIDATE THE NEW CONTENT
+    try:
+        validate_jsonc(new_content)
+    except json.JSONDecodeError as e:
+        print(f"Error: Patching '{key}' would break the JSON structure. Aborting.", file=sys.stderr)
+        print(f"Details: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # 3. WRITE TO DISK (Only reached if validation passes)
+    with open(filepath, "w") as f:
+        f.write(new_content)
+    
+    print(f"Successfully patched {key} in {filepath}")
+
+if __name__ == "__main__":
+    if len(sys.argv) != 4:
+        print("Usage: redfox-patch-json <file> <key> <value>")
+        sys.exit(1)
+    
+    patch_jsonc_text(sys.argv[1], sys.argv[2], sys.argv[3])
