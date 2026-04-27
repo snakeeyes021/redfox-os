@@ -29,7 +29,9 @@ redfox-enforce-secrets:
         eval "$(grep '^VPN_PASS=' "$SECRETS_FILE" || true)"
         eval "$(grep '^VPN_VALIDATED=' "$SECRETS_FILE" || true)"
         
-        if [ "${#VPN_USER:-}" -ge 30 ] && [ "${#VPN_PASS:-}" -ge 30 ]; then
+        TMP_USER="${VPN_USER:-}"
+        TMP_PASS="${VPN_PASS:-}"
+        if [ "${#TMP_USER}" -ge 30 ] && [ "${#TMP_PASS}" -ge 30 ]; then
             MISSING_VPN=false
         fi
     fi
