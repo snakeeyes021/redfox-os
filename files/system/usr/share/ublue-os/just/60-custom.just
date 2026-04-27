@@ -596,20 +596,17 @@ fix-acer-nouveau:
         echo "The Acer dGPU is already quarantined. No action needed."
     fi
 
-apply-hardware-quirks: redfox-init-secrets
+apply-hardware-quirks:
     #!/usr/bin/bash
     set -euo pipefail
     
     MAPPING_FILE="$HOME/.config/redfox/hardware-mapping.txt"
-    if [ ! -f "$MAPPING_FILE" ]; then
-        echo "No hardware mapping file found at $MAPPING_FILE. Skipping hardware quirks."
+    if [ ! -s "$MAPPING_FILE" ]; then
+        echo "  [SKIPPED] Hardware Quirks (No Gist mapping found)."
         exit 0
     fi
     
-    # Require sudo to read the DMI serial safely
-    # (Since redfox-init-secrets just ran, this won't prompt)
     SERIAL=$(sudo cat /sys/class/dmi/id/product_serial 2>/dev/null || echo "Unknown")
-    
     if [ "$SERIAL" == "Unknown" ]; then
         echo "Could not read hardware serial number. Skipping hardware quirks."
         exit 0
@@ -628,7 +625,7 @@ apply-hardware-quirks: redfox-init-secrets
     fi
 
 # Configure NordVPN silently (relies on redfox-init-secrets)
-configure-nordvpn: redfox-init-secrets
+configure-nordvpn:
     @echo "Configuring NordVPN..."
     sudo /usr/bin/import-nord-configs
 
@@ -641,18 +638,18 @@ nuke-vpns:
 add-swap size="16G":
     #!/usr/bin/bash
     set -euo pipefail
-    if [ -f /var/swapfile ]; then
-        if swapon --show | grep -q "/var/swapfile"; then
-            echo "[OK] Swapfile is already active at /var/swapfile."
-            read -p "    Recreate swapfile with size {{size}}? [y/N]: " RECONF
-            if [[ ! "$RECONF" =~ ^[yY] ]]; then
-                echo "    Skipping recreation. Swap remains active."
-                exit 0
-            fi
-            echo "    Disabling existing swap..."
-            sudo swapoff /var/swapfile
+    
+    # Calculate exact bytes requested (e.g., 16G = 17179869184)
+    REQ_BYTES=$(numfmt --from=iec {{size}})
+    
+    if [ -f /var/swapfile ] && swapon --show | grep -q "/var/swapfile"; then
+        CUR_BYTES=$(stat -c "%s" /var/swapfile 2>/dev/null || echo "0")
+        if [ "$CUR_BYTES" == "$REQ_BYTES" ]; then
+            echo "[OK] Swapfile already active at requested size ({{size}})."
+            exit 0
         fi
-        echo "    Removing existing swapfile..."
+        echo "Swap size mismatch. Resizing to {{size}}..."
+        sudo swapoff /var/swapfile
         sudo rm -f /var/swapfile
     fi
 
@@ -665,8 +662,7 @@ add-swap size="16G":
     if ! grep -q '^/var/swapfile' /etc/fstab; then
         echo "/var/swapfile none swap defaults 0 0" | sudo tee -a /etc/fstab
     fi
-    echo "Swapfile successfully enabled!"
-    swapon --show | grep "/var/swapfile"
+    echo "[SUCCESS] Swapfile enabled!"
 
 # Disable and remove the swapfile
 remove-swap:
@@ -914,7 +910,7 @@ configure-xway-scale-on:
 configure-dev: configure-vscode configure-cursor
 
 # Configure Matt's Environment
-configure-matt: redfox-init-secrets apply-hardware-quirks add-swap configure-nordvpn reset-hostname configure-keybindings-default configure-dev configure-text-editor-dev configure-terminal-default configure-powersaver-no-suspend configure-xway-scale-off
+configure-matt: redfox-enforce-secrets apply-hardware-quirks add-swap configure-nordvpn reset-hostname configure-keybindings-default configure-dev configure-text-editor-dev configure-terminal-default configure-powersaver-no-suspend configure-xway-scale-off
     mkdir -p ~/dev
     gnome-extensions enable unblank@sun.wxg@gmail.com
     # just runs hardware atoms here eventually
@@ -939,7 +935,7 @@ configure-cursor-dewy:
     echo "Cursor configured successfully!"
 
 # Configure Dewy's Environment
-configure-dewy: redfox-init-secrets configure-keybindings-default configure-text-editor-dev reset-hostname configure-cursor-dewy configure-terminal-tilix configure-nordvpn configure-powersaver-default configure-xway-scale-on
+configure-dewy: redfox-enforce-secrets configure-keybindings-default configure-text-editor-dev reset-hostname configure-cursor-dewy configure-terminal-tilix configure-nordvpn configure-powersaver-default configure-xway-scale-on
     gsettings set org.gnome.shell.keybindings show-screenshot-ui "['Print']"
     gsettings set org.gnome.shell.keybindings screenshot "['<Shift><Super>s']"
     gnome-extensions disable unblank@sun.wxg@gmail.com
@@ -1026,13 +1022,12 @@ theme-normie: theme-text-editor-default theme-sound-fedora theme-default-corners
 # --- BOOTSTRAP ORGANISMS ---
 
 # Bootstrap Matt
-bootstrap-matt: configure-matt install-matt theme-matt layout-matt
-
+bootstrap-matt: configure-matt install-matt theme-matt layout-matt _print-bootstrap-recap
 # Bootstrap Dewy
-bootstrap-dewy: configure-dewy install-dewy theme-dewy layout-dewy
+bootstrap-dewy: configure-dewy install-dewy theme-dewy layout-dewy _print-bootstrap-recap
 
 # Bootstrap Fedora
-bootstrap-fedora: theme-fedora layout-fedora configure-fedora
+bootstrap-fedora: theme-fedora layout-fedora configure-fedora _print-bootstrap-recap
 
 # Bootstrap Normie
-bootstrap-normie: install-normie theme-normie layout-normie configure-normie
+bootstrap-normie: install-normie theme-normie layout-normie configure-normie _print-bootstrap-recap
