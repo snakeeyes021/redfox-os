@@ -2,118 +2,207 @@
 
 # Setup Secrets (The "Front Desk" Pattern)
 # This recipe MUST be the first dependency for any recipe chain requiring secrets or sudo.
-# It runs exactly once per `just` invocation, caching sudo and downloading required secrets.
-redfox-init-secrets:
+# It runs exactly once per `just` invocation, downloading required secrets.
+# Ensures secrets are valid for bootstraps. Features headless-safety and persistent state.
+redfox-enforce-secrets:
     #!/usr/bin/bash
     set -euo pipefail
-
-    echo "================================================================="
-    echo "                 RedFoxOS Secrets Setup                          "
-    echo "================================================================="
+    SECRETS_DIR="$HOME/.config/redfox"
+    SECRETS_FILE="$SECRETS_DIR/secrets.env"
+    LOG_FILE="/tmp/redfox-bootstrap-current.log"
+    IPC_FILE="/tmp/redfox-force-vpn-import"
+    mkdir -p "$SECRETS_DIR"
     
-    # 1. Cache Sudo Immediately
-    echo "Please provide your password to cache sudo for this setup run."
-    sudo -v
+    [ -t 0 ] && MODE="INTERACTIVE" || MODE="HEADLESS"
+    rm -f "$IPC_FILE" # Clean stale IPC state
 
-    # Keep sudo alive in the background until this script exits
-    while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
+    MISSING_GIST=true
+    MISSING_VPN=true
 
-    # 2. Check State
+    # --- 1. FAST HEURISTICS & STATE CHECKS ---
+    if [ -s "$SECRETS_DIR/hardware-mapping.txt" ] && [ -s "$SECRETS_DIR/nordvpn-connections.txt" ]; then
+        grep -q "https://" "$SECRETS_DIR/nordvpn-connections.txt" 2>/dev/null && MISSING_GIST=false
+    fi
+
+    if [ -s "$SECRETS_FILE" ]; then
+        eval "$(grep '^VPN_USER=' "$SECRETS_FILE" || true)"
+        eval "$(grep '^VPN_PASS=' "$SECRETS_FILE" || true)"
+        eval "$(grep '^VPN_VALIDATED=' "$SECRETS_FILE" || true)"
+        
+        if [ "${#VPN_USER:-}" -ge 30 ] && [ "${#VPN_PASS:-}" -ge 30 ]; then
+            MISSING_VPN=false
+        fi
+    fi
+
+    # --- 2. THE ROLLING CANARY ---
+    run_canary() {
+        mapfile -t servers < <(grep " - https://" "$SECRETS_DIR/nordvpn-connections.txt" | head -n 3 | sed -E 's/.* - (https:.*)/\1/')
+        echo "Validating VPN Credentials..."
+        for url in "${servers[@]}"; do
+            server_name=$(echo "$url" | cut -d/ -f4 | cut -d. -f1)
+            echo -n "  Testing $server_name... "
+            curl -sSL -o /tmp/canary.ovpn "$url"
+            nmcli connection import type openvpn file /tmp/canary.ovpn >/dev/null 2>&1
+            UUID=$(nmcli -t -f UUID,FILENAME connection show | grep "/tmp/canary.ovpn" | cut -d: -f1 | head -n 1)
+            
+            if [ -n "$UUID" ]; then
+                nmcli connection modify "$UUID" connection.id "RedFox-Canary" +vpn.data "username=$VPN_USER,password-flags=0,connection-type=password-tls" +vpn.secrets "password=$VPN_PASS" >/dev/null 2>&1
+                if timeout 15s nmcli connection up "RedFox-Canary" >/dev/null 2>&1; then
+                    echo "Success."
+                    nmcli connection delete "RedFox-Canary" >/dev/null 2>&1
+                    return 0
+                fi
+                nmcli connection delete "RedFox-Canary" >/dev/null 2>&1
+            fi
+            echo "Timeout."
+        done
+        return 1
+    }
+
+    # Only run the canary if credentials exist but aren't validated yet
+    if [ "$MISSING_GIST" = false ] && [ "$MISSING_VPN" = false ] && [ "${VPN_VALIDATED:-false}" != "true" ]; then
+        if run_canary; then
+            sed -i '/^VPN_VALIDATED=/d' "$SECRETS_FILE" || true
+            echo 'VPN_VALIDATED="true"' >> "$SECRETS_FILE"
+            VPN_VALIDATED="true"
+        else
+            MISSING_VPN=true # Fails validation, trigger the fork
+        fi
+    fi
+
+    # --- 3. THE HAPPY PATH ---
+    if [ "$MISSING_GIST" = false ] && [ "$MISSING_VPN" = false ]; then
+        exit 0
+    fi
+
+    # --- 4. THE FORK (Headless) ---
+    if [ "$MODE" = "HEADLESS" ]; then
+        [ "$MISSING_GIST" = true ] && echo "- Gist configs broken/missing (Hardware Quirks bypassed)" >> "$LOG_FILE"
+        if [ "$MISSING_VPN" = true ]; then
+            echo "- VPN credentials broken/missing (NordVPN setup bypassed)" >> "$LOG_FILE"
+            sed -i '/^VPN_VALIDATED=/d' "$SECRETS_FILE" 2>/dev/null || true
+            echo 'VPN_VALIDATED="false"' >> "$SECRETS_FILE"
+        fi
+        exit 0
+    fi
+
+    # --- 5. THE FORK (Interactive) ---
+    echo -e "\n================================================================="
+    echo "                RedFoxOS Secrets Setup                           "
+    echo "================================================================="
+
+    if [ "$MISSING_GIST" = true ]; then
+        echo "Gist configurations are missing or broken."
+        read -p "Update Gist URL? [y/N]: " FIX_GIST
+        if [[ "$FIX_GIST" =~ ^[yY] ]]; then
+            read -p "Gist URL: " GIST_URL
+            GIST_URL=${GIST_URL%/}; [[ "$GIST_URL" != */raw ]] && GIST_URL="${GIST_URL}/raw"
+            curl -sS -f -L -o "$SECRETS_DIR/hardware-mapping.txt" "$GIST_URL/hardware-mapping.txt" || echo "Failed."
+            curl -sS -f -L -o "$SECRETS_DIR/nordvpn-connections.txt" "$GIST_URL/nordvpn-connections.txt" || echo "Failed."
+        else
+            echo "- Gist configs missing (Hardware Quirks bypassed)" >> "$LOG_FILE"
+        fi
+    fi
+
+    if [ "$MISSING_VPN" = true ]; then
+        while true; do
+            echo -e "\nWarning: We couldn't verify your credentials with 3 different servers."
+            echo "You might be offline, or your password might be wrong."
+            read -p "Would you like to try entering your credentials again? [y/N]: " RETRY
+            
+            if [[ "$RETRY" =~ ^[yY] ]]; then
+                echo "NOTE: Enter your 'Service Credentials' hash."
+                read -p "Service Username: " VPN_USER
+                read -sp "Service Password: " VPN_PASS; echo ""
+                
+                TMP_FILE=$(mktemp)
+                [ -f "$SECRETS_FILE" ] && grep -v -e '^VPN_USER=' -e '^VPN_PASS=' -e '^VPN_VALIDATED=' "$SECRETS_FILE" > "$TMP_FILE" || true
+                echo "VPN_USER=\"$VPN_USER\"" >> "$TMP_FILE"
+                echo "VPN_PASS=\"$VPN_PASS\"" >> "$TMP_FILE"
+                echo "VPN_VALIDATED=\"false\"" >> "$TMP_FILE"
+                chmod 600 "$TMP_FILE" && mv "$TMP_FILE" "$SECRETS_FILE"
+                
+                # Re-run canary immediately
+                if run_canary; then
+                    sed -i '/^VPN_VALIDATED=/d' "$SECRETS_FILE"
+                    echo 'VPN_VALIDATED="true"' >> "$SECRETS_FILE"
+                    break # Success, exit loop
+                else
+                    continue # Failed again, restart loop
+                fi
+            fi
+
+            echo ""
+            read -p "Would you like to import the server list into NetworkManager anyway? (You won't be able to connect until the issue is fixed). [y/N]: " FORCE
+            if [[ "$FORCE" =~ ^[yY] ]]; then
+                echo "[INFO] Forcing import with existing unverified credentials."
+                touch "$IPC_FILE" # Send the GO signal
+            else
+                echo "- VPN setup skipped by user" >> "$LOG_FILE"
+            fi
+            
+            # Ensure state is marked false since they bailed/forced
+            sed -i '/^VPN_VALIDATED=/d' "$SECRETS_FILE" 2>/dev/null || true
+            echo 'VPN_VALIDATED="false"' >> "$SECRETS_FILE"
+            break
+        done
+    fi
+
+# Interactively update existing secrets
+redfox-update-secrets:
+    #!/usr/bin/bash
+    set -euo pipefail
     SECRETS_DIR="$HOME/.config/redfox"
     SECRETS_FILE="$SECRETS_DIR/secrets.env"
     mkdir -p "$SECRETS_DIR"
     
-    # Load existing secrets if they exist
-    GIST_URL=""
-    VPN_USER=""
-    VPN_PASS=""
-    if [ -f "$SECRETS_FILE" ]; then
-        # Use a subshell to avoid polluting the script environment before validation
-        eval "$(grep '^GIST_URL=' "$SECRETS_FILE" || true)"
-        eval "$(grep '^VPN_USER=' "$SECRETS_FILE" || true)"
-        eval "$(grep '^VPN_PASS=' "$SECRETS_FILE" || true)"
+    echo "================================================================="
+    echo "              Update RedFoxOS Secrets                            "
+    echo "================================================================="
+    read -p "Update Gist URL? [y/N]: " RE_GIST
+    if [[ "$RE_GIST" =~ ^[yY] ]]; then
+        read -p "New Gist URL: " GIST_URL
+        GIST_URL=${GIST_URL%/}; [[ "$GIST_URL" != */raw ]] && GIST_URL="${GIST_URL}/raw"
+        curl -sS -f -L -o "$SECRETS_DIR/hardware-mapping.txt" "$GIST_URL/hardware-mapping.txt"
+        curl -sS -f -L -o "$SECRETS_DIR/nordvpn-connections.txt" "$GIST_URL/nordvpn-connections.txt"
+        echo "[OK] Gist files updated."
     fi
 
-    # --- PART 1: GIST CONFIGURATIONS ---
-    GIST_FILES_EXIST=true
-    if [ ! -f "$SECRETS_DIR/hardware-mapping.txt" ] || [ ! -f "$SECRETS_DIR/nordvpn-connections.txt" ]; then
-        GIST_FILES_EXIST=false
+    read -p "Update NordVPN Service Credentials? [y/N]: " RE_VPN
+    if [[ "$RE_VPN" =~ ^[yY] ]]; then
+        read -p "New Service Username: " NEW_VPN_USER
+        read -sp "New Service Password: " NEW_VPN_PASS; echo ""
+        TMP_FILE=$(mktemp)
+        [ -f "$SECRETS_FILE" ] && grep -v -e '^VPN_USER=' -e '^VPN_PASS=' -e '^VPN_VALIDATED=' "$SECRETS_FILE" > "$TMP_FILE" || true
+        echo "VPN_USER=\"$NEW_VPN_USER\"" >> "$TMP_FILE"
+        echo "VPN_PASS=\"$NEW_VPN_PASS\"" >> "$TMP_FILE"
+        echo "VPN_VALIDATED=\"false\"" >> "$TMP_FILE"
+        chmod 600 "$TMP_FILE" && mv "$TMP_FILE" "$SECRETS_FILE"
+        echo "[INFO] Credentials saved. They will be validated on your next bootstrap."
     fi
 
-    DO_GIST_UPDATE=false
-    if [ "$GIST_FILES_EXIST" = "false" ] || [ -z "$GIST_URL" ]; then
-        echo -e "\n[!] Gist configurations are incomplete."
-        DO_GIST_UPDATE=true
-    else
-        echo -e "\n[OK] Gist configurations are present ($GIST_URL)."
-        read -p "    Update Gist URL and/or re-download files? [y/N]: " RE_GIST
-        if [[ "$RE_GIST" =~ ^[yY] ]]; then
-            DO_GIST_UPDATE=true
-        fi
-    fi
-
-    if [ "$DO_GIST_UPDATE" = "true" ]; then
-        PROMPT_GIST="${GIST_URL:-}"
-        read -p "    Provide Gist URL (Enter to keep current): " INPUT_GIST
-        GIST_URL="${INPUT_GIST:-$PROMPT_GIST}"
-
-        if [ -z "$GIST_URL" ]; then
-            echo "Error: Gist URL is required to continue."
-            exit 1
-        fi
-
-        # Normalize URL
-        GIST_URL=${GIST_URL%/}
-        if [[ "$GIST_URL" != */raw ]]; then
-            GIST_URL="${GIST_URL}/raw"
-        fi
-
-        echo "    Downloading configurations from: $GIST_URL"
-        curl -sS -f -L -o "$SECRETS_DIR/hardware-mapping.txt" "$GIST_URL/hardware-mapping.txt" || { echo "Error: Could not download hardware-mapping.txt"; exit 1; }
-        curl -sS -f -L -o "$SECRETS_DIR/nordvpn-connections.txt" "$GIST_URL/nordvpn-connections.txt" || { echo "Error: Could not download nordvpn-connections.txt"; exit 1; }
+# Evaluates the run and archives the ledger
+_print-bootstrap-recap:
+    #!/usr/bin/bash
+    LOG_FILE="/tmp/redfox-bootstrap-current.log"
+    ARCHIVE_DIR="$HOME/.local/state/redfox"
+    
+    echo ""
+    echo "================================================================="
+    if [ -f "$LOG_FILE" ]; then
+        echo " ⚠️  Bootstrap Complete (With Skipped Items)"
+        echo "================================================================="
+        cat "$LOG_FILE"
+        echo "-----------------------------------------------------------------"
+        echo " You can configure these later by running: just redfox-update-secrets"
         
-        # Validation: Ensure files aren't empty
-        if [ ! -s "$SECRETS_DIR/hardware-mapping.txt" ] || [ ! -s "$SECRETS_DIR/nordvpn-connections.txt" ]; then
-            echo "Error: Downloaded files are empty. Check your Gist URL and file names."
-            exit 1
-        fi
-        echo "    [SUCCESS] Gist files updated."
-    fi
-
-    # --- PART 2: VPN CREDENTIALS ---
-    DO_VPN_UPDATE=false
-    if [ -z "$VPN_USER" ] || [ -z "$VPN_PASS" ]; then
-        echo -e "\n[!] NordVPN credentials are missing."
-        DO_VPN_UPDATE=true
+        mkdir -p "$ARCHIVE_DIR"
+        mv "$LOG_FILE" "$ARCHIVE_DIR/bootstrap-$(date +%Y%m%d-%H%M%S).log"
     else
-        echo -e "\n[OK] NordVPN credentials are present ($VPN_USER)."
-        read -p "    Update VPN credentials? [y/N]: " RE_VPN
-        if [[ "$RE_VPN" =~ ^[yY] ]]; then
-            DO_VPN_UPDATE=true
-        fi
+        echo " 🎉 Bootstrap Complete! All systems go."
+        echo "================================================================="
     fi
-
-    if [ "$DO_VPN_UPDATE" = "true" ]; then
-        echo "-----------------------------------------------------------------"
-        echo " NOTE: Do NOT use your standard NordVPN email and password."
-        echo " You must use your NordVPN 'Service Credentials' (a long string"
-        echo " of random characters). Find these on your Nord Account"
-        echo " dashboard under: Services > NordVPN > Manual setup."
-        echo "-----------------------------------------------------------------"
-        read -p "    Service Username: " VPN_USER
-        read -sp "    Service Password: " VPN_PASS
-        echo -e "\n    [SUCCESS] VPN credentials updated."
-    fi
-
-    # --- PART 3: ATOMIC SAVE ---
-    TMP_FILE=$(mktemp)
-    echo "GIST_URL=\"$GIST_URL\"" > "$TMP_FILE"
-    echo "VPN_USER=\"$VPN_USER\"" >> "$TMP_FILE"
-    echo "VPN_PASS=\"$VPN_PASS\"" >> "$TMP_FILE"
-    chmod 600 "$TMP_FILE"
-    mv "$TMP_FILE" "$SECRETS_FILE"
-
-    echo -e "\n[COMPLETE] Secrets setup is synchronized."
+    rm -f "/tmp/redfox-force-vpn-import" # Failsafe cleanup
 
 # Permanently delete all saved secrets and configuration files
 redfox-reset-secrets:
