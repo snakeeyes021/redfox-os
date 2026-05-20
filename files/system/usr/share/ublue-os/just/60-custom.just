@@ -304,6 +304,18 @@ uninstall-gemini-cli:
         echo "[OK] Gemini CLI is not installed. Nothing to do."
     fi
 
+# Install Antigravity CLI
+install-antigravity-cli:
+    echo "Installing Antigravity CLI..."
+    curl -fsSL https://antigravity.google/cli/install.sh | bash
+    echo "Antigravity CLI installed!"
+
+# Uninstall Antigravity CLI
+uninstall-antigravity-cli:
+    echo "Uninstalling Antigravity CLI..."
+    rm -rf ~/.local/bin/antigravity
+    echo "Antigravity CLI uninstalled!"
+
 # Configure Heroic
 configure-heroic:
     echo "TODO: Implement configure-heroic"
@@ -790,7 +802,7 @@ install-gnome-dev:
         re.sonny.Workbench
 
 # Install Development Apps
-install-dev: install-gnome-dev install-zed install-gemini-cli
+install-dev: install-gnome-dev install-zed install-gemini-cli install-antigravity-cli
     flatpak install -y flathub \
         io.podman_desktop.PodmanDesktop \
         org.gnome.dspy \
