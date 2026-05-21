@@ -49,9 +49,9 @@ chmod +x /usr/lib/antigravity-ide/bin/* 2>/dev/null || true
 
 echo "Installing icons..."
 # IDE Icon
-ICON_FILE_IDE=$(find /usr/lib/antigravity-ide -type f \( -iname "*.png" -o -iname "*.svg" \) | grep -i icon | head -n 1)
+ICON_FILE_IDE=$(find /usr/lib/antigravity-ide -type f \( -iname "*.png" -o -iname "*.svg" \) | grep -i icon | head -n 1 || true)
 if [ -z "$ICON_FILE_IDE" ]; then
-    ICON_FILE_IDE=$(find /usr/lib/antigravity-ide -type f \( -iname "*.png" -o -iname "*.svg" \) | head -n 1)
+    ICON_FILE_IDE=$(find /usr/lib/antigravity-ide -type f \( -iname "*.png" -o -iname "*.svg" \) | head -n 1 || true)
 fi
 if [ -n "$ICON_FILE_IDE" ]; then
     mkdir -p /usr/share/pixmaps
@@ -59,9 +59,9 @@ if [ -n "$ICON_FILE_IDE" ]; then
 fi
 
 # Antigravity 2.0 Icon
-ICON_FILE_AG=$(find /usr/lib/antigravity -type f \( -iname "*.png" -o -iname "*.svg" \) | grep -i icon | head -n 1)
+ICON_FILE_AG=$(find /usr/lib/antigravity -type f \( -iname "*.png" -o -iname "*.svg" \) | grep -i icon | head -n 1 || true)
 if [ -z "$ICON_FILE_AG" ]; then
-    ICON_FILE_AG=$(find /usr/lib/antigravity -type f \( -iname "*.png" -o -iname "*.svg" \) | head -n 1)
+    ICON_FILE_AG=$(find /usr/lib/antigravity -type f \( -iname "*.png" -o -iname "*.svg" \) | head -n 1 || true)
 fi
 if [ -n "$ICON_FILE_AG" ]; then
     mkdir -p /usr/share/pixmaps
