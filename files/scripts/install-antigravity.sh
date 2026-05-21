@@ -17,7 +17,9 @@ if [ -z "$VERSION" ] || [ "$VERSION" == "null" ] || [ -z "$EXEC_ID" ] || [ "$EXE
 fi
 
 URL_20="https://storage.googleapis.com/antigravity-public/antigravity-hub/${VERSION}-${EXEC_ID}/linux-x64/Antigravity.tar.gz"
-URL_IDE="https://edgedl.me.gvt1.com/edgedl/release2/j0qc3/antigravity/stable/${VERSION}-${EXEC_ID}/linux-x64/Antigravity%20IDE.tar.gz"
+# Temporarily hardcoding the IDE URL since there doesn't appear to be any programmatic way to retrieve it, no JSON manifest, no API endpoint, no scrapable download page, etc.
+# We can revisit if they eventually include it in a repo like they used to. For now we'll just update this URL every so often.
+URL_IDE="https://edgedl.me.gvt1.com/edgedl/release2/j0qc3/antigravity/stable/2.0.1-4861014005645312/linux-x64/Antigravity%20IDE.tar.gz"
 
 echo "Resolved Antigravity 2.0: $URL_20"
 echo "Resolved Antigravity IDE: $URL_IDE"
@@ -45,14 +47,25 @@ chmod +x "/usr/lib/antigravity-ide/Antigravity IDE" 2>/dev/null || true
 chmod +x /usr/lib/antigravity-ide/antigravity-ide 2>/dev/null || true
 chmod +x /usr/lib/antigravity-ide/bin/* 2>/dev/null || true
 
-echo "Installing icon..."
-ICON_FILE=$(find /usr/lib/antigravity-ide -type f \( -iname "*.png" -o -iname "*.svg" \) | grep -i icon | head -n 1)
-if [ -z "$ICON_FILE" ]; then
-    ICON_FILE=$(find /usr/lib/antigravity-ide -type f \( -iname "*.png" -o -iname "*.svg" \) | head -n 1)
+echo "Installing icons..."
+# IDE Icon
+ICON_FILE_IDE=$(find /usr/lib/antigravity-ide -type f \( -iname "*.png" -o -iname "*.svg" \) | grep -i icon | head -n 1)
+if [ -z "$ICON_FILE_IDE" ]; then
+    ICON_FILE_IDE=$(find /usr/lib/antigravity-ide -type f \( -iname "*.png" -o -iname "*.svg" \) | head -n 1)
 fi
-if [ -n "$ICON_FILE" ]; then
+if [ -n "$ICON_FILE_IDE" ]; then
     mkdir -p /usr/share/pixmaps
-    cp "$ICON_FILE" "/usr/share/pixmaps/antigravity-ide.${ICON_FILE##*.}"
+    cp "$ICON_FILE_IDE" "/usr/share/pixmaps/antigravity-ide.${ICON_FILE_IDE##*.}"
+fi
+
+# Antigravity 2.0 Icon
+ICON_FILE_AG=$(find /usr/lib/antigravity -type f \( -iname "*.png" -o -iname "*.svg" \) | grep -i icon | head -n 1)
+if [ -z "$ICON_FILE_AG" ]; then
+    ICON_FILE_AG=$(find /usr/lib/antigravity -type f \( -iname "*.png" -o -iname "*.svg" \) | head -n 1)
+fi
+if [ -n "$ICON_FILE_AG" ]; then
+    mkdir -p /usr/share/pixmaps
+    cp "$ICON_FILE_AG" "/usr/share/pixmaps/antigravity.${ICON_FILE_AG##*.}"
 fi
 
 echo "Creating symlinks..."
@@ -85,6 +98,17 @@ Terminal=false
 Type=Application
 Categories=Development;IDE;
 Icon=antigravity-ide
+EOF
+
+# Desktop Entry for Antigravity 2.0
+cat << 'EOF' > /usr/share/applications/antigravity.desktop
+[Desktop Entry]
+Name=Antigravity
+Exec=/usr/bin/antigravity
+Terminal=false
+Type=Application
+Categories=Utility;
+Icon=antigravity
 EOF
 
 rm -f /tmp/Antigravity.tar.gz /tmp/Antigravity-IDE.tar.gz
