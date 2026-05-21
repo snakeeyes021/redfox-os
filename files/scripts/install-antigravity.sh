@@ -48,25 +48,78 @@ chmod +x /usr/lib/antigravity-ide/antigravity-ide 2>/dev/null || true
 chmod +x /usr/lib/antigravity-ide/bin/* 2>/dev/null || true
 
 echo "Installing icons..."
-# IDE Icon
-ICON_FILE_IDE=$(find /usr/lib/antigravity-ide -type f \( -iname "*.png" -o -iname "*.svg" \) | grep -i icon | head -n 1 || true)
-if [ -z "$ICON_FILE_IDE" ]; then
-    ICON_FILE_IDE=$(find /usr/lib/antigravity-ide -type f \( -iname "*.png" -o -iname "*.svg" \) | head -n 1 || true)
-fi
-if [ -n "$ICON_FILE_IDE" ]; then
-    mkdir -p /usr/share/pixmaps
-    cp "$ICON_FILE_IDE" "/usr/share/pixmaps/antigravity-ide.${ICON_FILE_IDE##*.}"
+# Ensure 7z is installed
+if ! command -v 7z &> /dev/null; then
+    echo "7z not found, trying to install p7zip..."
+    if command -v dnf &> /dev/null; then
+        dnf install -y p7zip p7zip-plugins
+    elif command -v microdnf &> /dev/null; then
+        microdnf install -y p7zip p7zip-plugins
+    elif command -v apt-get &> /dev/null; then
+        apt-get update && apt-get install -y p7zip-full
+    else
+        echo "WARNING: Could not find dnf, microdnf, or apt-get to install p7zip/7z. Extraction might fail."
+    fi
 fi
 
-# Antigravity 2.0 Icon
-ICON_FILE_AG=$(find /usr/lib/antigravity -type f \( -iname "*.png" -o -iname "*.svg" \) | grep -i icon | head -n 1 || true)
-if [ -z "$ICON_FILE_AG" ]; then
-    ICON_FILE_AG=$(find /usr/lib/antigravity -type f \( -iname "*.png" -o -iname "*.svg" \) | head -n 1 || true)
-fi
-if [ -n "$ICON_FILE_AG" ]; then
-    mkdir -p /usr/share/pixmaps
-    cp "$ICON_FILE_AG" "/usr/share/pixmaps/antigravity.${ICON_FILE_AG##*.}"
-fi
+# Download macOS DMGs to get the high-resolution icons
+echo "Downloading Antigravity 2.0 DMG for high-res icon..."
+curl -fL -o /tmp/Antigravity.dmg "https://storage.googleapis.com/antigravity-public/antigravity-hub/2.0.1-6566078776737792/darwin-arm/Antigravity.dmg"
+
+echo "Downloading Antigravity IDE DMG for high-res icon..."
+curl -fL -o /tmp/Antigravity-IDE.dmg "https://edgedl.me.gvt1.com/edgedl/release2/j0qc3/antigravity/stable/2.0.1-4861014005645312/darwin-arm/Antigravity%20IDE.dmg"
+
+# Extract the .icns files from the DMGs
+echo "Extracting icon files..."
+7z e -y /tmp/Antigravity.dmg -o/tmp "Antigravity 2.0.1-arm64/Antigravity.app/Contents/Resources/icon.icns"
+7z e -y /tmp/Antigravity-IDE.dmg -o/tmp "Antigravity IDE/Antigravity IDE.app/Contents/Resources/Antigravity IDE.icns"
+
+# Parse the .icns files and extract the largest PNG from each
+mkdir -p /usr/share/pixmaps
+python3 -c '
+import struct
+import sys
+
+def extract_largest_png(icns_path, output_png_path):
+    try:
+        with open(icns_path, "rb") as f:
+            magic, total_len = struct.unpack(">4sI", f.read(8))
+            if magic != b"icns":
+                print(f"Error: {icns_path} is not a valid icns file", file=sys.stderr)
+                return False
+            
+            largest_size = 0
+            largest_data = None
+            
+            while f.tell() < total_len:
+                b_type, b_len = struct.unpack(">4sI", f.read(8))
+                if b_len < 8:
+                    break
+                b_data = f.read(b_len - 8)
+                
+                if b_data.startswith(b"\x89PNG\r\n\x1a\n"):
+                    if len(b_data) >= 24:
+                        w, h = struct.unpack(">II", b_data[16:24])
+                        size = w * h
+                        if size > largest_size:
+                            largest_size = size
+                            largest_data = b_data
+            
+            if largest_data:
+                with open(output_png_path, "wb") as out_f:
+                    out_f.write(largest_data)
+                print(f"Successfully extracted largest PNG ({largest_size**0.5:.0f}x{largest_size**0.5:.0f}) to {output_png_path}")
+                return True
+            else:
+                print(f"Error: No PNG icon found in {icns_path}", file=sys.stderr)
+                return False
+    except Exception as e:
+        print(f"Error processing {icns_path}: {e}", file=sys.stderr)
+        return False
+
+extract_largest_png("/tmp/icon.icns", "/usr/share/pixmaps/antigravity.png")
+extract_largest_png("/tmp/Antigravity IDE.icns", "/usr/share/pixmaps/antigravity-ide.png")
+'
 
 echo "Creating symlinks..."
 if [ -f /usr/lib/antigravity/antigravity ]; then
@@ -111,5 +164,5 @@ Categories=Utility;
 Icon=antigravity
 EOF
 
-rm -f /tmp/Antigravity.tar.gz /tmp/Antigravity-IDE.tar.gz
+rm -f /tmp/Antigravity.tar.gz /tmp/Antigravity-IDE.tar.gz /tmp/Antigravity.dmg /tmp/Antigravity-IDE.dmg /tmp/icon.icns "/tmp/Antigravity IDE.icns"
 echo "Antigravity installed successfully!"
