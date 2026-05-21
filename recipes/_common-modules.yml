@@ -51,7 +51,7 @@ modules:
         - tilix
         - nautilus-open-any-terminal
         - insync
-        - insync-nautilus
+        # - insync-nautilus # temporarily disabled due to unavailability in Fedora 44 repositories
 
   - type: systemd
     system:
