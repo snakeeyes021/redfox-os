@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -oue pipefail
+set -euo pipefail
 
 echo "Resolving dynamic download URLs for Antigravity from JSON API..."
 
