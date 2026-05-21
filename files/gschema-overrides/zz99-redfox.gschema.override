@@ -20,7 +20,6 @@ enabled-extensions=['user-theme@gnome-shell-extensions.gcampax.github.com', 'gsc
 
 [org.gnome.mutter]
 edge-tiling=false
-experimental-features=['variable-refresh-rate', 'scale-monitor-framebuffer']
 
 [org.gnome.desktop.wm.keybindings]
 close=['<Super>q']
