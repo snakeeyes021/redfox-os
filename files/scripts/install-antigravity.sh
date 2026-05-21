@@ -23,24 +23,20 @@ echo "Resolved Antigravity 2.0: $URL_20"
 echo "Resolved Antigravity IDE: $URL_IDE"
 
 echo "Downloading Antigravity 2.0..."
-curl -L -o /tmp/Antigravity.tar.gz "$URL_20"
+curl -fL -o /tmp/Antigravity.tar.gz "$URL_20"
 
 echo "Downloading Antigravity IDE..."
-curl -L -o /tmp/Antigravity-IDE.tar.gz "$URL_IDE"
+curl -fL -o /tmp/Antigravity-IDE.tar.gz "$URL_IDE"
 
 echo "Extracting Antigravity 2.0..."
 mkdir -p /usr/lib/antigravity
 rm -rf /usr/lib/antigravity/*
-if ! tar -xzf /tmp/Antigravity.tar.gz -C /usr/lib/antigravity --strip-components=1 2>/dev/null; then
-    tar -xzf /tmp/Antigravity.tar.gz -C /usr/lib/antigravity
-fi
+tar -xzf /tmp/Antigravity.tar.gz -C /usr/lib/antigravity --strip-components=1
 
 echo "Extracting Antigravity IDE..."
 mkdir -p /usr/lib/antigravity-ide
 rm -rf /usr/lib/antigravity-ide/*
-if ! tar -xzf /tmp/Antigravity-IDE.tar.gz -C /usr/lib/antigravity-ide --strip-components=1 2>/dev/null; then
-    tar -xzf /tmp/Antigravity-IDE.tar.gz -C /usr/lib/antigravity-ide
-fi
+tar -xzf /tmp/Antigravity-IDE.tar.gz -C /usr/lib/antigravity-ide --strip-components=1
 
 echo "Setting executable permissions..."
 chmod +x /usr/lib/antigravity/antigravity 2>/dev/null || true
