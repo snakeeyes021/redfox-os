@@ -71,8 +71,8 @@ fi
 
 # --- ANTIGRAVITY IDE SETUP ---
 
-if command -v antigravity-ide &> /dev/null; then
-    ANTIGRAVITY_BIN="$(command -v antigravity 2>/dev/null || command -v antigravity-ide)"
+if [ -x "/usr/lib/antigravity-ide/bin/antigravity-ide" ]; then
+    ANTIGRAVITY_BIN="/usr/lib/antigravity-ide/bin/antigravity-ide"
 
     # Antigravity IDE Default Settings (One-time copy)
     ANTIGRAVITY_USER_SETTINGS="$HOME/.config/Antigravity IDE/User/settings.json"
