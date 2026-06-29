@@ -5,10 +5,4 @@
     "git.autofetch": true,
     "git.confirmSync": false,
     "editor.fontFamily": "'Cascadia Code', 'Droid Sans Mono', 'monospace', monospace, 'Symbols Nerd Font Mono'",
-    "extensionsGallery": {
-        "serviceUrl": "https://marketplace.visualstudio.com/_apis/public/gallery",
-        "itemUrl": "https://marketplace.visualstudio.com/items",
-        "cacheUrl": "https://vscode.blob.core.windows.net/gallery/index",
-        "resourceUrlTemplate": "https://{publisher}.vscode-unpkg.net/{publisher}/{name}/{version}/extension/{path}"
-    }
 }
