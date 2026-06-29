@@ -289,24 +289,6 @@ uninstall-zed:
         echo "Zed was not removed (possibly cancelled or error)."; \
     fi
 
-# Install Gemini CLI
-install-gemini-cli:
-    echo "Installing Gemini CLI..."
-    brew install gemini-cli
-    echo "Gemini CLI installed!"
-
-# Uninstall Gemini CLI
-uninstall-gemini-cli:
-    #!/usr/bin/bash
-    set -euo pipefail
-    echo "Checking Gemini CLI status..."
-    if brew list gemini-cli &>/dev/null; then
-        echo "Uninstalling Gemini CLI..."
-        brew uninstall gemini-cli
-        echo "Gemini CLI uninstalled!"
-    else
-        echo "[OK] Gemini CLI is not installed. Nothing to do."
-    fi
 
 # Install Antigravity CLI
 install-antigravity-cli:
@@ -806,7 +788,7 @@ install-gnome-dev:
         re.sonny.Workbench
 
 # Install Development Apps
-install-dev: install-gnome-dev install-zed install-gemini-cli install-antigravity-cli
+install-dev: install-gnome-dev install-zed install-antigravity-cli
     flatpak install -y flathub \
         io.podman_desktop.PodmanDesktop \
         org.gnome.dspy \

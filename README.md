@@ -13,7 +13,7 @@ Its primary raison d'être is to provide driver support for Pascal-series Nvidia
 - [x] **Development:** VS Code (system install), Android Tools, BPF Tools (bpftop, bpftrace), Sysprof, pixi/uv
 - [x] **CLI Utilities:** zsh, restic, rclone, ccache
 - [x] **Editor:** Zed (ujust recipe installer)
-- [ ] **AI Utilities:** Cursor (system), Gemini CLI (ujust), ramalama (system), Ollama (system), OpenClaw (ujust)
+- [ ] **AI Utilities:** Cursor (system), Antigravity (system), Antigravity IDE (system), ramalama (system), Ollama (system), OpenClaw (ujust)
 
 ### Desktop & Media
 - [x] **NVIDIA Pascal Support:** Built on `bazzite-gnome-nvidia` for legacy driver support

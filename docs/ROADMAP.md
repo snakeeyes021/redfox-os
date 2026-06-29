@@ -65,7 +65,7 @@
     - [x] **Task:** Implement `jq` script to inject settings (Theme, Fonts, etc.).
 - [x] `setup-cursor`: Mirror `setup-vscode` logic.
 - [x] `install-zed`: Script to install Zed via `curl | sh` to `~/.local`.
-- [x] `install-gemini-cli`: `brew install gemini-cli`.
+- [x] `install-gemini-cli`: `brew install gemini-cli`. (deprecated/removed)
 - [ ] `configure-heroic`:
 - [ ] **UI/UX Atoms:**
     - [x] `fix-flatpak-theming`:
@@ -112,7 +112,7 @@
     - [x] potentially also `install-daily`: this and productivity may be one unit or two. This would include things like Tuba, RSS feed reader, Audiobook reader, etc.
 - [x] `install-music`: Flatpak list (Ardour, Musescore, Lilypond, Frescobaldi, etc.).
 - [x] `install-creative`: Flatpak list (Blender, Krita, Inkscape, Photo stuff, GIMP, Kdenlive, OBS etc.).
-- [x] `install-dev`: Combines `install-zed`, `setup-vscode`, `setup-cursor`, `install-gemini-cli`.
+- [x] `install-dev`: Combines `install-zed`, `setup-vscode`, `setup-cursor`, `install-gemini-cli` (gemini cli deprecated/removed).
 
 ### Level 2: Molecules (Logical Groups)
 - [ ] **Software Bundles (Install Molecules):**
@@ -162,8 +162,8 @@
 ## 🛠️ Ujust Idempotency Fixes
 - [x] **Research & Fix:** Identify and resolve recipes that fail or cause issues when run multiple times.
     - [x] `add-swap`: Idempotent; offers to recreate or skips if already active.
-    - [x] `install-gemini-cli`: Fails if already installed via Homebrew. (No, this is fine as is--it's *supposed* to be installed via homebrew, and running this will update it)
-    - [x] `uninstall-gemini-cli`: Fails if not installed. Now fixed.
+    - [x] `install-gemini-cli`: Fails if already installed via Homebrew. (No, this is fine as is--it's *supposed* to be installed via homebrew, and running this will update it) (gemini cli deprecated/removed)
+    - [x] `uninstall-gemini-cli`: Fails if not installed. Now fixed. (deprecated/removed)
     - [x] `install-zed`: Should check for existing installation before running `curl | sh`. (No, this is not necessary; re-running will simply update it)
     - [x] `fix-oryp9-mouse`: Idempotent; checks if udev rule already exists and matches content.
     - [x] `configure-nordvpn`: Idempotent; `import-nord-configs` now deduplicates connections and always enforces sort order.
