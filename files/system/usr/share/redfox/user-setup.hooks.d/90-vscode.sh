@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 # 90-redfox-setup.sh
 # RedFoxOS User Setup Hook
-# Handles mandatory extensions and default settings for VSCode and Cursor.
+# Handles mandatory extensions and default settings for VSCode, Cursor, and Antigravity IDE.
 
 set -euo pipefail
 
@@ -65,6 +65,40 @@ if command -v cursor &> /dev/null; then
             echo "Initializing Cursor settings..."
             mkdir -p "$(dirname "$CURSOR_USER_SETTINGS")"
             cp "$CURSOR_SKELETON" "$CURSOR_USER_SETTINGS"
+        fi
+    fi
+fi
+
+
+# --- ANTIGRAVITY IDE SETUP ---
+
+if command -v antigravity-ide &> /dev/null; then
+    ANTIGRAVITY_BIN="$(command -v antigravity 2>/dev/null || command -v antigravity-ide)"
+
+    # Antigravity IDE Mandatory Extensions
+    ANTIGRAVITY_EXTENSIONS=(
+        "ms-vscode-remote.remote-containers"
+        "ms-vscode-remote.remote-ssh"
+        "ms-azuretools.vscode-containers"
+    )
+
+    for ext_id in "${ANTIGRAVITY_EXTENSIONS[@]}"; do
+        # Check if extension exists in ~/.antigravity-ide/extensions/
+        if ! compgen -G "$HOME/.antigravity-ide/extensions/${ext_id,,}*" > /dev/null; then
+             echo "Installing Antigravity IDE extension: $ext_id"
+             "$ANTIGRAVITY_BIN" --install-extension "$ext_id" --force > /dev/null 2>&1 || echo "Failed to install $ext_id"
+        fi
+    done
+
+    # Antigravity IDE Default Settings (One-time copy)
+    ANTIGRAVITY_USER_SETTINGS="$HOME/.config/Antigravity IDE/User/settings.json"
+    ANTIGRAVITY_SKELETON="/etc/skel/.config/Antigravity IDE/User/settings.json"
+
+    if [ ! -f "$ANTIGRAVITY_USER_SETTINGS" ]; then
+        if [ -f "$ANTIGRAVITY_SKELETON" ]; then
+            echo "Initializing Antigravity IDE settings..."
+            mkdir -p "$(dirname "$ANTIGRAVITY_USER_SETTINGS")"
+            cp "$ANTIGRAVITY_SKELETON" "$ANTIGRAVITY_USER_SETTINGS"
         fi
     fi
 fi

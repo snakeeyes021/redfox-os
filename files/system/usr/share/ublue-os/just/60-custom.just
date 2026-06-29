@@ -233,6 +233,10 @@ configure-vscode:
 configure-cursor:
     echo "TODO: Implement configure-cursor"
 
+# Configure Antigravity IDE
+configure-antigravity:
+    echo "TODO: Implement configure-antigravity"
+
 # Configure Text Editor Dev Mode (Indentation)
 configure-text-editor-dev:
     echo "Configuring Text Editor for Development (Spaces, 4 per tab)..."
@@ -921,7 +925,7 @@ configure-xway-scale-on:
     echo "Enabled xwayland-native-scaling"
 
 # Configure Dev Environment
-configure-dev: configure-vscode configure-cursor
+configure-dev: configure-vscode configure-cursor configure-antigravity
 
 # Configure Matt's Environment
 configure-matt: redfox-enforce-secrets apply-hardware-quirks add-swap configure-nordvpn reset-hostname configure-keybindings-default configure-dev configure-text-editor-dev configure-terminal-default configure-powersaver-no-suspend configure-xway-scale-off
