@@ -961,7 +961,7 @@ layout-matt: sort-app-grid set-window-controls-left-gnome layout-tiling-default 
       'org.mozilla.firefox.desktop', \
       'org.signal.Signal.desktop', \
       'org.gnome.TextEditor.desktop', \
-      'code.desktop', \
+      'antigravity-ide.desktop', \
       'com.spotify.Client.desktop', \
       'steam.desktop', \
       'net.cozic.joplin_desktop.desktop', \
