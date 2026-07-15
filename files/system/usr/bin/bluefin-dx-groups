@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
 
-# SCRIPT VERSION
-GROUP_SETUP_VER=1
+# Clean up any gshadow inconsistencies to prevent systemd-sysusers from failing (runs every boot)
+echo "Cleaning up gshadow database..."
+yes | grpck || true
+echo "Regenerating system users..."
+systemd-sysusers
+
+# SCRIPT VERSION (increment this number every time you update this script)
+GROUP_SETUP_VER=2
 GROUP_SETUP_VER_FILE="/etc/ublue/dx-groups"
-GROUP_SETUP_VER_RAN=$(cat "$GROUP_SETUP_VER_FILE")
+GROUP_SETUP_VER_RAN=$(cat "$GROUP_SETUP_VER_FILE" 2>/dev/null || echo "0")
 
 # make the directory if it doesn't exist
 mkdir -p /etc/ublue
