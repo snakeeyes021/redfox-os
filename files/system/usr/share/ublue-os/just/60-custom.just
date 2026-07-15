@@ -634,6 +634,15 @@ nuke-vpns:
     @echo "WARNING: This will permanently delete all configured VPNs."
     sudo /usr/bin/nuke-vpn-configs
 
+# Enable weekly ClamAV antivirus scans
+enable-clamav-weekly:
+    sudo systemctl enable --now clamscan-weekly.timer
+    systemctl list-timers clamscan-weekly.timer
+
+# Disable weekly ClamAV antivirus scans
+disable-clamav-weekly:
+    sudo systemctl disable --now clamscan-weekly.timer
+
 # Create and enable a swapfile (Default: 16G)
 add-swap size="16G":
     #!/usr/bin/bash
@@ -935,7 +944,7 @@ configure-cursor-dewy:
     echo "Cursor configured successfully!"
 
 # Configure Dewy's Environment
-configure-dewy: redfox-enforce-secrets configure-keybindings-default configure-text-editor-dev reset-hostname configure-cursor-dewy configure-terminal-tilix configure-nordvpn configure-powersaver-default configure-xway-scale-on
+configure-dewy: redfox-enforce-secrets configure-keybindings-default configure-text-editor-dev reset-hostname configure-cursor-dewy configure-terminal-tilix configure-nordvpn configure-powersaver-default configure-xway-scale-on enable-clamav-weekly
     gsettings set org.gnome.shell.keybindings show-screenshot-ui "['Print']"
     gsettings set org.gnome.shell.keybindings screenshot "['<Shift><Super>s']"
     gnome-extensions disable unblank@sun.wxg@gmail.com

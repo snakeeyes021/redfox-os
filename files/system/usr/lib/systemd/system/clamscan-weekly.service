@@ -1,0 +1,6 @@
+[Unit]
+Description=Weekly ClamAV scan
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/clamscan -ri /home --log=/var/log/clamscan-weekly.log

@@ -52,6 +52,8 @@ modules:
         - nautilus-open-any-terminal
         - insync
         # - insync-nautilus # temporarily disabled due to unavailability in Fedora 44 repositories
+        - clamav
+        - clamav-freshclam
 
   - type: systemd
     system:
@@ -61,6 +63,7 @@ modules:
         - libvirtd.service
         - bluefin-dx-groups.service
         - incus-workaround.service
+        - clamav-freshclam.service
     user:
       enabled:
         - redfox-user-setup.service
