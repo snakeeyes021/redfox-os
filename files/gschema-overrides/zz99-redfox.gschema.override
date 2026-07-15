@@ -47,3 +47,6 @@ theme-name='freedesktop'
 
 [org.gnome.desktop.input-sources]
 xkb-options=['compose:ralt']
+
+[org.gnome.mutter.wayland]
+xwayland-scaling-factor=1.0

@@ -899,21 +899,15 @@ configure-powersaver-default:
 configure-powersaver-no-suspend:
     gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type 'nothing'
 
-# Disable xwayland-native-scaling (Deviation)
+# Disable xwayland-native-scaling (Reset)
 configure-xway-scale-off:
-    #!/usr/bin/bash
-    CURRENT=$(gsettings get org.gnome.mutter experimental-features)
-    NEW=$(python3 -c "import sys, ast; val=sys.argv[1]; val=val[4:] if val.startswith('@as ') else val; val='[]' if not val else val; lst=ast.literal_eval(val) if val != '[]' else []; lst.remove('xwayland-native-scaling') if 'xwayland-native-scaling' in lst else None; print(repr(lst))" "$CURRENT" 2>/dev/null || echo "[]")
-    gsettings set org.gnome.mutter experimental-features "$NEW"
-    echo "Disabled xwayland-native-scaling"
+    gsettings reset org.gnome.mutter.wayland xwayland-scaling-factor
+    echo "Disabled xwayland-native-scaling (reverted factor to default)"
 
 # Enable xwayland-native-scaling (Deviation)
 configure-xway-scale-on:
-    #!/usr/bin/bash
-    CURRENT=$(gsettings get org.gnome.mutter experimental-features)
-    NEW=$(python3 -c "import sys, ast; val=sys.argv[1]; val=val[4:] if val.startswith('@as ') else val; val='[]' if not val else val; lst=ast.literal_eval(val) if val != '[]' else []; lst.append('xwayland-native-scaling') if 'xwayland-native-scaling' not in lst else None; print(repr(lst))" "$CURRENT" 2>/dev/null || echo "['xwayland-native-scaling']")
-    gsettings set org.gnome.mutter experimental-features "$NEW"
-    echo "Enabled xwayland-native-scaling"
+    gsettings set org.gnome.mutter.wayland xwayland-scaling-factor 0.0
+    echo "Enabled xwayland-native-scaling (forced factor to 0.0)"
 
 # Configure Dev Environment
 configure-dev: configure-vscode configure-cursor configure-antigravity

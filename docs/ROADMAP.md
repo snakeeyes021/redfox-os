@@ -99,10 +99,8 @@
     - [ ] `preset-dock-win-classic` (Deviation): Configure Dash to Dock (Bottom, Taskbar style, icons on left). Turn on Dash to Dock.
     - [ ] `preset-dock-win-new` (Deviation): Configure Dash to Dock (Bottom, Taskbar style, icons on centered). Turn on Dash to Dock.
     - [ ] `preset-dock-macos` (Deviation): Configure Dash to Dock (Bottom, Floating). Turn on Dash to Dock.
-    - [x] `configure-xway-scale-off` (Reset): Disable `xwayland-native-scaling`.
-        - setting has changed. update based on xwayland-scaling-factor (default is off, i.e. xwayland-native-scaling is on, i.e. not the better setting for games)
-    - [x] `configure-xway-scale-on` (Deviation): Enable `xwayland-native-scaling`.
-        - setting has changed. update based on xwayland-scaling-factor (default is off, i.e. xwayland-native-scaling is on, i.e. not the better setting for games)
+    - [x] `configure-xway-scale-off` (Reset): Disable `xwayland-native-scaling` (reverts factor to default).
+    - [x] `configure-xway-scale-on` (Deviation): Enable `xwayland-native-scaling` (forces factor to 0.0).
 - [ ] **Hardware Atoms (Must include Host Checks):**
     - [x] `fix-oryp9-mouse`: Udev rule (Run only if Oryp9).
     - [x] `fix-acer-nouveau`: Kernel args (Run only if Acer).
