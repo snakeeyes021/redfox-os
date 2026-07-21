@@ -33,6 +33,9 @@ pipeline='pipeline_default'
 [org/gnome/shell/extensions/blur-my-shell/dash-to-dock]
 pipeline='pipeline_default'
 
+[org/gnome/shell/extensions/blur-my-shell/popup]
+blur=false
+
 [org/gnome/shell/extensions/tilingshell]
 inner-gaps=uint32 8
 quarter-tiling-threshold=uint32 10
