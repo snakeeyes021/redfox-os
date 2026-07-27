@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   bluebuild:
-    name: Build Custom Image
+    name: Build Custom Image (${{ matrix.branch }})
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -29,7 +29,14 @@ jobs:
           - recipe-nvidia-legacy.yml
           - recipe-nvidia.yml
           - recipe-main.yml
+        branch: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && fromJSON('["main", "unstable"]') || fromJSON(format('["{0}"]', github.ref_name)) }}
+
     steps:
+      - name: Checkout target branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.branch }}
+
       # the build is fully handled by the reusable github action
       - name: Build Custom Image
         uses: blue-build/github-action@v1
@@ -41,3 +48,5 @@ jobs:
 
           # enabled by default, disable if your image is small and you want faster builds
           maximize_build_space: true
+
+
