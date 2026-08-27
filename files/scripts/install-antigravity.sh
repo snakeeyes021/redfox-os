@@ -20,7 +20,7 @@ URL_20="https://storage.googleapis.com/antigravity-public/antigravity-hub/${VERS
 
 # Temporarily hardcoding the IDE URL since there doesn't appear to be any programmatic way to retrieve it, no JSON manifest, no API endpoint, no scrapable download page, etc.
 # We can revisit if they eventually include it in a repo like they used to. For now we'll just update this URL every so often.
-URL_IDE="https://edgedl.me.gvt1.com/edgedl/release2/j0qc3/antigravity/stable/2.1.1-6123990880747520/linux-x64/Antigravity%20IDE.tar.gz"
+URL_IDE="https://edgedl.me.gvt1.com/edgedl/release2/j0qc3/antigravity/stable/2.5.5-4923483625488384/linux-x64/Antigravity%20IDE.tar.gz"
 
 echo "Resolved Antigravity 2.0: $URL_20"
 echo "Resolved Antigravity IDE: $URL_IDE"
