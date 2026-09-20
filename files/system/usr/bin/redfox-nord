@@ -225,19 +225,30 @@ def normalize_country(input_str: str, country_map: dict) -> dict:
     raise ValueError(f"Unknown country: '{input_str}'. Use 'redfox-nord search countries' to view available options.")
 
 
-def get_recommendations(country_id: int, category: str = "standard", limit: int = 1) -> list:
-    """Get recommended servers matching criteria."""
+def get_recommendations(country_id: int, category: str = "standard", limit: int = 1, exclude_nums: set = None) -> list:
+    """Get recommended servers matching criteria, filtering out duplicates."""
     group_id = "legacy_p2p" if category.lower() == "p2p" else "legacy_standard"
+    exclude = exclude_nums or set()
+    # Fetch a wider pool so we can skip already-installed servers
+    fetch_limit = max(15, limit + len(exclude) + 5)
     params = [
         f"filters[country_id]={country_id}",
         "filters[servers_technologies][identifier]=wireguard_udp",
         f"filters[servers_groups][identifier]={group_id}",
-        f"limit={limit}",
+        f"limit={fetch_limit}",
     ]
     query = "&".join(params)
     servers = api_request(f"/servers/recommendations?{query}")
     results = []
     for s in servers:
+        if len(results) >= limit:
+            break
+        # Extract server number (e.g. us13024 -> 13024)
+        m = re.search(r"(\d+)", s.get("hostname", ""))
+        s_num = m.group(1) if m else str(s.get("id"))
+        if s_num in exclude:
+            continue
+        exclude.add(s_num)
         # Extract WireGuard public key
         pubkey = None
         for tech in s.get("technologies", []):
@@ -310,10 +321,13 @@ def get_managed_connections(include_legacy: bool = False) -> list:
             is_wireguard_nord = name.startswith(MANAGED_PREFIX) and conn_type == "wireguard"
             is_legacy_nord = include_legacy and (conn_type == "vpn" or name.startswith(MANAGED_PREFIX))
             if is_wireguard_nord or is_legacy_nord:
+                m_num = re.search(r"#(\d+)", name)
+                server_num = m_num.group(1) if m_num else ""
                 managed.append({
                     "uuid": uuid,
                     "name": name,
                     "type": conn_type,
+                    "server_num": server_num,
                     "active": bool(active_device and active_device != "--")
                 })
     return managed
@@ -425,13 +439,14 @@ def cmd_sync(args):
 
     country_map = get_country_map()
     planned_servers = []
+    allocated_nums = set()
 
     for rule in rules:
         c_str = rule.get("country", "")
         count = int(rule.get("count", 1))
         cat = rule.get("category", "standard")
         c_obj = normalize_country(c_str, country_map)
-        recs = get_recommendations(c_obj["id"], category=cat, limit=count)
+        recs = get_recommendations(c_obj["id"], category=cat, limit=count, exclude_nums=allocated_nums)
         if not recs:
             print(f"  [WARN] No healthy WireGuard recommendations found for {c_obj['name']} ({cat}).")
             continue
@@ -484,7 +499,10 @@ def cmd_add(args):
 
     print(f"Resolving recommendation for '{target}' ({cat})...")
     c_obj = normalize_country(target, country_map)
-    recs = get_recommendations(c_obj["id"], category=cat, limit=1)
+    # Collect currently installed server numbers so we never add a duplicate
+    installed = get_managed_connections()
+    exclude_nums = {c["server_num"] for c in installed if c.get("server_num")}
+    recs = get_recommendations(c_obj["id"], category=cat, limit=1, exclude_nums=exclude_nums)
     if not recs:
         print(f"[ERROR] No recommendations found for {c_obj['name']}.")
         sys.exit(1)
@@ -553,7 +571,9 @@ def cmd_list(args):
 
     print(f"{'State':<8} {'Connection Name':<32} {'Status':<10}")
     print("-" * 55)
-    for c in managed:
+    # Sort by active connection first, then maintain priority order
+    managed_sorted = sorted(managed, key=lambda x: (not x["active"]))
+    for c in managed_sorted:
         state_icon = "● (UP)" if c["active"] else "○"
         print(f"{state_icon:<8} {c['name']:<32} {'Active' if c['active'] else 'Idle':<10}")
 
