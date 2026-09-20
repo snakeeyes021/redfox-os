@@ -1,0 +1,966 @@
+#!/usr/bin/env python3
+"""
+redfox-nord: Dynamic NordVPN WireGuard Manager for RedFoxOS
+Talks directly to NordVPN's public API to provision and manage native
+NetworkManager WireGuard connections with GNOME Quick Settings MRU tray pinning.
+"""
+
+import os
+import re
+import sys
+import json
+import base64
+import argparse
+import subprocess
+import urllib.request
+import urllib.error
+import urllib.parse
+from pathlib import Path
+
+
+def get_user_home() -> Path:
+    """Resolve the real user home directory, even when run via sudo."""
+    sudo_user = os.environ.get("SUDO_USER")
+    if sudo_user and sudo_user != "root":
+        for p in [Path(f"/var/home/{sudo_user}"), Path(f"/home/{sudo_user}")]:
+            if p.exists():
+                return p
+    return Path.home()
+
+
+# Paths
+DEFAULT_CONFIG_PATH = Path("/usr/share/redfox/nord-default.yaml")
+REPO_DEFAULT_CONFIG = Path(__file__).resolve().parent.parent / "share" / "redfox" / "nord-default.yaml"
+USER_CONFIG_DIR = get_user_home() / ".config" / "redfox"
+USER_CONFIG_PATH = USER_CONFIG_DIR / "config.yaml"
+USER_CREDENTIALS_CACHE = USER_CONFIG_DIR / ".nord-credentials.json"
+LEGACY_SECRETS_PATH = USER_CONFIG_DIR / "secrets.env"
+MANAGED_PREFIX = "NordVPN "
+
+API_BASE = "https://api.nordvpn.com/v1"
+NORD_DNS = "103.86.96.100,103.86.99.100"
+WIREGUARD_PORT = 51820
+
+# Country alias fixes (e.g., UK is GB in ISO-3166-1)
+COUNTRY_ALIASES = {
+    "UK": "GB",
+    "UNITED KINGDOM": "GB",
+    "ENGLAND": "GB",
+    "GREAT BRITAIN": "GB",
+    "USA": "US",
+    "UNITED STATES": "US",
+    "SOUTH KOREA": "KR",
+    "KOREA": "KR",
+}
+
+
+def load_yaml(path: Path) -> dict:
+    """Load YAML file with PyYAML if available, or lightweight fallback."""
+    if not path.exists():
+        return {}
+    try:
+        import yaml
+        with open(path, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+            return data or {}
+    except ImportError:
+        pass
+
+    # Simple fallback parser for basic YAML key/lists
+    data = {"servers": []}
+    current_server = None
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if line.startswith("- country:"):
+                country = line.split(":", 1)[1].strip().strip('"\'')
+                current_server = {"country": country, "count": 1, "category": "standard"}
+                data["servers"].append(current_server)
+            elif current_server and line.startswith("count:"):
+                try:
+                    current_server["count"] = int(line.split(":", 1)[1].strip())
+                except ValueError:
+                    pass
+            elif current_server and line.startswith("category:"):
+                current_server["category"] = line.split(":", 1)[1].strip().strip('"\'')
+            elif current_server and line.startswith("city:"):
+                current_server["city"] = line.split(":", 1)[1].strip().strip('"\'')
+    return data
+
+
+def save_user_config(config: dict):
+    """Save user config to ~/.config/redfox/config.yaml."""
+    USER_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    try:
+        import yaml
+        with open(USER_CONFIG_PATH, "w", encoding="utf-8") as f:
+            yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+    except ImportError:
+        with open(USER_CONFIG_PATH, "w", encoding="utf-8") as f:
+            f.write("# RedFoxOS Master Configuration\n")
+            if "nordvpn" in config:
+                f.write("nordvpn:\n")
+                if "token" in config["nordvpn"]:
+                    f.write(f"  token: \"{config['nordvpn']['token']}\"\n")
+                if "servers" in config["nordvpn"]:
+                    f.write("  servers:\n")
+                    for s in config["nordvpn"]["servers"]:
+                        f.write(f"    - country: {s.get('country')}\n")
+                        if "count" in s:
+                            f.write(f"      count: {s['count']}\n")
+                        if s.get("category") and s["category"] != "standard":
+                            f.write(f"      category: {s['category']}\n")
+                        if s.get("city"):
+                            f.write(f"      city: \"{s['city']}\"\n")
+    os.chmod(USER_CONFIG_PATH, 0o600)
+
+
+def api_request(endpoint: str, headers: dict = None, timeout: int = 15) -> any:
+    """Make HTTP GET request to NordVPN API."""
+    url = f"{API_BASE}{endpoint}" if endpoint.startswith("/") else endpoint
+    req = urllib.request.Request(url, headers=headers or {})
+    req.add_header("User-Agent", "RedFoxOS-redfox-nord/1.0")
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            data = resp.read().decode("utf-8")
+            return json.loads(data)
+    except urllib.error.HTTPError as e:
+        if e.code == 401:
+            raise PermissionError("Unauthorized: NordVPN token is invalid or expired.")
+        raise RuntimeError(f"NordVPN API error ({e.code}): {e.reason}")
+    except Exception as e:
+        raise ConnectionError(f"Failed to connect to NordVPN API: {e}")
+
+
+def get_nord_token(args_token: str = None) -> str:
+    """Resolve Nord token from CLI args, env var, config.yaml, or secrets.env."""
+    if args_token:
+        return args_token.strip()
+
+    if os.environ.get("NORD_TOKEN"):
+        return os.environ["NORD_TOKEN"].strip()
+
+    # Check ~/.config/redfox/config.yaml
+    if USER_CONFIG_PATH.exists():
+        cfg = load_yaml(USER_CONFIG_PATH)
+        token = cfg.get("nordvpn", {}).get("token")
+        if token:
+            return str(token).strip()
+
+    # Check legacy ~/.config/redfox/secrets.env
+    if LEGACY_SECRETS_PATH.exists():
+        try:
+            with open(LEGACY_SECRETS_PATH, "r", encoding="utf-8") as f:
+                for line in f:
+                    if line.startswith("NORD_TOKEN="):
+                        val = line.split("=", 1)[1].strip().strip('"\'')
+                        if val:
+                            return val
+        except Exception:
+            pass
+
+    return ""
+
+
+def get_wireguard_private_key(token: str) -> str:
+    """Derive WireGuard private key using access token, using local cache when possible."""
+    USER_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    token_hash = base64.b64encode(token.encode("utf-8")[:16]).decode("utf-8")
+
+    # Check cached credentials
+    if USER_CREDENTIALS_CACHE.exists():
+        try:
+            with open(USER_CREDENTIALS_CACHE, "r", encoding="utf-8") as f:
+                cached = json.load(f)
+                if cached.get("token_hash") == token_hash and cached.get("private_key"):
+                    return cached["private_key"]
+        except Exception:
+            pass
+
+    # Query Nord credentials endpoint
+    auth_bytes = base64.b64encode(f"token:{token}".encode("utf-8")).decode("utf-8")
+    headers = {"Authorization": f"Basic {auth_bytes}"}
+    data = api_request("/users/services/credentials", headers=headers)
+
+    private_key = data.get("nordlynx_private_key")
+    if not private_key:
+        raise ValueError("Could not find 'nordlynx_private_key' in Nord credentials response.")
+
+    # Save to cache with 0600 permissions
+    try:
+        with open(USER_CREDENTIALS_CACHE, "w", encoding="utf-8") as f:
+            json.dump({"token_hash": token_hash, "private_key": private_key}, f)
+        os.chmod(USER_CREDENTIALS_CACHE, 0o600)
+    except Exception:
+        pass
+
+    return private_key
+
+
+def get_country_map() -> dict:
+    """Fetch all countries and map both ISO code and Name to country object."""
+    countries = api_request("/servers/countries")
+    cmap = {}
+    for c in countries:
+        code = c.get("code", "").upper()
+        name = c.get("name", "")
+        cid = c.get("id")
+        entry = {"id": cid, "name": name, "code": code, "cities": c.get("cities", [])}
+        if code:
+            cmap[code] = entry
+        if name:
+            cmap[name.upper()] = entry
+    return cmap
+
+
+def normalize_country(input_str: str, country_map: dict) -> dict:
+    """Normalize input country code or name using country map and aliases."""
+    raw = input_str.strip().upper()
+    if raw in COUNTRY_ALIASES:
+        raw = COUNTRY_ALIASES[raw]
+    if raw in country_map:
+        return country_map[raw]
+    raise ValueError(f"Unknown country: '{input_str}'. Use 'redfox-nord search countries' to view available options.")
+
+
+def get_recommendations(country_id: int, category: str = "standard", limit: int = 1, exclude_nums: set = None) -> list:
+    """Get recommended servers matching criteria, filtering out duplicates."""
+    group_id = "legacy_p2p" if category.lower() == "p2p" else "legacy_standard"
+    exclude = exclude_nums if exclude_nums is not None else set()
+    fetch_limit = max(15, limit + len(exclude) + 5)
+    params = [
+        f"filters[country_id]={country_id}",
+        "filters[servers_technologies][identifier]=wireguard_udp",
+        f"filters[servers_groups][identifier]={group_id}",
+        f"limit={fetch_limit}",
+    ]
+    query = "&".join(params)
+    servers = api_request(f"/servers/recommendations?{query}")
+    results = []
+    for s in servers:
+        if len(results) >= limit:
+            break
+        # Extract server number (e.g. us13024 -> 13024)
+        m = re.search(r"(\d+)", s.get("hostname", ""))
+        s_num = m.group(1) if m else str(s.get("id"))
+        if s_num in exclude:
+            continue
+        exclude.add(s_num)
+
+        # Extract WireGuard public key
+        pubkey = None
+        for tech in s.get("technologies", []):
+            if tech.get("identifier") == "wireguard_udp":
+                for meta in tech.get("metadata", []):
+                    if meta.get("name") == "public_key":
+                        pubkey = meta.get("value")
+                        break
+        if not pubkey:
+            continue
+
+        results.append({
+            "id": s.get("id"),
+            "name": s.get("name"),
+            "hostname": s.get("hostname"),
+            "station": s.get("station"),
+            "load": s.get("load", 0),
+            "status": s.get("status"),
+            "pubkey": pubkey,
+            "category": "p2p" if category.lower() == "p2p" else "standard",
+            "country_code": s.get("locations", [{}])[0].get("country", {}).get("code", "VPN").upper()
+        })
+    return results
+
+
+def format_connection_name(server: dict) -> str:
+    """Format connection display name: NordVPN <CTRY> #<NUM> [(P2P)]."""
+    country = server.get("country_code", "VPN")
+    if country == "GB":
+        country = "UK"
+
+    # Extract number from hostname or name (e.g., us9876 -> 9876)
+    name = server.get("name", "")
+    hostname = server.get("hostname", "")
+    num = ""
+    for token in (name + " " + hostname).split():
+        if "#" in token:
+            num = token.replace("#", "")
+            break
+    if not num:
+        m = re.search(r"(\d+)", hostname)
+        if m:
+            num = m.group(1)
+
+    tag = " (P2P)" if server.get("category") == "p2p" else ""
+    num_part = f" #{num}" if num else ""
+    return f"{MANAGED_PREFIX}{country}{num_part}{tag}"
+
+
+def nmcli_run(args: list, check: bool = True) -> subprocess.CompletedProcess:
+    """Execute an nmcli command."""
+    cmd = ["nmcli"] + args
+    res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    if check and res.returncode != 0:
+        raise RuntimeError(f"nmcli failed: {res.stderr.strip() or res.stdout.strip()}")
+    return res
+
+
+def get_managed_connections(include_legacy: bool = False) -> list:
+    """Return all NetworkManager connections created by redfox-nord (or legacy OpenVPN if requested)."""
+    res = nmcli_run(["-t", "-f", "UUID,NAME,TYPE,DEVICE", "connection", "show"], check=False)
+    managed = []
+    for line in res.stdout.strip().splitlines():
+        if not line:
+            continue
+        parts = line.split(":")
+        if len(parts) >= 3:
+            uuid, name, conn_type = parts[0], parts[1], parts[2]
+            active_device = parts[3] if len(parts) > 3 else ""
+            is_wireguard_nord = name.startswith(MANAGED_PREFIX) and conn_type == "wireguard"
+            is_legacy_nord = include_legacy and (conn_type == "vpn" or name.startswith(MANAGED_PREFIX))
+            if is_wireguard_nord or is_legacy_nord:
+                m_num = re.search(r"#(\d+)", name)
+                server_num = m_num.group(1) if m_num else ""
+                # Parse country and category from name
+                is_p2p = "(P2P)" in name
+                country_match = re.search(r"NordVPN\s+([A-Z]{2})", name)
+                country_code = country_match.group(1) if country_match else ""
+                managed.append({
+                    "uuid": uuid,
+                    "name": name,
+                    "type": conn_type,
+                    "server_num": server_num,
+                    "country_code": country_code,
+                    "category": "p2p" if is_p2p else "standard",
+                    "active": bool(active_device and active_device != "--")
+                })
+    return managed
+
+
+def provision_connection(server: dict, private_key: str):
+    """Create or update a native NetworkManager WireGuard connection."""
+    conn_name = format_connection_name(server)
+    safe_host = server["hostname"].split(".")[0][:10]
+    ifname = f"nord-{safe_host}"[:15]
+
+    # Delete existing connection with same name if present
+    existing = get_managed_connections(include_legacy=True)
+    for c in existing:
+        if c["name"] == conn_name:
+            nmcli_run(["connection", "delete", "uuid", c["uuid"]], check=False)
+
+    # 1. Add connection
+    nmcli_run([
+        "connection", "add",
+        "type", "wireguard",
+        "con-name", conn_name,
+        "ifname", ifname
+    ])
+
+    # 2. Configure IPv4, Client Key, and DNS
+    nmcli_run([
+        "connection", "modify", conn_name,
+        "wireguard.private-key", private_key,
+        "ipv4.method", "manual",
+        "ipv4.addresses", "10.5.0.2/32",
+        "ipv4.dns", NORD_DNS,
+        "ipv4.dns-priority", "-50",
+        "ipv4.dns-search", "~.",
+        "ipv6.method", "disabled"
+    ])
+
+    # 3. Add Peer: in nmcli, peer format is "<PUBKEY> endpoint=<IP>:<PORT> allowed-ips=0.0.0.0/0 persistent-keepalive=25"
+    peer_endpoint = f"{server['station']}:{WIREGUARD_PORT}"
+    peer_spec = f"{server['pubkey']} endpoint={peer_endpoint} allowed-ips=0.0.0.0/0 persistent-keepalive=25"
+    nmcli_run([
+        "connection", "modify", conn_name,
+        "wireguard.peers", peer_spec
+    ])
+
+
+def touch_connections_mru(connection_names: list):
+    """Touch top connections in reverse order so top priority is pinned first in GNOME tray."""
+    top_8 = connection_names[:8]
+    if not top_8:
+        return
+    print("\nPinning connections to GNOME Quick Settings tray (MRU touch)...")
+    for name in reversed(top_8):
+        print(f"  Touching: {name}...", end=" ", flush=True)
+        subprocess.run(["nmcli", "connection", "up", name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2)
+        subprocess.run(["nmcli", "connection", "down", name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2)
+        print("Done.")
+
+
+def resolve_fleet_rules() -> list:
+    """Load user server rules, or fall back to system default profile."""
+    # 1. Check user config
+    if USER_CONFIG_PATH.exists():
+        cfg = load_yaml(USER_CONFIG_PATH)
+        servers = cfg.get("nordvpn", {}).get("servers")
+        if servers and isinstance(servers, list):
+            return servers
+
+    # 2. Check system default profile (system path or repo fallback)
+    for path in [DEFAULT_CONFIG_PATH, REPO_DEFAULT_CONFIG]:
+        if path.exists():
+            cfg = load_yaml(path)
+            servers = cfg.get("servers")
+            if servers and isinstance(servers, list):
+                return servers
+
+    # 3. Hardcoded fallback (US, UK, FR, DE, JP)
+    return [
+        {"country": "US"},
+        {"country": "UK"},
+        {"country": "FR"},
+        {"country": "DE"},
+        {"country": "JP"}
+    ]
+
+
+# --- CLI Commands ---
+
+def cmd_sync(args):
+    """Synchronize server fleet based on active rules, or refresh installed nodes."""
+    token = get_nord_token(getattr(args, "token", None))
+    is_dry_run = getattr(args, "dry_run", False)
+    is_refresh = getattr(args, "refresh", False) or getattr(args, "command", "") == "refresh"
+    is_clean = getattr(args, "clean", False)
+
+    if not token and not is_dry_run:
+        print("[ERROR] NordVPN Access Token not found.")
+        print("Please configure your token in ~/.config/redfox/config.yaml:")
+        print("  nordvpn:")
+        print("    token: \"your-nord-token-here\"")
+        print("\nOr pass it via --token <token> or export NORD_TOKEN=<token>.")
+        sys.exit(1)
+
+    print("=================================================================")
+    print("                RedFoxOS NordVPN Fleet Sync                      ")
+    print("=================================================================")
+
+    country_map = get_country_map()
+
+    # --- Mode A: Refresh (Audit existing installed connections) ---
+    if is_refresh:
+        installed = get_managed_connections()
+        if not installed:
+            print("No NordVPN connections are currently installed to refresh.")
+            print("Run 'redfox-nord sync' to deploy your initial fleet.")
+            return
+
+        print(f"Auditing telemetry for {len(installed)} installed connection(s)...")
+        allocated_nums = {c["server_num"] for c in installed if c.get("server_num")}
+        refreshed_servers = []
+
+        for c in installed:
+            c_code = c.get("country_code")
+            cat = c.get("category", "standard")
+            if not c_code or c_code not in country_map:
+                continue
+
+            c_obj = country_map[c_code]
+            recs = get_recommendations(c_obj["id"], category=cat, limit=1, exclude_nums=allocated_nums)
+            if recs:
+                new_server = recs[0]
+                new_server["country_code"] = c_obj["code"]
+                # Only replace if recommendation is a different server
+                m = re.search(r"(\d+)", new_server.get("hostname", ""))
+                new_num = m.group(1) if m else ""
+                if new_num and new_num != c.get("server_num"):
+                    refreshed_servers.append((c, new_server))
+
+        if not refreshed_servers:
+            print("All installed servers are already operating at optimal load. No changes needed.")
+            return
+
+        print(f"Found {len(refreshed_servers)} server(s) eligible for optimization:")
+        for old_conn, new_s in refreshed_servers:
+            print(f"  • {old_conn['name']} -> {new_s['hostname']} (Load: {new_s['load']}%)")
+
+        if is_dry_run:
+            print("\n[DRY RUN] No system changes made.")
+            return
+
+        privkey = get_wireguard_private_key(token)
+        touched_names = []
+        for old_conn, new_s in refreshed_servers:
+            nmcli_run(["connection", "delete", "uuid", old_conn["uuid"]], check=False)
+            provision_connection(new_s, privkey)
+            touched_names.append(format_connection_name(new_s))
+
+        touch_connections_mru(touched_names)
+        print(f"\n[SUCCESS] Refreshed {len(refreshed_servers)} connection(s) to lowest-load servers.")
+        return
+
+    # --- Mode B: Standard / Clean Sync against profile ---
+    rules = resolve_fleet_rules()
+    print(f"Loaded {len(rules)} rule(s). Querying NordVPN recommendation telemetry...")
+
+    planned_servers = []
+    allocated_nums = set()
+
+    for rule in rules:
+        c_str = rule.get("country", "")
+        count = int(rule.get("count", 1))
+        cat = rule.get("category", "standard")
+        c_obj = normalize_country(c_str, country_map)
+        recs = get_recommendations(c_obj["id"], category=cat, limit=count, exclude_nums=allocated_nums)
+        if not recs:
+            print(f"  [WARN] No healthy WireGuard recommendations found for {c_obj['name']} ({cat}).")
+            continue
+        for s in recs:
+            s["country_code"] = c_obj["code"]
+            planned_servers.append(s)
+
+    if is_dry_run:
+        print("\n[DRY RUN] The following WireGuard servers would be provisioned:")
+        for s in planned_servers:
+            conn_name = format_connection_name(s)
+            print(f"  • {conn_name:<32} -> {s['hostname']} ({s['station']}) Load: {s['load']}%")
+        print(f"\nTotal: {len(planned_servers)} server(s). No system network changes made.")
+        return
+
+    # Derive/cache WireGuard private key
+    print("Validating NordVPN WireGuard credentials...")
+    privkey = get_wireguard_private_key(token)
+
+    if is_clean:
+        print("Cleaning up existing RedFox Nord connections (--clean)...")
+        for c in get_managed_connections(include_legacy=True):
+            nmcli_run(["connection", "delete", "uuid", c["uuid"]], check=False)
+
+    print(f"\nProvisioning {len(planned_servers)} native WireGuard connections...")
+    provisioned_names = []
+    for s in planned_servers:
+        conn_name = format_connection_name(s)
+        print(f"  [PROVISION] {conn_name} ({s['hostname']}, load: {s['load']}%)")
+        provision_connection(s, privkey)
+        provisioned_names.append(conn_name)
+
+    # Pin Top 8 to GNOME Quick Settings
+    touch_connections_mru(provisioned_names)
+
+    print("\n[SUCCESS] NordVPN fleet synchronization complete!")
+    print(f"Provisioned {len(provisioned_names)} connections. Top connections are ready in Quick Settings.")
+
+
+def cmd_add(args):
+    """Add a single server connection."""
+    token = get_nord_token(args.token)
+    if not token:
+        print("[ERROR] NordVPN Access Token required. Set in ~/.config/redfox/config.yaml or pass --token.")
+        sys.exit(1)
+
+    country_map = get_country_map()
+    target = args.target.strip()
+    cat = "p2p" if args.p2p else "standard"
+
+    print(f"Resolving recommendation for '{target}' ({cat})...")
+    c_obj = normalize_country(target, country_map)
+    # Collect currently installed server numbers so we never add a duplicate
+    installed = get_managed_connections()
+    exclude_nums = {c["server_num"] for c in installed if c.get("server_num")}
+    recs = get_recommendations(c_obj["id"], category=cat, limit=1, exclude_nums=exclude_nums)
+    if not recs:
+        print(f"[ERROR] No recommendations found for {c_obj['name']}.")
+        sys.exit(1)
+
+    server = recs[0]
+    server["country_code"] = c_obj["code"]
+    conn_name = format_connection_name(server)
+
+    privkey = get_wireguard_private_key(token)
+    print(f"Provisioning {conn_name} ({server['hostname']})...")
+    provision_connection(server, privkey)
+
+    # Touch so it immediately jumps to the top of GNOME Quick Settings
+    print(f"Pinning {conn_name} to top of GNOME Quick Settings...")
+    subprocess.run(["nmcli", "connection", "up", conn_name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2)
+    subprocess.run(["nmcli", "connection", "down", conn_name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2)
+
+    if args.save:
+        USER_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        cfg = load_yaml(USER_CONFIG_PATH) if USER_CONFIG_PATH.exists() else {}
+        if "nordvpn" not in cfg:
+            cfg["nordvpn"] = {}
+        if "servers" not in cfg["nordvpn"]:
+            cfg["nordvpn"]["servers"] = resolve_fleet_rules()
+        new_rule = {"country": c_obj["code"]}
+        if args.p2p:
+            new_rule["category"] = "p2p"
+        cfg["nordvpn"]["servers"].append(new_rule)
+        save_user_config(cfg)
+        print(f"[OK] Rule saved to {USER_CONFIG_PATH}.")
+
+    print(f"[SUCCESS] Added {conn_name}!")
+
+
+def cmd_remove(args):
+    """Remove a connection by name, hostname, or country code."""
+    target = args.target.strip().lower()
+    managed = get_managed_connections(include_legacy=True)
+    to_delete = []
+
+    for c in managed:
+        name_lower = c["name"].lower()
+        if target in name_lower or c["uuid"] == target or (c.get("server_num") and target == c["server_num"]):
+            to_delete.append(c)
+
+    if not to_delete:
+        print(f"No managed connections matched '{args.target}'.")
+        return
+
+    print(f"Found {len(to_delete)} matching connection(s):")
+    for c in to_delete:
+        print(f"  • Deleting: {c['name']} ({c['uuid']})...")
+        nmcli_run(["connection", "delete", "uuid", c["uuid"]], check=False)
+
+    if args.save and USER_CONFIG_PATH.exists():
+        cfg = load_yaml(USER_CONFIG_PATH)
+        servers = cfg.get("nordvpn", {}).get("servers", [])
+        if servers:
+            initial_count = len(servers)
+            cfg["nordvpn"]["servers"] = [
+                s for s in servers if s.get("country", "").lower() != target
+            ]
+            if len(cfg["nordvpn"]["servers"]) != initial_count:
+                save_user_config(cfg)
+                print(f"[OK] Removed matching rules from {USER_CONFIG_PATH}.")
+
+    print("[SUCCESS] Removal complete.")
+
+
+def cmd_list(args):
+    """List installed NordVPN connections with health telemetry."""
+    managed = get_managed_connections()
+    if not managed:
+        print("No RedFox NordVPN connections currently installed.")
+        print("Run 'redfox-nord sync' to deploy your fleet.")
+        return
+
+    print(f"{'State':<8} {'Connection Name':<32} {'Status':<10}")
+    print("-" * 55)
+    # Sort active connections to top
+    managed_sorted = sorted(managed, key=lambda x: (not x["active"]))
+    for c in managed_sorted:
+        state_icon = "● (UP)" if c["active"] else "○"
+        print(f"{state_icon:<8} {c['name']:<32} {'Active' if c['active'] else 'Idle':<10}")
+
+    print(f"\nSummary: {len(managed)} / 8 Quick Settings slots used.")
+
+
+def cmd_nuke(args):
+    """Purge all managed NordVPN connections (and optionally legacy OpenVPN)."""
+    include_legacy = getattr(args, "legacy", False) or getattr(args, "all", False)
+    managed = get_managed_connections(include_legacy=include_legacy)
+    if not managed and not include_legacy:
+        legacy = get_managed_connections(include_legacy=True)
+        if legacy:
+            managed = legacy
+    if not managed:
+        print("No managed NordVPN connections found.")
+        return
+
+    if args.yes:
+        print(f"Purging {len(managed)} NordVPN connection(s)...")
+        for c in managed:
+            print(f"  • {c['name']}")
+    else:
+        print(f"WARNING: This will permanently delete {len(managed)} NordVPN connection(s):")
+        for c in managed:
+            print(f"  • {c['name']}")
+        ans = input("\nAre you sure you want to proceed? [y/N]: ").strip().lower()
+        if ans not in ("y", "yes"):
+            print("Operation aborted.")
+            return
+
+    for c in managed:
+        nmcli_run(["connection", "delete", "uuid", c["uuid"]], check=False)
+    print("\n[SUCCESS] All RedFox NordVPN connections have been purged.")
+
+
+def cmd_search(args):
+    """Search available NordVPN countries and info."""
+    country_map = get_country_map()
+    query = args.query.strip().upper()
+    found = []
+    seen_ids = set()
+    for key, c in country_map.items():
+        if c["id"] in seen_ids:
+            continue
+        if query in key or query in c["code"]:
+            seen_ids.add(c["id"])
+            found.append(c)
+
+    if not found:
+        print(f"No countries matching '{args.query}'.")
+        return
+
+    print(f"{'Code':<6} {'Country Name':<28} {'ID':<6}")
+    print("-" * 45)
+    for c in sorted(found, key=lambda x: x["name"]):
+        print(f"{c['code']:<6} {c['name']:<28} {c['id']:<6}")
+
+
+CONFIG_TEMPLATE = """# =============================================================================
+# RedFoxOS NordVPN Configuration (~/.config/redfox/config.yaml)
+# =============================================================================
+# How to get your NordVPN Access Token:
+# 1. Log into https://nordaccount.com
+# 2. Go to: Services -> NordVPN -> Advanced settings -> Access token
+# 3. Click "Generate new token" (select 30 days or never expire)
+# 4. Paste the token below.
+# =============================================================================
+
+nordvpn:
+  # Your NordVPN Access Token (Required for WireGuard provisioning)
+  token: "YOUR_NORD_TOKEN_HERE"
+
+  # Desired server fleet (Optional - defaults to: US, UK, FR, DE, JP)
+  # GNOME Quick Settings tray pins the top 8 connections.
+  servers:
+    # Standard browsing server (lowest load selected automatically)
+    - country: US
+      count: 1
+      category: standard  # standard (default) | p2p
+
+    # P2P / Torrenting servers
+    - country: US
+      count: 2
+      category: p2p
+
+    # Specific metropolitan area / city filter
+    - country: JP
+      city: "Tokyo"
+
+    # Shorthand entries (count defaults to 1, category defaults to standard)
+    - country: UK
+    - country: FR
+    - country: DE
+    - country: ES
+"""
+
+def build_parser():
+    """Construct the main CLI parser with standard POSIX/GNU formatting."""
+    main_description = """Dynamic NordVPN WireGuard fleet manager for RedFoxOS.
+
+COMMANDS:
+    sync [OPTIONS]               Reconcile local WireGuard fleet with active profile
+    refresh [OPTIONS]            Audit installed servers and cycle congested (>85%) or offline nodes
+    add <TARGET> [OPTIONS]       Provision an individual server by country, city, or hostname
+    remove <TARGET> [OPTIONS]    Remove connection(s) by name, hostname, or country code
+    list [OPTIONS]               Display installed connections and active tunnel status
+    nuke [OPTIONS]               Permanently delete all managed NordVPN connections
+    search <QUERY>               Search available NordVPN countries, cities, and region codes
+    help [COMMAND]               Show detailed help for a specific command"""
+
+    main_epilog = """EXAMPLES:
+    redfox-nord sync                 # Normal sync (additive, updates GNOME status tray)
+    redfox-nord sync --clean         # Flush extras and reset strictly to active YAML profile
+    redfox-nord sync --refresh       # Keep installed fleet, cycling any slow/dead servers
+    redfox-nord add US --p2p         # Add a distinct US P2P node to Quick Settings
+    redfox-nord add ES               # Add Spain to Quick Settings
+    redfox-nord remove ES            # Remove Spain connections
+    redfox-nord list                 # List installed connections and active status
+    redfox-nord nuke -y              # Clean teardown of all managed VPN connections
+    redfox-nord help config          # Print annotated configuration template
+
+Run 'redfox-nord <COMMAND> --help' or 'redfox-nord help <COMMAND>' for details on a specific command."""
+
+    parser = argparse.ArgumentParser(
+        prog="redfox-nord",
+        usage="redfox-nord <COMMAND> [OPTIONS]",
+        description=main_description,
+        epilog=main_epilog,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        add_help=True
+    )
+
+    subparsers = parser.add_subparsers(dest="command", required=False)
+
+    # help
+    p_help = subparsers.add_parser(
+        "help",
+        usage="redfox-nord help [COMMAND]",
+        help="Show detailed help for a specific command",
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    p_help.add_argument("subcommand", nargs="?", metavar="[COMMAND]", help="Specific command to display help for")
+
+    # sync
+    sync_desc = """Reconcile the local WireGuard fleet against your active server profile.
+By default, sync is additive and non-destructive: it provisions missing profile
+servers, updates Quick Settings priority ordering, and preserves manual additions."""
+    sync_epilog = """CONFIGURATION:
+    User profile:    ~/.config/redfox/config.yaml
+    System default:  /usr/share/redfox/nord-default.yaml
+    (Run 'redfox-nord help config' to print a full annotated YAML template)
+
+EXAMPLES:
+    redfox-nord sync                 # Standard sync (additive, touches top 8)
+    redfox-nord sync --clean         # Reset fleet strictly to YAML profile (removes extras)
+    redfox-nord sync --refresh       # Cycle any slow or offline servers in active fleet
+    redfox-nord sync --dry-run       # Preview recommended servers without applying"""
+    p_sync = subparsers.add_parser(
+        "sync",
+        usage="redfox-nord sync [OPTIONS]",
+        description=sync_desc,
+        epilog=sync_epilog,
+        help="Reconcile local WireGuard fleet with active profile",
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    p_sync.add_argument("--clean", action="store_true", help="Reset fleet strictly to profile, removing any ad-hoc/extra connections")
+    p_sync.add_argument("--refresh", action="store_true", help="Audit installed servers and replace any congested or offline nodes")
+    p_sync.add_argument("--dry-run", action="store_true", help="Preview recommendation changes without altering NetworkManager")
+    p_sync.add_argument("--token", metavar="<TOKEN>", help="Override NordVPN Access Token")
+
+    # refresh (alias to sync --refresh)
+    p_refresh = subparsers.add_parser(
+        "refresh",
+        usage="redfox-nord refresh [OPTIONS]",
+        description="Audit currently installed servers and replace any congested (>85%) or offline nodes with fresh recommendations.",
+        epilog="""EXAMPLES:\n    redfox-nord refresh\n    redfox-nord refresh --dry-run""",
+        help="Audit installed servers and cycle congested or offline nodes",
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    p_refresh.add_argument("--dry-run", action="store_true", help="Preview recommendations without making network changes")
+    p_refresh.add_argument("--token", metavar="<TOKEN>", help="Override NordVPN Access Token")
+
+    # add
+    add_desc = """Fetch the lowest-load server recommendation and provision a native WireGuard connection.
+Pins the newly added server directly to the top of GNOME Quick Settings."""
+    add_epilog = """EXAMPLES:
+    redfox-nord add US --p2p         # Add a distinct US P2P server
+    redfox-nord add ES               # Add a standard Spain server
+    redfox-nord add JP --city Tokyo  # Filter recommendation to Tokyo metro
+    redfox-nord add de1544           # Provision a specific known server hostname"""
+    p_add = subparsers.add_parser(
+        "add",
+        usage="redfox-nord add <TARGET> [OPTIONS]",
+        description=add_desc,
+        epilog=add_epilog,
+        help="Provision an individual server by country, city, or hostname",
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    p_add.add_argument("target", metavar="<TARGET>", help="Country code, country name, or server hostname (e.g., 'US', 'Spain', 'jp1296')")
+    p_add.add_argument("--p2p", action="store_true", help="Request a P2P-optimized server recommendation")
+    p_add.add_argument("--city", metavar="<CITY>", help="Filter recommendations to a specific metropolitan area")
+    p_add.add_argument("--save", action="store_true", help="Persist this server rule into ~/.config/redfox/config.yaml")
+    p_add.add_argument("--token", metavar="<TOKEN>", help="Override NordVPN Access Token")
+
+    # remove
+    rm_desc = """Remove one or more NordVPN connections from NetworkManager."""
+    rm_epilog = """EXAMPLES:
+    redfox-nord remove "NordVPN US #13024"  # Remove specific connection by full name
+    redfox-nord remove us13024              # Remove connection by server hostname
+    redfox-nord remove ES                   # Remove all Spain connections
+    redfox-nord remove ES --save            # Remove Spain and update config.yaml"""
+    p_rm = subparsers.add_parser(
+        "remove",
+        aliases=["rm"],
+        usage="redfox-nord remove <TARGET> [OPTIONS]",
+        description=rm_desc,
+        epilog=rm_epilog,
+        help="Remove connection(s) by name, hostname, or country code",
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    p_rm.add_argument("target", metavar="<TARGET>", help="Full connection name, server hostname, or 2-letter country code")
+    p_rm.add_argument("--save", action="store_true", help="Also remove matching rules from ~/.config/redfox/config.yaml")
+
+    # list
+    p_list = subparsers.add_parser(
+        "list",
+        aliases=["ls"],
+        usage="redfox-nord list",
+        description="Display all installed NordVPN WireGuard connections and their live connection status.",
+        help="Display installed connections and active tunnel status",
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+
+    # nuke
+    nuke_desc = """Permanently delete all managed NordVPN connections from NetworkManager."""
+    nuke_epilog = """EXAMPLES:
+    redfox-nord nuke                 # Interactive prompt before deleting
+    redfox-nord nuke -y              # Automatic non-interactive teardown
+    redfox-nord nuke --legacy -y     # Also delete legacy OpenVPN connections"""
+    p_nuke = subparsers.add_parser(
+        "nuke",
+        usage="redfox-nord nuke [OPTIONS]",
+        description=nuke_desc,
+        epilog=nuke_epilog,
+        help="Permanently delete all managed NordVPN connections",
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    p_nuke.add_argument("-y", "--yes", action="store_true", help="Skip confirmation prompt")
+    p_nuke.add_argument("--legacy", action="store_true", help="Also purge legacy OpenVPN connections")
+
+    # search
+    p_search = subparsers.add_parser(
+        "search",
+        usage="redfox-nord search <QUERY>",
+        description="Search available NordVPN countries, country codes, and numeric IDs.",
+        epilog="""EXAMPLES:\n    redfox-nord search spain\n    redfox-nord search JP""",
+        help="Search available NordVPN countries, cities, and region codes",
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    p_search.add_argument("query", metavar="<QUERY>", help="Country code or country name to look up")
+
+    # Remove automatic positional arguments group to prevent duplicate command listing
+    for grp in parser._action_groups:
+        if grp.title == "positional arguments":
+            parser._action_groups.remove(grp)
+            break
+
+    return parser, subparsers
+
+
+def main():
+    parser, subparsers = build_parser()
+
+    # If invoked with no arguments, print help and exit
+    if len(sys.argv) == 1:
+        parser.print_help()
+        sys.exit(0)
+
+    args = parser.parse_args()
+
+    try:
+        if args.command == "help":
+            subcmd = getattr(args, "subcommand", None)
+            if subcmd in ("config", "configuration", "yaml"):
+                print(CONFIG_TEMPLATE.strip())
+            elif subcmd:
+                alias_map = {"rm": "remove", "ls": "list"}
+                subcmd = alias_map.get(subcmd, subcmd)
+                if subcmd in subparsers.choices:
+                    subparsers.choices[subcmd].print_help()
+                else:
+                    print(f"Unknown command '{subcmd}'. Run 'redfox-nord --help' for available commands.")
+            else:
+                parser.print_help()
+            sys.exit(0)
+        elif args.command in ("sync", "refresh"):
+            cmd_sync(args)
+        elif args.command in ("add",):
+            cmd_add(args)
+        elif args.command in ("remove", "rm"):
+            cmd_remove(args)
+        elif args.command in ("list", "ls"):
+            cmd_list(args)
+        elif args.command == "nuke":
+            cmd_nuke(args)
+        elif args.command == "search":
+            cmd_search(args)
+    except KeyboardInterrupt:
+        print("\nOperation cancelled by user.")
+        sys.exit(130)
+    except Exception as e:
+        print(f"\n[ERROR] {e}")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
