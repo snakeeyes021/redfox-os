@@ -347,15 +347,18 @@ def provision_connection(server: dict, private_key: str):
         "ipv4.method", "manual",
         "ipv4.addresses", "10.5.0.2/32",
         "ipv4.dns", NORD_DNS,
+        "ipv4.dns-priority", "-50",
+        "ipv4.dns-search", "~.",
         "ipv6.method", "disabled"
     ])
 
     # 3. Add Peer
+    # In nmcli, wireguard.peers format is: "<PUBKEY> endpoint=<IP>:<PORT> allowed-ips=0.0.0.0/0 persistent-keepalive=25"
     peer_endpoint = f"{server['station']}:{WIREGUARD_PORT}"
-    peer_spec = f"public-key={server['pubkey']},allowed-ips=0.0.0.0/0,endpoint={peer_endpoint}"
+    peer_spec = f"{server['pubkey']} endpoint={peer_endpoint} allowed-ips=0.0.0.0/0 persistent-keepalive=25"
     nmcli_run([
         "connection", "modify", conn_name,
-        "+wireguard.peers", peer_spec
+        "wireguard.peers", peer_spec
     ])
 
 
@@ -570,11 +573,14 @@ def cmd_nuke(args):
         print("No managed NordVPN connections found.")
         return
 
-    print(f"WARNING: This will permanently delete {len(managed)} NordVPN connection(s):")
-    for c in managed:
-        print(f"  • {c['name']}")
-
-    if not args.yes:
+    if args.yes:
+        print(f"Purging {len(managed)} NordVPN connection(s)...")
+        for c in managed:
+            print(f"  • {c['name']}")
+    else:
+        print(f"WARNING: This will permanently delete {len(managed)} NordVPN connection(s):")
+        for c in managed:
+            print(f"  • {c['name']}")
         ans = input("\nAre you sure you want to proceed? [y/N]: ").strip().lower()
         if ans not in ("y", "yes"):
             print("Operation aborted.")
