@@ -20,18 +20,20 @@ redfox-enforce-secrets:
     MISSING_VPN=true
 
     # --- 1. FAST HEURISTICS & STATE CHECKS ---
-    if [ -s "$SECRETS_DIR/hardware-mapping.txt" ] && [ -s "$SECRETS_DIR/nordvpn-connections.txt" ]; then
-        grep -q "https://" "$SECRETS_DIR/nordvpn-connections.txt" 2>/dev/null && MISSING_GIST=false
+    if [ -s "$SECRETS_DIR/hardware-mapping.txt" ]; then
+        MISSING_GIST=false
     fi
 
-    if [ -s "$SECRETS_FILE" ]; then
+    if [ -s "$HOME/.config/redfox/config.yaml" ] && grep -q 'token:' "$HOME/.config/redfox/config.yaml" 2>/dev/null; then
+        MISSING_VPN=false
+        VPN_VALIDATED=true
+    elif [ -s "$SECRETS_FILE" ]; then
+        eval "$(grep '^NORD_TOKEN=' "$SECRETS_FILE" || true)"
         eval "$(grep '^VPN_USER=' "$SECRETS_FILE" || true)"
         eval "$(grep '^VPN_PASS=' "$SECRETS_FILE" || true)"
         eval "$(grep '^VPN_VALIDATED=' "$SECRETS_FILE" || true)"
         
-        TMP_USER="${VPN_USER:-}"
-        TMP_PASS="${VPN_PASS:-}"
-        if [ "${#TMP_USER}" -ge 30 ] && [ "${#TMP_PASS}" -ge 30 ]; then
+        if [ -n "${NORD_TOKEN:-}" ] || { [ "${#VPN_USER:-0}" -ge 30 ] && [ "${#VPN_PASS:-0}" -ge 30 ]; }; then
             MISSING_VPN=false
         fi
     fi
@@ -624,15 +626,31 @@ apply-hardware-quirks:
         echo "No specific hardware quirks mapped for this device."
     fi
 
-# Configure NordVPN silently (relies on redfox-init-secrets)
+# Configure NordVPN silently (relies on redfox-nord config or secrets)
 configure-nordvpn:
-    @echo "Configuring NordVPN..."
-    sudo /usr/bin/import-nord-configs
+    @echo "Configuring NordVPN WireGuard connections..."
+    /usr/bin/redfox-nord sync || echo "[WARN] redfox-nord sync could not complete (offline or missing token)."
 
 # Nuke all VPN connections
 nuke-vpns:
     @echo "WARNING: This will permanently delete all configured VPNs."
-    sudo /usr/bin/nuke-vpn-configs
+    /usr/bin/redfox-nord nuke -y
+
+# Synchronize NordVPN WireGuard fleet against active profile
+nord-sync:
+    /usr/bin/redfox-nord sync
+
+# List installed NordVPN connections
+nord-list:
+    /usr/bin/redfox-nord list
+
+# Add a NordVPN connection (e.g. just nord-add US --p2p)
+nord-add *args:
+    /usr/bin/redfox-nord add {{args}}
+
+# Remove a NordVPN connection (e.g. just nord-remove US)
+nord-remove target:
+    /usr/bin/redfox-nord remove {{target}}
 
 # Enable weekly ClamAV antivirus scans
 enable-clamav-weekly:
