@@ -1,0 +1,73 @@
+name: bluebuild-unstable
+on:
+  schedule:
+    - cron:
+        "15 06 * * *" # build at 06:15 UTC every day (15 minutes after main)
+  push:
+    branches:
+      - unstable
+    paths-ignore: # don't rebuild if only documentation has changed
+      - "**.md"
+
+  pull_request:
+    branches:
+      - unstable
+  workflow_dispatch: # allow manually triggering builds
+concurrency:
+  # only run one build at a time
+  group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
+  cancel-in-progress: true
+jobs:
+  bluebuild:
+    name: Build Custom Image (unstable)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    strategy:
+      fail-fast: false # stop GH from cancelling all matrix builds if one fails
+      matrix:
+        recipe:
+          - recipe-nvidia-legacy.yml
+          - recipe-nvidia.yml
+          - recipe-main.yml
+
+    steps:
+      - name: Checkout unstable branch
+        uses: actions/checkout@v4
+        with:
+          ref: unstable
+
+      # the build is fully handled by the reusable github action
+      - name: Build Custom Image
+        uses: blue-build/github-action@v1
+        with:
+          recipe: ${{ matrix.recipe }}
+          cosign_private_key: ${{ secrets.SIGNING_SECRET }}
+          registry_token: ${{ github.token }}
+          pr_event_number: ${{ github.event.number }}
+          maximize_build_space: true
+          skip_checkout: true
+        env:
+          GITHUB_REF_NAME: unstable
+
+      - name: Tag as :unstable
+        if: github.event_name != 'pull_request'
+        run: |
+          IMAGE_NAME=$(awk '/^name:/ {print $2}' "recipes/${{ matrix.recipe }}")
+          IMAGE_URI="ghcr.io/${{ github.repository_owner }}/${IMAGE_NAME}"
+          echo "${{ github.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+          # Find the br-unstable-* tag created by bluebuild
+          TAG=$(skopeo list-tags --creds="${{ github.actor }}:${{ github.token }}" "docker://${IMAGE_URI}" | jq -r '.Tags[]' | grep '^br-unstable-' | sort -V | tail -n1)
+          if [ -z "$TAG" ]; then
+            echo "Error: No br-unstable-* tag found for ${IMAGE_URI}"
+            exit 1
+          fi
+
+          echo "Copying ${IMAGE_URI}:${TAG} to ${IMAGE_URI}:unstable..."
+          cosign copy -f \
+            --registry-username "${{ github.actor }}" \
+            --registry-password "${{ github.token }}" \
+            "${IMAGE_URI}:${TAG}" "${IMAGE_URI}:unstable"
