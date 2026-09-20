@@ -1,0 +1,481 @@
+#!/usr/bin/env python3
+"""
+redfox-config: Unified Declarative Configuration Engine for RedFoxOS
+Manages on-device secrets, preferences, and hardware quirk mappings stored
+in ~/.config/redfox/config.yaml.
+"""
+
+import os
+import sys
+import json
+import argparse
+import subprocess
+import urllib.request
+import urllib.error
+from pathlib import Path
+
+
+def get_user_home() -> Path:
+    """Resolve the real user home directory, even when run via sudo."""
+    sudo_user = os.environ.get("SUDO_USER")
+    if sudo_user and sudo_user != "root":
+        for p in [Path(f"/var/home/{sudo_user}"), Path(f"/home/{sudo_user}")]:
+            if p.exists():
+                return p
+    return Path.home()
+
+
+USER_CONFIG_DIR = get_user_home() / ".config" / "redfox"
+USER_CONFIG_PATH = USER_CONFIG_DIR / "config.yaml"
+DMI_SERIAL_PATH = Path("/sys/class/dmi/id/product_serial")
+
+
+def load_yaml(path: Path) -> dict:
+    """Load YAML file using PyYAML if available, with basic fallback."""
+    if not path.exists():
+        return {}
+    try:
+        import yaml
+        with open(path, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+            return data if isinstance(data, dict) else {}
+    except ImportError:
+        pass
+
+    # Simple key-value / block fallback
+    data = {}
+    current_section = None
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            line_str = line.strip()
+            if not line_str or line_str.startswith("#"):
+                continue
+            if not line.startswith(" ") and ":" in line_str:
+                k = line_str.split(":", 1)[0].strip()
+                current_section = k
+                data[current_section] = {}
+            elif current_section and line.startswith("  ") and ":" in line_str:
+                k, v = line_str.split(":", 1)
+                data[current_section][k.strip()] = v.strip().strip('"\'')
+    return data
+
+
+def parse_yaml_text(text: str) -> dict:
+    """Parse raw YAML string."""
+    try:
+        import yaml
+        data = yaml.safe_load(text)
+        if isinstance(data, dict):
+            return data
+        raise ValueError("Configuration YAML must be a mapping/dictionary of key-values.")
+    except ImportError:
+        # Basic check
+        if ":" not in text:
+            raise ValueError("Invalid configuration text: missing key-value mappings.")
+        return {"raw": text}
+
+
+def save_config_text(text: str):
+    """Save raw text to ~/.config/redfox/config.yaml with 0600 permissions (backing up previous)."""
+    USER_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    if USER_CONFIG_PATH.exists():
+        try:
+            import shutil
+            shutil.copy2(USER_CONFIG_PATH, USER_CONFIG_PATH.with_suffix(".yaml.bak"))
+        except Exception:
+            pass
+    with open(USER_CONFIG_PATH, "w", encoding="utf-8") as f:
+        f.write(text.strip() + "\n")
+    os.chmod(USER_CONFIG_PATH, 0o600)
+
+
+def get_current_dmi_serial() -> str:
+    """Read hardware product serial from sysfs."""
+    if DMI_SERIAL_PATH.exists():
+        try:
+            with open(DMI_SERIAL_PATH, "r", encoding="utf-8") as f:
+                serial = f.read().strip()
+                if serial and serial not in ("None", "Default string", "System Serial Number"):
+                    return serial
+        except Exception:
+            pass
+    # Try via non-interactive sudo (never blocks or hijacks terminal)
+    try:
+        res = subprocess.run(["sudo", "-n", "cat", str(DMI_SERIAL_PATH)], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, timeout=1)
+        if res.returncode == 0 and res.stdout.strip():
+            return res.stdout.strip()
+    except Exception:
+        pass
+    return ""
+
+
+def get_hardware_identifiers(explicit_serial: str = None) -> list:
+    """Return priority-ordered list of hardware identifiers for this device:
+    1. DMI product serial (explicit or detected)
+    2. DMI board_version (e.g. 'oryp9')
+    3. DMI product_name (e.g. 'Oryx Pro')
+    4. DMI product_version
+    5. DMI board_name
+    """
+    identifiers = []
+    serial = (explicit_serial or get_current_dmi_serial() or "").strip()
+    if serial:
+        identifiers.append(serial)
+
+    for filename in ["board_version", "product_name", "product_version", "board_name"]:
+        p = Path(f"/sys/class/dmi/id/{filename}")
+        if p.exists():
+            try:
+                val = p.read_text(encoding="utf-8").strip()
+                if val and val not in ("None", "Default string", "System Serial Number") and val not in identifiers:
+                    identifiers.append(val)
+            except Exception:
+                pass
+
+    return identifiers
+
+
+# --- Commands ---
+
+def cmd_setup(args):
+    """Run interactive setup or ingest configuration from a source."""
+    source = getattr(args, "source", None)
+    raw_content = ""
+
+    # 1. Non-interactive pipe (e.g. cat config.yaml | redfox-config setup)
+    if not sys.stdin.isatty() and not source:
+        raw_content = sys.stdin.read().strip()
+        if not raw_content:
+            print("[INFO] Empty input received. Setup skipped.")
+            return
+
+    # 2. Source argument provided (URL or file)
+    elif source:
+        source_str = source.strip()
+        if source_str.startswith("http://") or source_str.startswith("https://"):
+            print(f"Downloading configuration from: {source_str}...")
+            try:
+                req = urllib.request.Request(source_str, headers={"User-Agent": "RedFoxOS-redfox-config/1.0"})
+                with urllib.request.urlopen(req, timeout=15) as resp:
+                    raw_content = resp.read().decode("utf-8").strip()
+            except Exception as e:
+                print(f"[ERROR] Failed to download configuration: {e}")
+                sys.exit(1)
+        else:
+            p = Path(source_str).expanduser()
+            if not p.exists():
+                print(f"[ERROR] File not found: {p}")
+                sys.exit(1)
+            with open(p, "r", encoding="utf-8") as f:
+                raw_content = f.read().strip()
+
+    # 3. Interactive terminal prompt
+    else:
+        print("=================================================================")
+        print("                  RedFoxOS Configuration Setup                   ")
+        print("=================================================================")
+        if USER_CONFIG_PATH.exists():
+            print(f"[!] Existing configuration found: {USER_CONFIG_PATH}")
+            print("    (To edit existing values without overwriting, exit and run: redfox-config edit)")
+            print("    Pasting a new configuration will replace the existing file (backup saved to .bak).\n")
+        print("Enter a URL, file path, or paste your YAML configuration below.")
+        print("(Press Enter on a blank line or Ctrl+D when finished. Press Enter now to skip):\n")
+
+        lines = []
+        try:
+            first_line = input().strip()
+            if not first_line:
+                print("\n[INFO] Configuration setup skipped. Using RedFoxOS defaults.")
+                return
+
+            # Check if user entered a URL or file path on the first line
+            if first_line.startswith("http://") or first_line.startswith("https://"):
+                args.source = first_line
+                cmd_setup(args)
+                return
+
+            potential_file = Path(first_line).expanduser()
+            if potential_file.exists() and potential_file.is_file():
+                args.source = str(potential_file)
+                cmd_setup(args)
+                return
+
+            # User is pasting YAML directly
+            lines.append(first_line)
+            while True:
+                line = input()
+                if line == "":
+                    # Empty line acts as completion sentinel
+                    break
+                lines.append(line)
+        except EOFError:
+            pass
+
+        raw_content = "\n".join(lines).strip()
+
+    if not raw_content:
+        print("[INFO] No content provided. Configuration unchanged.")
+        return
+
+    # Validate YAML structure
+    try:
+        parsed = parse_yaml_text(raw_content)
+    except Exception as e:
+        print(f"\n[ERROR] Invalid YAML format: {e}")
+        print("Please check your configuration syntax and try again.")
+        sys.exit(1)
+
+    save_config_text(raw_content)
+    print(f"\n[OK] Configuration validated and saved to {USER_CONFIG_PATH} (mode 0600).")
+
+    # Display module summary
+    print("\nEvaluating modules:")
+    if "nordvpn" in parsed and parsed["nordvpn"].get("token"):
+        print("  [✔] NordVPN Setup   : Access token found -> Ready for WireGuard provisioning.")
+    else:
+        print("  [―] NordVPN Setup   : No token configured -> Using standard network connection.")
+
+    identifiers = get_hardware_identifiers()
+    quirks = parsed.get("hardware", {}).get("quirks", {})
+    if isinstance(quirks, dict) and quirks:
+        str_quirks = {str(k).strip(): str(v).strip() for k, v in quirks.items()}
+        print(f"  [✔] Hardware Quirks : {len(str_quirks)} quirk rule(s) registered.")
+        matched = False
+        for ident in identifiers:
+            if ident in str_quirks:
+                print(f"      • Detected hardware match ({ident}) -> Matches quirk: '{str_quirks[ident]}'")
+                matched = True
+                break
+        if not matched:
+            dev_desc = identifiers[0] if identifiers else "this device"
+            print(f"      • Detected hardware ({dev_desc}) -> No specific quirks mapped for this device.")
+    else:
+        print("  [―] Hardware Quirks : No hardware quirks registered.")
+
+    print("\n🎉 RedFoxOS configuration setup complete!")
+
+
+def cmd_get_quirk(args):
+    """Lookup matched hardware quirk for this machine (serial or model/board name)."""
+    explicit_target = getattr(args, "target", None) or getattr(args, "serial", None)
+    cfg = load_yaml(USER_CONFIG_PATH)
+    quirks = cfg.get("hardware", {}).get("quirks", {})
+    if not isinstance(quirks, dict) or not quirks:
+        sys.exit(0)
+
+    str_quirks = {str(k).strip(): str(v).strip() for k, v in quirks.items()}
+
+    # 1. If explicit target was given, test it first
+    if explicit_target and explicit_target.strip() in str_quirks:
+        print(str_quirks[explicit_target.strip()])
+        sys.exit(0)
+
+    # 2. Check detected hardware identifiers (serial, board_version, product_name)
+    for ident in get_hardware_identifiers():
+        if ident in str_quirks:
+            print(str_quirks[ident])
+            sys.exit(0)
+
+    sys.exit(0)
+
+
+def cmd_get(args):
+    """Retrieve a specific nested key from config.yaml (e.g. nordvpn.token)."""
+    cfg = load_yaml(USER_CONFIG_PATH)
+    key_path = args.key.split(".")
+    val = cfg
+    for k in key_path:
+        if isinstance(val, dict) and k in val:
+            val = val[k]
+        else:
+            sys.exit(1)
+
+    if isinstance(val, (dict, list)):
+        try:
+            import yaml
+            print(yaml.dump(val, default_flow_style=False).strip())
+        except ImportError:
+            print(json.dumps(val, indent=2))
+    else:
+        print(str(val))
+
+
+def cmd_show(args):
+    """Display active config with sensitive tokens masked."""
+    if not USER_CONFIG_PATH.exists():
+        print(f"No configuration file found at {USER_CONFIG_PATH}.")
+        print("Run 'redfox-config setup' to configure your system.")
+        return
+
+    cfg = load_yaml(USER_CONFIG_PATH)
+    if not cfg:
+        print(f"{USER_CONFIG_PATH} is empty.")
+        return
+
+    # Mask token
+    if "nordvpn" in cfg and "token" in cfg["nordvpn"]:
+        tok = str(cfg["nordvpn"]["token"])
+        if len(tok) > 8:
+            cfg["nordvpn"]["token"] = tok[:4] + "..." + tok[-4:]
+        else:
+            cfg["nordvpn"]["token"] = "********"
+
+    try:
+        import yaml
+        print(yaml.dump(cfg, default_flow_style=False, sort_keys=False).strip())
+    except ImportError:
+        print(json.dumps(cfg, indent=2))
+
+
+def cmd_edit(args):
+    """Open config.yaml in preferred text editor."""
+    USER_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    if not USER_CONFIG_PATH.exists():
+        USER_CONFIG_PATH.touch(mode=0o600)
+
+    editor = os.environ.get("EDITOR") or "nano"
+    # Fallback to desktop editor if in graphical session and editor is nano
+    if os.environ.get("DISPLAY") and not os.environ.get("EDITOR"):
+        for ed in ["gnome-text-editor", "gedit", "code"]:
+            if subprocess.run(["which", ed], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0:
+                editor = ed
+                break
+
+    subprocess.run([editor, str(USER_CONFIG_PATH)])
+
+
+def cmd_reset(args):
+    """Safely reset and remove configuration."""
+    if not USER_CONFIG_DIR.exists():
+        print("No RedFoxOS configuration directory found.")
+        return
+
+    if not args.yes:
+        ans = input(f"WARNING: This will permanently delete {USER_CONFIG_DIR} and all saved configurations.\nAre you sure? [y/N]: ").strip().lower()
+        if ans not in ("y", "yes"):
+            print("Operation aborted.")
+            return
+
+    import shutil
+    shutil.rmtree(USER_CONFIG_DIR, ignore_errors=True)
+    print(f"[SUCCESS] Deleted {USER_CONFIG_DIR}. Run 'redfox-config setup' to reconfigure.")
+
+
+def build_parser():
+    main_description = """Unified Declarative Configuration Engine for RedFoxOS.
+
+COMMANDS:
+    setup [SOURCE]    Ingest and validate configuration (paste, local file, or URL)
+    get-quirk [SERIAL] Lookup matched hardware quirk recipe name for this device
+    get <KEY>         Retrieve a specific configuration value (e.g. 'nordvpn.token')
+    show              Display active configuration with tokens masked
+    edit              Open ~/.config/redfox/config.yaml in preferred editor
+    reset [-y]        Permanently delete ~/.config/redfox configuration"""
+
+    main_epilog = """EXAMPLES:
+    redfox-config setup              # Interactive prompt (paste YAML, enter URL or file)
+    redfox-config setup mycfg.yaml   # Ingest directly from local file
+    redfox-config get-quirk          # Print matching recipe name (e.g. 'framework-13')
+    redfox-config get nordvpn.token  # Print configured NordVPN access token
+    redfox-config show               # Display configuration with secrets masked"""
+
+    parser = argparse.ArgumentParser(
+        prog="redfox-config",
+        usage="redfox-config <COMMAND> [OPTIONS]",
+        description=main_description,
+        epilog=main_epilog,
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+
+    subparsers = parser.add_subparsers(dest="command", required=False)
+
+    # setup
+    p_setup = subparsers.add_parser(
+        "setup",
+        usage="redfox-config setup [SOURCE]",
+        description="Ingest and validate RedFoxOS configuration from a URL, local file, or interactive paste.",
+        help="Setup system configuration (paste, file, or URL)"
+    )
+    p_setup.add_argument("source", nargs="?", help="Optional file path or URL to configuration YAML")
+
+    # get-quirk
+    p_quirk = subparsers.add_parser(
+        "get-quirk",
+        usage="redfox-config get-quirk [TARGET]",
+        description="Match machine serial, board version, or model against hardware.quirks mapping.",
+        help="Get matching hardware quirk recipe name for this device"
+    )
+    p_quirk.add_argument("target", nargs="?", help="Optional serial or model name (auto-detected if omitted)")
+
+    # get
+    p_get = subparsers.add_parser(
+        "get",
+        usage="redfox-config get <KEY>",
+        description="Retrieve a specific value from configuration (e.g. 'nordvpn.token').",
+        help="Get a specific configuration value by key"
+    )
+    p_get.add_argument("key", help="Key path (e.g. 'nordvpn.token')")
+
+    # show
+    subparsers.add_parser(
+        "show",
+        description="Display active configuration with tokens masked.",
+        help="Show active configuration"
+    )
+
+    # edit
+    subparsers.add_parser(
+        "edit",
+        description="Open ~/.config/redfox/config.yaml in preferred editor.",
+        help="Edit configuration file"
+    )
+
+    # reset
+    p_reset = subparsers.add_parser(
+        "reset",
+        description="Permanently delete ~/.config/redfox directory.",
+        help="Reset configuration"
+    )
+    p_reset.add_argument("-y", "--yes", action="store_true", help="Skip confirmation prompt")
+
+    # Remove automatic positional arguments group to prevent duplicate command listing
+    for grp in parser._action_groups:
+        if grp.title == "positional arguments":
+            parser._action_groups.remove(grp)
+            break
+
+    return parser, subparsers
+
+
+def main():
+    parser, subparsers = build_parser()
+
+    if len(sys.argv) == 1:
+        parser.print_help()
+        sys.exit(0)
+
+    args = parser.parse_args()
+
+    try:
+        if args.command == "setup":
+            cmd_setup(args)
+        elif args.command == "get-quirk":
+            cmd_get_quirk(args)
+        elif args.command == "get":
+            cmd_get(args)
+        elif args.command == "show":
+            cmd_show(args)
+        elif args.command == "edit":
+            cmd_edit(args)
+        elif args.command == "reset":
+            cmd_reset(args)
+    except KeyboardInterrupt:
+        print("\nOperation cancelled by user.")
+        sys.exit(130)
+    except Exception as e:
+        print(f"\n[ERROR] {e}")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

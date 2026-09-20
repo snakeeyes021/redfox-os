@@ -1,189 +1,40 @@
 # Level 1: Atoms (Single-Purpose Scripts)
 
-# Setup Secrets (The "Front Desk" Pattern)
-# This recipe MUST be the first dependency for any recipe chain requiring secrets or sudo.
-# It runs exactly once per `just` invocation, downloading required secrets.
-# Ensures secrets are valid for bootstraps. Features headless-safety and persistent state.
-redfox-enforce-secrets:
+# Setup System Configuration (The "Front Desk" Pattern)
+# This recipe is the first dependency for any recipe chain requiring private configuration or hardware quirks.
+# Ensures ~/.config/redfox/config.yaml is present. Headless-safe: skips gracefully with recap ledger.
+redfox-enforce-config:
     #!/usr/bin/bash
     set -euo pipefail
-    SECRETS_DIR="$HOME/.config/redfox"
-    SECRETS_FILE="$SECRETS_DIR/secrets.env"
+    CONFIG_FILE="$HOME/.config/redfox/config.yaml"
     LOG_FILE="/tmp/redfox-bootstrap-current.log"
-    IPC_FILE="/tmp/redfox-force-vpn-import"
-    mkdir -p "$SECRETS_DIR"
-    
-    [ -t 0 ] && MODE="INTERACTIVE" || MODE="HEADLESS"
-    rm -f "$IPC_FILE" # Clean stale IPC state
 
-    MISSING_GIST=true
-    MISSING_VPN=true
-
-    # --- 1. FAST HEURISTICS & STATE CHECKS ---
-    if [ -s "$SECRETS_DIR/hardware-mapping.txt" ]; then
-        MISSING_GIST=false
-    fi
-
-    if [ -s "$HOME/.config/redfox/config.yaml" ] && grep -q 'token:' "$HOME/.config/redfox/config.yaml" 2>/dev/null; then
-        MISSING_VPN=false
-        VPN_VALIDATED=true
-    elif [ -s "$SECRETS_FILE" ]; then
-        eval "$(grep '^NORD_TOKEN=' "$SECRETS_FILE" || true)"
-        eval "$(grep '^VPN_USER=' "$SECRETS_FILE" || true)"
-        eval "$(grep '^VPN_PASS=' "$SECRETS_FILE" || true)"
-        eval "$(grep '^VPN_VALIDATED=' "$SECRETS_FILE" || true)"
-        
-        if [ -n "${NORD_TOKEN:-}" ] || { [ "${#VPN_USER:-0}" -ge 30 ] && [ "${#VPN_PASS:-0}" -ge 30 ]; }; then
-            MISSING_VPN=false
-        fi
-    fi
-
-    # --- 2. THE ROLLING CANARY ---
-    run_canary() {
-        mapfile -t servers < <(grep " - https://" "$SECRETS_DIR/nordvpn-connections.txt" | head -n 3 | sed -E 's/.* - (https:.*)/\1/')
-        echo "Validating VPN Credentials..."
-        for url in "${servers[@]}"; do
-            server_name=$(echo "$url" | cut -d/ -f4 | cut -d. -f1)
-            echo -n "  Testing $server_name... "
-            curl -sSL -o /tmp/canary.ovpn "$url"
-            nmcli connection import type openvpn file /tmp/canary.ovpn >/dev/null 2>&1
-            UUID=$(nmcli -t -f UUID,FILENAME connection show | grep "/tmp/canary.ovpn" | cut -d: -f1 | head -n 1)
-            
-            if [ -n "$UUID" ]; then
-                nmcli connection modify "$UUID" connection.id "RedFox-Canary" +vpn.data "username=$VPN_USER,password-flags=0,connection-type=password-tls" +vpn.secrets "password=$VPN_PASS" >/dev/null 2>&1
-                if timeout 15s nmcli connection up "RedFox-Canary" >/dev/null 2>&1; then
-                    echo "Success."
-                    nmcli connection delete "RedFox-Canary" >/dev/null 2>&1
-                    return 0
-                fi
-                nmcli connection delete "RedFox-Canary" >/dev/null 2>&1
-            fi
-            echo "Timeout."
-        done
-        return 1
-    }
-
-    # Only run the canary if credentials exist but aren't validated yet
-    if [ "$MISSING_GIST" = false ] && [ "$MISSING_VPN" = false ] && [ "${VPN_VALIDATED:-false}" != "true" ]; then
-        if run_canary; then
-            sed -i '/^VPN_VALIDATED=/d' "$SECRETS_FILE" || true
-            echo 'VPN_VALIDATED="true"' >> "$SECRETS_FILE"
-            VPN_VALIDATED="true"
-        else
-            MISSING_VPN=true # Fails validation, trigger the fork
-        fi
-    fi
-
-    # --- 3. THE HAPPY PATH ---
-    if [ "$MISSING_GIST" = false ] && [ "$MISSING_VPN" = false ]; then
+    if [ -s "$CONFIG_FILE" ]; then
         exit 0
     fi
 
-    # --- 4. THE FORK (Headless) ---
-    if [ "$MODE" = "HEADLESS" ]; then
-        [ "$MISSING_GIST" = true ] && echo "- Gist configs broken/missing (Hardware Quirks bypassed)" >> "$LOG_FILE"
-        if [ "$MISSING_VPN" = true ]; then
-            echo "- VPN credentials broken/missing (NordVPN setup bypassed)" >> "$LOG_FILE"
-            sed -i '/^VPN_VALIDATED=/d' "$SECRETS_FILE" 2>/dev/null || true
-            echo 'VPN_VALIDATED="false"' >> "$SECRETS_FILE"
-        fi
+    if [ ! -t 0 ]; then
+        echo "- System configuration skipped (Headless mode, using defaults)" >> "$LOG_FILE"
         exit 0
     fi
 
-    # --- 5. THE FORK (Interactive) ---
-    echo -e "\n================================================================="
-    echo "                RedFoxOS Secrets Setup                           "
-    echo "================================================================="
+    # Interactive prompt via redfox-config setup
+    /usr/bin/redfox-config setup || true
 
-    if [ "$MISSING_GIST" = true ]; then
-        echo "Gist configurations are missing or broken."
-        read -p "Update Gist URL? [y/N]: " FIX_GIST
-        if [[ "$FIX_GIST" =~ ^[yY] ]]; then
-            read -p "Gist URL: " GIST_URL
-            GIST_URL=${GIST_URL%/}; [[ "$GIST_URL" != */raw ]] && GIST_URL="${GIST_URL}/raw"
-            curl -sS -f -L -o "$SECRETS_DIR/hardware-mapping.txt" "$GIST_URL/hardware-mapping.txt" || echo "Failed."
-            curl -sS -f -L -o "$SECRETS_DIR/nordvpn-connections.txt" "$GIST_URL/nordvpn-connections.txt" || echo "Failed."
-        else
-            echo "- Gist configs missing (Hardware Quirks bypassed)" >> "$LOG_FILE"
-        fi
-    fi
+# Backwards-compatible alias for existing scripts/habits
+redfox-enforce-secrets: redfox-enforce-config
 
-    if [ "$MISSING_VPN" = true ]; then
-        while true; do
-            echo -e "\nWarning: We couldn't verify your credentials with 3 different servers."
-            echo "You might be offline, or your password might be wrong."
-            read -p "Would you like to try entering your credentials again? [y/N]: " RETRY
-            
-            if [[ "$RETRY" =~ ^[yY] ]]; then
-                echo "NOTE: Enter your 'Service Credentials' hash."
-                read -p "Service Username: " VPN_USER
-                read -sp "Service Password: " VPN_PASS; echo ""
-                
-                TMP_FILE=$(mktemp)
-                [ -f "$SECRETS_FILE" ] && grep -v -e '^VPN_USER=' -e '^VPN_PASS=' -e '^VPN_VALIDATED=' "$SECRETS_FILE" > "$TMP_FILE" || true
-                echo "VPN_USER=\"$VPN_USER\"" >> "$TMP_FILE"
-                echo "VPN_PASS=\"$VPN_PASS\"" >> "$TMP_FILE"
-                echo "VPN_VALIDATED=\"false\"" >> "$TMP_FILE"
-                chmod 600 "$TMP_FILE" && mv "$TMP_FILE" "$SECRETS_FILE"
-                
-                # Re-run canary immediately
-                if run_canary; then
-                    sed -i '/^VPN_VALIDATED=/d' "$SECRETS_FILE"
-                    echo 'VPN_VALIDATED="true"' >> "$SECRETS_FILE"
-                    break # Success, exit loop
-                else
-                    continue # Failed again, restart loop
-                fi
-            fi
+# Interactively setup or update configuration (paste, file, or URL)
+redfox-setup-config:
+    /usr/bin/redfox-config setup
 
-            echo ""
-            read -p "Would you like to import the server list into NetworkManager anyway? (You won't be able to connect until the issue is fixed). [y/N]: " FORCE
-            if [[ "$FORCE" =~ ^[yY] ]]; then
-                echo "[INFO] Forcing import with existing unverified credentials."
-                touch "$IPC_FILE" # Send the GO signal
-            else
-                echo "- VPN setup skipped by user" >> "$LOG_FILE"
-            fi
-            
-            # Ensure state is marked false since they bailed/forced
-            sed -i '/^VPN_VALIDATED=/d' "$SECRETS_FILE" 2>/dev/null || true
-            echo 'VPN_VALIDATED="false"' >> "$SECRETS_FILE"
-            break
-        done
-    fi
+# Edit configuration file in text editor
+redfox-edit-config:
+    /usr/bin/redfox-config edit
 
-# Interactively update existing secrets
-redfox-update-secrets:
-    #!/usr/bin/bash
-    set -euo pipefail
-    SECRETS_DIR="$HOME/.config/redfox"
-    SECRETS_FILE="$SECRETS_DIR/secrets.env"
-    mkdir -p "$SECRETS_DIR"
-    
-    echo "================================================================="
-    echo "              Update RedFoxOS Secrets                            "
-    echo "================================================================="
-    read -p "Update Gist URL? [y/N]: " RE_GIST
-    if [[ "$RE_GIST" =~ ^[yY] ]]; then
-        read -p "New Gist URL: " GIST_URL
-        GIST_URL=${GIST_URL%/}; [[ "$GIST_URL" != */raw ]] && GIST_URL="${GIST_URL}/raw"
-        curl -sS -f -L -o "$SECRETS_DIR/hardware-mapping.txt" "$GIST_URL/hardware-mapping.txt"
-        curl -sS -f -L -o "$SECRETS_DIR/nordvpn-connections.txt" "$GIST_URL/nordvpn-connections.txt"
-        echo "[OK] Gist files updated."
-    fi
-
-    read -p "Update NordVPN Service Credentials? [y/N]: " RE_VPN
-    if [[ "$RE_VPN" =~ ^[yY] ]]; then
-        read -p "New Service Username: " NEW_VPN_USER
-        read -sp "New Service Password: " NEW_VPN_PASS; echo ""
-        TMP_FILE=$(mktemp)
-        [ -f "$SECRETS_FILE" ] && grep -v -e '^VPN_USER=' -e '^VPN_PASS=' -e '^VPN_VALIDATED=' "$SECRETS_FILE" > "$TMP_FILE" || true
-        echo "VPN_USER=\"$NEW_VPN_USER\"" >> "$TMP_FILE"
-        echo "VPN_PASS=\"$NEW_VPN_PASS\"" >> "$TMP_FILE"
-        echo "VPN_VALIDATED=\"false\"" >> "$TMP_FILE"
-        chmod 600 "$TMP_FILE" && mv "$TMP_FILE" "$SECRETS_FILE"
-        echo "[INFO] Credentials saved. They will be validated on your next bootstrap."
-    fi
+# Backwards-compatible aliases
+redfox-update-secrets: redfox-edit-config
+redfox-init-secrets: redfox-setup-config
 
 # Evaluates the run and archives the ledger
 _print-bootstrap-recap:
@@ -198,7 +49,7 @@ _print-bootstrap-recap:
         echo "================================================================="
         cat "$LOG_FILE"
         echo "-----------------------------------------------------------------"
-        echo " You can configure these later by running: just redfox-update-secrets"
+        echo " You can configure these later by running: just redfox-edit-config"
         
         mkdir -p "$ARCHIVE_DIR"
         mv "$LOG_FILE" "$ARCHIVE_DIR/bootstrap-$(date +%Y%m%d-%H%M%S).log"
@@ -206,15 +57,13 @@ _print-bootstrap-recap:
         echo " 🎉 Bootstrap Complete! All systems go."
         echo "================================================================="
     fi
-    rm -f "/tmp/redfox-force-vpn-import" # Failsafe cleanup
 
-# Permanently delete all saved secrets and configuration files
-redfox-reset-secrets:
-    @echo "WARNING: This will permanently delete your Gist configurations and VPN credentials."
-    @echo "Are you sure? [y/N]: "
-    @read -r confirm && [[ "$$confirm" == [yY] ]]
-    rm -rf "$HOME/.config/redfox"
-    @echo "Secrets reset. Run 'just redfox-init-secrets' to re-configure."
+# Permanently delete all saved configuration files
+redfox-reset-config:
+    /usr/bin/redfox-config reset
+
+# Backwards-compatible alias
+redfox-reset-secrets: redfox-reset-config
 
 # Reset hostname to "redfox" (from whatever was inherited from upstream, likely "bazzite")
 reset-hostname:
@@ -601,24 +450,8 @@ fix-acer-nouveau:
 apply-hardware-quirks:
     #!/usr/bin/bash
     set -euo pipefail
-    
-    MAPPING_FILE="$HOME/.config/redfox/hardware-mapping.txt"
-    if [ ! -s "$MAPPING_FILE" ]; then
-        echo "  [SKIPPED] Hardware Quirks (No Gist mapping found)."
-        exit 0
-    fi
-    
-    SERIAL=$(sudo cat /sys/class/dmi/id/product_serial 2>/dev/null || echo "Unknown")
-    if [ "$SERIAL" == "Unknown" ]; then
-        echo "Could not read hardware serial number. Skipping hardware quirks."
-        exit 0
-    fi
-    
-    echo "Checking for hardware quirks for this device..."
-    
-    # Look for a line matching 'SERIAL:QUIRK_NAME'
-    QUIRK=$(grep "^${SERIAL}:" "$MAPPING_FILE" | cut -d':' -f2 || true)
-    
+    SERIAL=$(sudo cat /sys/class/dmi/id/product_serial 2>/dev/null || true)
+    QUIRK=$(/usr/bin/redfox-config get-quirk "$SERIAL" 2>/dev/null || true)
     if [ -n "$QUIRK" ]; then
         echo "Hardware match found! Applying quirk: $QUIRK"
         just "$QUIRK"
@@ -931,7 +764,7 @@ configure-xway-scale-on:
 configure-dev: configure-vscode configure-cursor configure-antigravity
 
 # Configure Matt's Environment
-configure-matt: redfox-enforce-secrets apply-hardware-quirks add-swap configure-nordvpn reset-hostname configure-keybindings-default configure-dev configure-text-editor-dev configure-terminal-default configure-powersaver-no-suspend configure-xway-scale-off
+configure-matt: redfox-enforce-config apply-hardware-quirks add-swap configure-nordvpn reset-hostname configure-keybindings-default configure-dev configure-text-editor-dev configure-terminal-default configure-powersaver-no-suspend configure-xway-scale-off
     mkdir -p ~/dev
     gnome-extensions enable unblank@sun.wxg@gmail.com
     # just runs hardware atoms here eventually
@@ -956,7 +789,7 @@ configure-cursor-dewy:
     echo "Cursor configured successfully!"
 
 # Configure Dewy's Environment
-configure-dewy: redfox-enforce-secrets configure-keybindings-default configure-text-editor-dev reset-hostname configure-cursor-dewy configure-terminal-tilix configure-nordvpn configure-powersaver-default configure-xway-scale-on enable-clamav-weekly
+configure-dewy: redfox-enforce-config configure-keybindings-default configure-text-editor-dev reset-hostname configure-cursor-dewy configure-terminal-tilix configure-nordvpn configure-powersaver-default configure-xway-scale-on enable-clamav-weekly
     gsettings set org.gnome.shell.keybindings show-screenshot-ui "['Print']"
     gsettings set org.gnome.shell.keybindings screenshot "['<Shift><Super>s']"
     gnome-extensions disable unblank@sun.wxg@gmail.com
