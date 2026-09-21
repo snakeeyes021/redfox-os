@@ -165,6 +165,21 @@ install-soundthread:
 uninstall-soundthread:
     /usr/bin/uninstall-soundthread
 
+# Run complete system, Flatpak, Brew, and application updates via Topgrade
+[group("system")]
+update:
+    #!/usr/bin/bash
+    if [[ -t 0 && -t 1 ]]; then
+        /usr/bin/topgrade --config /usr/share/ublue-os/topgrade.toml --keep
+    else
+        /usr/bin/topgrade --config /usr/share/ublue-os/topgrade.toml
+    fi
+
+# Run the optional Bazzite graphical updater
+update-gui:
+    #!/usr/bin/bash
+    bazzite-updater >/dev/null 2>&1 &
+
 # Update all AppImages managed by Gearlever
 update-appimages:
     /usr/bin/update-appimages
