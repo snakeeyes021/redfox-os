@@ -15,6 +15,7 @@ modules:
         - https://d2t3ff60b2tol4.cloudfront.net/repomd.xml.key
       copr:
         - monkeygold/nautilus-open-any-terminal
+        - lilay/topgrade
     install:
       packages:
         - cursor
