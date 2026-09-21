@@ -359,9 +359,10 @@ def provision_connection(server: dict, private_key: str):
         "ifname", ifname
     ])
 
-    # 2. Configure IPv4, Client Key, and DNS
+    # 2. Configure IPv4, Client Key, and DNS (disable autoconnect on boot)
     nmcli_run([
         "connection", "modify", conn_name,
+        "connection.autoconnect", "no",
         "wireguard.private-key", private_key,
         "ipv4.method", "manual",
         "ipv4.addresses", "10.5.0.2/32",
