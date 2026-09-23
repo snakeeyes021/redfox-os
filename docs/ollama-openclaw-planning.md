@@ -35,3 +35,24 @@
 * **Task: Worker Systemd Service:** Wrap the local OpenClaw agent in a daemon that listens to the Orchestrator and executes assigned tasks.
 * **Task: `install-openclaw-worker` Recipe:** The setup script that interactively collects the Orchestrator's IP and Token, pulls baseline models, wires the remote secrets, and starts the telemetry/worker daemons.
 * **Task: `uninstall-openclaw-worker` Recipe:** The exact inverse to stop the daemon, purge the remote tracker credentials, and revert the node to a standalone base agent.
+### Epic 5: The `redfox-ai` CLI Manager (`/usr/bin/redfox-ai`)
+*A unified, standalone Python CLI utility matching the architecture of `redfox-config` and `redfox-nord`.*
+
+* **Task: Core Telemetry & Status Engine (`redfox-ai status`):** Single-pane dashboard reporting:
+    * Ollama engine systemd status, port responsiveness (11434), and version.
+    * GPU/VRAM allocation (via `/dev/nvhost*` / `nvidia-smi` / ROCm discovery).
+    * Active swarm node identity (`standalone`, `orchestrator`, or `worker-node`).
+    * Background OpenClaw daemon heartbeat and current assigned task.
+* **Task: Model Cache Management (`redfox-ai models [list|pull|rm]`):** Clean wrapper around Ollama model lifecycle, reporting quantization levels and disk usage under `/var/lib/ollama/models`.
+* **Task: Swarm Node Controller (`redfox-ai swarm [join|leave|ping]`):** CLI interface for worker machines to bind to a local subnet Orchestrator, test token authentication against Forgejo, and transmit hardware telemetry.
+* **Task: OpenClaw Daemon Controller (`redfox-ai claw [start|stop|restart|logs]`):** User/system daemon management without manual `journalctl` incantations.
+
+### Epic 6: Interactive Terminal Agent: OpenCode Integration
+*The human-in-the-loop developer companion, complementing OpenClaw's autonomous swarm workers.*
+
+* **Architectural Separation:**
+    * **OpenClaw:** Autonomous background worker. Runs unattended against Forgejo tickets, commits to `wip/` branches, manages task escalation, and reports to the swarm orchestrator.
+    * **OpenCode:** Foreground interactive developer agent. Runs inside the terminal (Ptyxis/Tilix) paired with the human developer for real-time coding, refactoring, and debugging.
+* **Task: `install-opencode` / `uninstall-opencode` Recipes:** Script the automated deployment of the OpenCode binary to `~/.local/bin/opencode` (or system layer if RPM available).
+* **Task: Provider Wiring & Zero-Config Local Inference:** Pre-configure OpenCode (`~/.config/opencode/config.json`) to automatically register the local Ollama instance (`http://localhost:11434/v1`) as a default offline model provider.
+* **Task: Secret Integration:** Allow OpenCode to transparently source cloud model API keys (OpenAI, Anthropic, OpenRouter) cached via `redfox-config` / `secrets.env`.
