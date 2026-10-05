@@ -812,8 +812,8 @@ configure-midikeep-shortcuts:
     ).strip()
     bindings = ast.literal_eval(out) if out.startswith("[") else []
 
-    p1 = set_slot("midikeep-mark", "Midikeep Mark Take (Clapper)", '/bin/sh -c "PATH=\"$HOME/.local/bin:$PATH\" midikeep mark"', "<Control><Alt><Super>k")
-    p2 = set_slot("midikeep-restart", "Midikeep Restart Take", '/bin/sh -c "PATH=\"$HOME/.local/bin:$PATH\" midikeep restart"', "<Control><Alt><Super>r")
+    p1 = set_slot("midikeep-mark", "Midikeep Mark Take (Clapper)", "/usr/bin/midikeep mark", "<Control><Alt><Super>k")
+    p2 = set_slot("midikeep-restart", "Midikeep Restart Take", "/usr/bin/midikeep restart", "<Control><Alt><Super>r")
 
     for p in [p1, p2]:
         if p not in bindings:
