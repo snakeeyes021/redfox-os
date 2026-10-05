@@ -13,6 +13,7 @@ import math
 import struct
 import signal
 import select
+import subprocess
 import ctypes
 import logging
 import sqlite3
@@ -183,8 +184,12 @@ class DatabaseIndex:
         return conn
 
     def _init_db(self):
-        with self._get_connection() as conn:
+        conn = self._get_connection()
+        try:
             conn.executescript(self.SCHEMA)
+            conn.commit()
+        finally:
+            conn.close()
 
     def insert_session(
         self,
@@ -207,7 +212,8 @@ class DatabaseIndex:
             starred, notes
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
-        with self._get_connection() as conn:
+        conn = self._get_connection()
+        try:
             cur = conn.execute(
                 query,
                 (
@@ -224,7 +230,10 @@ class DatabaseIndex:
                     notes,
                 ),
             )
+            conn.commit()
             return cur.lastrowid
+        finally:
+            conn.close()
 
 
 # ---------------------------------------------------------------------------
@@ -358,6 +367,9 @@ class ActiveSession:
         self.active_notes: set[tuple[int, int]] = set()
         self.all_notes: list[int] = []
         self.note_count = 0
+        self.starred = False
+        self.markers: list[str] = []
+        self.running_status: int | None = None
 
         self.active_play_seconds = 0.0
         self._note_cluster_start: float | None = None
@@ -382,9 +394,39 @@ class ActiveSession:
         except Exception as e:
             logger.error("Failed to initialize journal file %s: %s", self.journal_file, e)
 
+    def add_marker(self, label: str, now_mono: float):
+        dt_sec = max(0.0, now_mono - self.last_event_mono)
+        self.last_event_mono = now_mono
+        label_bytes = label.encode("utf-8", errors="replace")
+        # Standard MIDI Meta Event 0x06 (Marker): 0xFF 0x06 <len> <text>
+        marker_meta = b"\xFF\x06" + encode_vlq(len(label_bytes)) + label_bytes
+        self.events.append((dt_sec, marker_meta))
+        self.starred = True
+        self.markers.append(label)
+        if self.journal_handle:
+            try:
+                import json
+                rec = {"type": "marker", "dt": dt_sec, "label": label}
+                self.journal_handle.write(json.dumps(rec) + "\n")
+                self.journal_handle.flush()
+            except Exception as e:
+                logger.debug("Failed writing marker to journal: %s", e)
+
     def record_event(self, msg_bytes: bytes, now_mono: float, device_name: str | None = None):
         if device_name:
             self.device_names.add(device_name)
+
+        if not msg_bytes:
+            return
+
+        # Restore running status if status byte was stripped
+        if msg_bytes[0] >= 0x80:
+            if msg_bytes[0] < 0xF0:  # Channel voice message
+                self.running_status = msg_bytes[0]
+            else:
+                self.running_status = None
+        elif self.running_status is not None:
+            msg_bytes = bytes([self.running_status]) + msg_bytes
 
         status = msg_bytes[0]
         msg_type = status & 0xF0
@@ -470,6 +512,10 @@ class ActiveSession:
         duration_seconds = max(0.0, now_mono - self.start_mono_time)
         key_sig = estimate_key(self.all_notes)
 
+        notes_desc = "★ Marked with clapper" if self.starred else ""
+        if self.markers:
+            notes_desc = f"Markers: {', '.join(self.markers)}"
+
         db.insert_session(
             start_time=self.start_wall_time.isoformat(),
             end_time=end_wall_time.isoformat(),
@@ -480,6 +526,8 @@ class ActiveSession:
             file_path=str(self.target_file),
             key_signature=key_sig,
             tempo_bpm=self.tempo_bpm,
+            starred=self.starred,
+            notes=notes_desc,
         )
 
         # 4. Clean up journal file
@@ -543,22 +591,29 @@ def recover_orphaned_journals(journal_dir: Path, db: DatabaseIndex):
                         file_path = rec.get("file_path")
                         tempo_bpm = rec.get("tempo_bpm", tempo_bpm)
                         division = rec.get("division", division)
+                    elif rec.get("type") == "marker":
+                        dt = float(rec.get("dt", 0.0))
+                        label = rec.get("label", "Clapper")
+                        lbytes = label.encode("utf-8", errors="replace")
+                        events.append((dt, b"\xFF\x06" + encode_vlq(len(lbytes)) + lbytes))
+                        starred = True
                     elif rec.get("type") == "ev":
                         dt = float(rec.get("dt", 0.0))
                         raw = bytes.fromhex(rec["hex"])
                         events.append((dt, raw))
-                        status = raw[0]
-                        mtype = status & 0xF0
-                        ch = status & 0x0F
-                        if mtype == 0x90 and len(raw) >= 3:
-                            note, vel = raw[1], raw[2]
-                            if vel > 0:
-                                all_notes.append(note)
-                                active_notes.add((ch, note))
-                            else:
-                                active_notes.discard((ch, note))
-                        elif mtype == 0x80 and len(raw) >= 3:
-                            active_notes.discard((ch, raw[1]))
+                        if raw[0] >= 0x80:
+                            status = raw[0]
+                            mtype = status & 0xF0
+                            ch = status & 0x0F
+                            if mtype == 0x90 and len(raw) >= 3:
+                                note, vel = raw[1], raw[2]
+                                if vel > 0:
+                                    all_notes.append(note)
+                                    active_notes.add((ch, note))
+                                else:
+                                    active_notes.discard((ch, note))
+                            elif mtype == 0x80 and len(raw) >= 3:
+                                active_notes.discard((ch, raw[1]))
 
             if not events or not all_notes or not file_path:
                 logger.warning("Journal %s contains insufficient data; removing.", jfile.name)
@@ -646,6 +701,9 @@ class AlsaSequencerManager:
 
         # Initialize MIDI event parser
         self.asound.snd_midi_event_new(ctypes.c_size_t(256), ctypes.byref(self.parser))
+        # Ensure parser does not omit status bytes (running status)
+        if hasattr(self.asound, "snd_midi_event_no_status"):
+            self.asound.snd_midi_event_no_status(self.parser, 1)
         self.asound.snd_midi_event_decode.restype = ctypes.c_long
         self.asound.snd_midi_event_decode.argtypes = [
             ctypes.c_void_p,
@@ -794,9 +852,66 @@ class MidikeepDaemon:
         logger.info("Received termination signal %d. Shutting down gracefully...", signum)
         self.running = False
 
+    def handle_sigusr1(self, signum, frame):
+        """Clapper action: Add marker to active take, star it, and show notification."""
+        now_mono = time.monotonic()
+        if self.active_session is not None:
+            self.active_session.add_marker("Clapper ★", now_mono)
+            logger.info("Clapper / Marker added to active session at %.2fs", now_mono)
+            try:
+                subprocess.run(
+                    ["notify-send", "Midikeep", "Marked take with Clapper! ★", "-i", "audio-speakers", "-t", "2000"],
+                    check=False,
+                )
+            except Exception:
+                pass
+        else:
+            logger.info("Clapper triggered, but no session is currently active.")
+            try:
+                subprocess.run(
+                    ["notify-send", "Midikeep", "No active take in progress to mark.", "-i", "audio-speakers", "-t", "2000"],
+                    check=False,
+                )
+            except Exception:
+                pass
+
+    def handle_sigusr2(self, signum, frame):
+        """Restart / split action: Finalize current take immediately and reset."""
+        now_mono = time.monotonic()
+        if self.active_session is not None:
+            logger.info("Session restart requested via signal. Finalizing take immediately...")
+            target = self.active_session.finalize(self.db, now_mono)
+            self.active_session = None
+            try:
+                subprocess.run(
+                    ["notify-send", "Midikeep", "Take saved. Ready for fresh take!", "-i", "audio-card", "-t", "2000"],
+                    check=False,
+                )
+            except Exception:
+                pass
+        else:
+            logger.info("Session restart requested, but no session was active.")
+            try:
+                subprocess.run(
+                    ["notify-send", "Midikeep", "Ready for fresh take (no active take).", "-i", "audio-card", "-t", "2000"],
+                    check=False,
+                )
+            except Exception:
+                pass
+
     def run(self):
         signal.signal(signal.SIGINT, self.handle_signal)
         signal.signal(signal.SIGTERM, self.handle_signal)
+        signal.signal(signal.SIGUSR1, self.handle_sigusr1)
+        signal.signal(signal.SIGUSR2, self.handle_sigusr2)
+
+        # Write PID file
+        pid_file = self.data_dir / "midikeep.pid"
+        try:
+            self.data_dir.mkdir(parents=True, exist_ok=True)
+            pid_file.write_text(str(os.getpid()))
+        except Exception as e:
+            logger.warning("Could not write PID file %s: %s", pid_file, e)
 
         recover_orphaned_journals(self.journal_dir, self.db)
 
@@ -898,6 +1013,13 @@ class MidikeepDaemon:
         if self.alsa:
             self.alsa.close()
             self.alsa = None
+
+        try:
+            pid_file = self.data_dir / "midikeep.pid"
+            if pid_file.exists():
+                pid_file.unlink()
+        except Exception:
+            pass
 
         logger.info("Midikeep Daemon exited cleanly.")
 

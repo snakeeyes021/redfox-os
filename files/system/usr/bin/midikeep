@@ -1,0 +1,361 @@
+#!/usr/bin/env python3
+"""
+midikeep: Command-Line Control, Querying, Marker, and Retrieval Engine
+Part of RedFoxOS. Companion utility to midikeep-daemon.
+"""
+
+import os
+import sys
+import time
+import signal
+import sqlite3
+import argparse
+import subprocess
+from pathlib import Path
+from datetime import datetime, timezone, timedelta
+
+
+def get_default_paths():
+    xdg_data = os.environ.get("XDG_DATA_HOME")
+    if xdg_data:
+        data_dir = Path(xdg_data) / "midikeep"
+    else:
+        data_dir = Path.home() / ".local" / "share" / "midikeep"
+
+    xdg_config = os.environ.get("XDG_CONFIG_HOME")
+    if xdg_config:
+        config_dir = Path(xdg_config) / "midikeep"
+    else:
+        config_dir = Path.home() / ".config" / "midikeep"
+
+    return {
+        "data_dir": data_dir,
+        "sessions_dir": data_dir / "sessions",
+        "journal_dir": data_dir / "journal",
+        "db_path": data_dir / "index.db",
+        "pid_file": data_dir / "midikeep.pid",
+        "config_path": config_dir / "config.yaml",
+    }
+
+
+def find_daemon_pid(pid_file: Path) -> int | None:
+    # 1. Check PID file
+    if pid_file.exists():
+        try:
+            pid = int(pid_file.read_text().strip())
+            # Verify process is running
+            os.kill(pid, 0)
+            return pid
+        except (ValueError, OSError):
+            pass
+
+    # 2. Check systemctl --user show midikeep.service -p MainPID
+    try:
+        out = subprocess.check_output(
+            ["systemctl", "--user", "show", "midikeep.service", "-p", "MainPID"],
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+        if "=" in out:
+            pid = int(out.split("=")[1])
+            if pid > 0:
+                os.kill(pid, 0)
+                return pid
+    except Exception:
+        pass
+
+    # 3. Check pgrep
+    try:
+        out = subprocess.check_output(["pgrep", "-f", "midikeep-daemon"], text=True).strip()
+        lines = out.splitlines()
+        if lines:
+            pid = int(lines[0])
+            if pid != os.getpid():
+                return pid
+    except Exception:
+        pass
+
+    return None
+
+
+def send_daemon_signal(sig: int, action_name: str, pid_file: Path) -> bool:
+    pid = find_daemon_pid(pid_file)
+    if pid:
+        try:
+            os.kill(pid, sig)
+            return True
+        except OSError as e:
+            print(f"Error signaling daemon (PID {pid}): {e}", file=sys.stderr)
+            return False
+
+    # Fallback to systemctl --user kill
+    sig_name = "SIGUSR1" if sig == signal.SIGUSR1 else "SIGUSR2"
+    try:
+        res = subprocess.run(
+            ["systemctl", "--user", "kill", f"-s", sig_name, "midikeep.service"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        return res.returncode == 0
+    except Exception:
+        return False
+
+
+# ---------------------------------------------------------------------------
+# Subcommand Handlers
+# ---------------------------------------------------------------------------
+
+def cmd_mark(args, paths):
+    """Trigger clapper / marker on active take."""
+    success = send_daemon_signal(signal.SIGUSR1, "mark", paths["pid_file"])
+    if success:
+        print("★ Take marked with clapper! Marker embedded into MIDI file and starred.")
+    else:
+        print("Warning: midikeep-daemon does not appear to be running.", file=sys.stderr)
+        # Still show desktop notification fallback
+        try:
+            subprocess.run(
+                ["notify-send", "Midikeep", "Mark take triggered, but daemon not running.", "-i", "audio-speakers", "-t", "2000"],
+                check=False,
+            )
+        except Exception:
+            pass
+
+
+def cmd_restart(args, paths):
+    """Trigger session restart / take finalization."""
+    success = send_daemon_signal(signal.SIGUSR2, "restart", paths["pid_file"])
+    if success:
+        print("✔ Session finalized and saved. Ready for fresh take!")
+    else:
+        print("Warning: midikeep-daemon does not appear to be running.", file=sys.stderr)
+
+
+def cmd_status(args, paths):
+    """Report daemon status, device connections, and session counts."""
+    pid = find_daemon_pid(paths["pid_file"])
+    service_status = "inactive"
+    try:
+        out = subprocess.check_output(
+            ["systemctl", "--user", "is-active", "midikeep.service"],
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+        service_status = out
+    except Exception:
+        service_status = "running" if pid else "inactive"
+
+    print("=== Midikeep Engine Status ===")
+    print(f"Daemon Status:      {service_status.upper()} (PID: {pid or 'None'})")
+    print(f"Data Directory:     {paths['data_dir']}")
+    print(f"Index Database:     {paths['db_path']}")
+
+    # Check active journal
+    journal_dir = paths["journal_dir"]
+    active_journals = list(journal_dir.glob("*.journal")) if journal_dir.exists() else []
+    if active_journals:
+        print(f"Active Take:        RECORDING IN PROGRESS ({active_journals[0].name})")
+    else:
+        print("Active Take:        Idle (waiting for next Note-On)")
+
+    # Connected ALSA controllers
+    print("\nConnected MIDI Inputs:")
+    try:
+        out = subprocess.check_output(["aconnect", "-l"], text=True)
+        found_inputs = False
+        for line in out.splitlines():
+            if "client " in line and "midikeep" not in line and "System" not in line:
+                print(f"  {line.strip()}")
+                found_inputs = True
+        if not found_inputs:
+            print("  (None detected)")
+    except Exception:
+        print("  (Could not query ALSA sequencer)")
+
+    # Database summary
+    db_path = paths["db_path"]
+    if db_path.exists():
+        try:
+            conn = sqlite3.connect(str(db_path))
+            cur = conn.cursor()
+            cur.execute("SELECT COUNT(*) FROM sessions")
+            total = cur.fetchone()[0]
+
+            today_start = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            cur.execute("SELECT COUNT(*) FROM sessions WHERE start_time >= ?", (today_start,))
+            today_count = cur.fetchone()[0]
+
+            cur.execute("SELECT COUNT(*) FROM sessions WHERE starred = 1")
+            starred_count = cur.fetchone()[0]
+            conn.close()
+
+            print(f"\nRecorded Sessions:  {total} total ({today_count} today, {starred_count} starred ★)")
+        except Exception as e:
+            print(f"\nDatabase Error: {e}")
+    else:
+        print("\nRecorded Sessions:  0 (No database found yet)")
+
+
+def cmd_list(args, paths):
+    """List recorded sessions."""
+    db_path = paths["db_path"]
+    if not db_path.exists():
+        print("No sessions database found at", db_path)
+        return
+
+    conn = sqlite3.connect(str(db_path))
+    conn.row_factory = sqlite3.Row
+    query = "SELECT * FROM sessions"
+    params = []
+    conditions = []
+
+    if getattr(args, "today", False):
+        today_start = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        conditions.append("start_time >= ?")
+        params.append(today_start)
+
+    if getattr(args, "starred", False):
+        conditions.append("starred = 1")
+
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
+
+    query += " ORDER BY start_time DESC LIMIT ?"
+    params.append(args.limit)
+
+    rows = conn.execute(query, params).fetchall()
+    conn.close()
+
+    if not rows:
+        print("No sessions found matching criteria.")
+        return
+
+    print(f"{'ID':<4} {'Date & Time':<20} {'Duration':<10} {'Notes':<7} {'Key':<10} {'Device':<24} {'★':<2} {'Notes/Markers'}")
+    print("-" * 105)
+    for r in rows:
+        st = r["start_time"]
+        try:
+            dt = datetime.fromisoformat(st)
+            st_str = dt.strftime("%Y-%m-%d %H:%M:%S")
+        except Exception:
+            st_str = st[:19]
+
+        dur_str = f"{r['duration_seconds']:.1f}s"
+        star_str = "★" if r["starred"] else ""
+        dev_str = (r["device_name"][:22] + "..") if len(r["device_name"]) > 24 else r["device_name"]
+        key_str = r["key_signature"] or "-"
+        notes_str = r["notes"] or ""
+
+        print(f"{r['id']:<4} {st_str:<20} {dur_str:<10} {r['note_count']:<7} {key_str:<10} {dev_str:<24} {star_str:<2} {notes_str}")
+
+
+def cmd_star(args, paths):
+    """Toggle star flag on a session."""
+    db_path = paths["db_path"]
+    if not db_path.exists():
+        print("Database not found.", file=sys.stderr)
+        return
+
+    conn = sqlite3.connect(str(db_path))
+    cur = conn.cursor()
+    cur.execute("SELECT starred FROM sessions WHERE id = ?", (args.session_id,))
+    row = cur.fetchone()
+    if not row:
+        print(f"Session #{args.session_id} not found.", file=sys.stderr)
+        conn.close()
+        return
+
+    new_val = 0 if row[0] else 1
+    cur.execute("UPDATE sessions SET starred = ? WHERE id = ?", (new_val, args.session_id))
+    conn.commit()
+    conn.close()
+    state = "Starred ★" if new_val else "Unstarred"
+    print(f"Session #{args.session_id} is now {state}.")
+
+
+def cmd_export(args, paths):
+    """Export a session or the latest session to a destination path."""
+    db_path = paths["db_path"]
+    if not db_path.exists():
+        print("Database not found.", file=sys.stderr)
+        return
+
+    conn = sqlite3.connect(str(db_path))
+    conn.row_factory = sqlite3.Row
+
+    if args.session_id:
+        row = conn.execute("SELECT * FROM sessions WHERE id = ?", (args.session_id,)).fetchone()
+    else:
+        row = conn.execute("SELECT * FROM sessions ORDER BY start_time DESC LIMIT 1").fetchone()
+    conn.close()
+
+    if not row:
+        print("No matching session found to export.", file=sys.stderr)
+        return
+
+    src_path = Path(row["file_path"])
+    if not src_path.exists():
+        print(f"Source file not found on disk: {src_path}", file=sys.stderr)
+        return
+
+    dest_path = Path(args.output)
+    dest_path.parent.mkdir(parents=True, exist_ok=True)
+    import shutil
+    shutil.copy2(src_path, dest_path)
+    print(f"Exported Session #{row['id']} ({row['device_name']}, {row['note_count']} notes) -> {dest_path}")
+
+
+# ---------------------------------------------------------------------------
+# CLI Argument Parser
+# ---------------------------------------------------------------------------
+
+def main():
+    parser = argparse.ArgumentParser(description="Midikeep: Background MIDI Recording & Retrieval CLI")
+    subparsers = parser.add_subparsers(dest="command", help="Available subcommands")
+
+    # mark / clap
+    sub_mark = subparsers.add_parser("mark", aliases=["clap", "flag"], help="Mark current take with a Clapper flag (★)")
+
+    # restart / split
+    sub_restart = subparsers.add_parser("restart", aliases=["split", "new"], help="Finalize active take immediately and reset")
+
+    # status
+    sub_status = subparsers.add_parser("status", help="Show daemon status, connected devices, and stats")
+
+    # list
+    sub_list = subparsers.add_parser("list", help="List recorded takes")
+    sub_list.add_argument("--today", action="store_true", help="List only takes recorded today")
+    sub_list.add_argument("--starred", action="store_true", help="List only starred takes")
+    sub_list.add_argument("--limit", type=int, default=20, help="Maximum number of takes to show (default 20)")
+
+    # star
+    sub_star = subparsers.add_parser("star", help="Toggle starred flag on a session")
+    sub_star.add_argument("session_id", type=int, help="Session ID to star/unstar")
+
+    # export
+    sub_export = subparsers.add_parser("export", help="Export a session file (.mid)")
+    sub_export.add_argument("--session", dest="session_id", type=int, help="Session ID to export")
+    sub_export.add_argument("--latest", action="store_true", help="Export the latest recorded session")
+    sub_export.add_argument("-o", "--output", required=True, help="Destination .mid file path")
+
+    args = parser.parse_args()
+    paths = get_default_paths()
+
+    if args.command in ("mark", "clap", "flag"):
+        cmd_mark(args, paths)
+    elif args.command in ("restart", "split", "new"):
+        cmd_restart(args, paths)
+    elif args.command == "status":
+        cmd_status(args, paths)
+    elif args.command == "list":
+        cmd_list(args, paths)
+    elif args.command == "star":
+        cmd_star(args, paths)
+    elif args.command == "export":
+        cmd_export(args, paths)
+    else:
+        parser.print_help()
+
+
+if __name__ == "__main__":
+    main()
