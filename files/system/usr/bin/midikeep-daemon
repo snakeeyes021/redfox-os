@@ -1,0 +1,935 @@
+#!/usr/bin/env python3
+"""
+midikeep-daemon: Continuous Background MIDI Recording Engine & Storage Layer
+Part of RedFoxOS.
+Listens to ALSA Sequencer ports, clusters takes using a silence threshold,
+writes Standard MIDI Files (Type 0), and indexes takes in SQLite.
+"""
+
+import os
+import sys
+import time
+import math
+import struct
+import signal
+import select
+import ctypes
+import logging
+import sqlite3
+import argparse
+from pathlib import Path
+from datetime import datetime, timezone
+
+try:
+    import yaml
+except ImportError:
+    yaml = None
+
+# ---------------------------------------------------------------------------
+# Constants & MIDI Definitions
+# ---------------------------------------------------------------------------
+
+DEFAULT_SILENCE_THRESHOLD = 900  # 15 minutes in seconds
+DEFAULT_TEMPO_BPM = 120.0
+DEFAULT_DIVISION = 480
+DEFAULT_JOURNAL_INTERVAL = 2.0  # seconds
+
+# ALSA Sequencer Constants
+SND_SEQ_OPEN_DUPLEX = 3
+SND_SEQ_NONBLOCK = 1
+SND_SEQ_PORT_CAP_READ = 1 << 0
+SND_SEQ_PORT_CAP_WRITE = 1 << 1
+SND_SEQ_PORT_CAP_SUBS_READ = 1 << 5
+SND_SEQ_PORT_CAP_SUBS_WRITE = 1 << 6
+SND_SEQ_PORT_TYPE_APPLICATION = 1 << 20
+SND_SEQ_PORT_TYPE_MIDI_GENERIC = 1 << 1
+
+# ALSA Event Types
+SNDRV_SEQ_EVENT_NOTEON = 6
+SNDRV_SEQ_EVENT_NOTEOFF = 7
+SNDRV_SEQ_EVENT_KEYPRESS = 8
+SNDRV_SEQ_EVENT_CONTROLLER = 10
+SNDRV_SEQ_EVENT_PGMCHANGE = 11
+SNDRV_SEQ_EVENT_CHANPRESS = 12
+SNDRV_SEQ_EVENT_PITCHBEND = 13
+SNDRV_SEQ_EVENT_CLOCK = 36
+SNDRV_SEQ_EVENT_SENSING = 42
+
+SNDRV_SEQ_EVENT_CLIENT_START = 60
+SNDRV_SEQ_EVENT_CLIENT_EXIT = 61
+SNDRV_SEQ_EVENT_CLIENT_CHANGE = 62
+SNDRV_SEQ_EVENT_PORT_START = 63
+SNDRV_SEQ_EVENT_PORT_EXIT = 64
+SNDRV_SEQ_EVENT_PORT_CHANGE = 65
+SNDRV_SEQ_EVENT_PORT_SUBSCRIBED = 66
+SNDRV_SEQ_EVENT_PORT_UNSUBSCRIBED = 67
+
+# Key estimation profiles (Krumhansl-Schmuckler)
+MAJOR_PROFILE = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88]
+MINOR_PROFILE = [6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17]
+PITCH_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+
+logger = logging.getLogger("midikeep-daemon")
+
+
+# ---------------------------------------------------------------------------
+# Path & Configuration Management
+# ---------------------------------------------------------------------------
+
+def get_default_paths():
+    xdg_data = os.environ.get("XDG_DATA_HOME")
+    if xdg_data:
+        data_dir = Path(xdg_data) / "midikeep"
+    else:
+        data_dir = Path.home() / ".local" / "share" / "midikeep"
+
+    xdg_config = os.environ.get("XDG_CONFIG_HOME")
+    if xdg_config:
+        config_dir = Path(xdg_config) / "midikeep"
+    else:
+        config_dir = Path.home() / ".config" / "midikeep"
+
+    return {
+        "data_dir": data_dir,
+        "sessions_dir": data_dir / "sessions",
+        "journal_dir": data_dir / "journal",
+        "db_path": data_dir / "index.db",
+        "config_path": config_dir / "config.yaml",
+    }
+
+
+def load_config(config_path: Path) -> dict:
+    default_config = {
+        "silence_threshold_seconds": DEFAULT_SILENCE_THRESHOLD,
+        "log_midi_clock": False,
+        "tempo_bpm": DEFAULT_TEMPO_BPM,
+        "division": DEFAULT_DIVISION,
+        "journal_interval_seconds": DEFAULT_JOURNAL_INTERVAL,
+        "auto_connect": True,
+        "device_blacklist": [],
+    }
+
+    if not config_path.exists():
+        try:
+            config_path.parent.mkdir(parents=True, exist_ok=True)
+            if yaml:
+                with open(config_path, "w", encoding="utf-8") as f:
+                    yaml.dump(default_config, f, default_flow_style=False)
+        except Exception as e:
+            logger.warning("Could not write default config to %s: %s", config_path, e)
+        return default_config
+
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            if yaml:
+                data = yaml.safe_load(f) or {}
+            else:
+                data = {}
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#") and ":" in line:
+                        k, v = line.split(":", 1)
+                        k = k.strip()
+                        v = v.strip()
+                        if v.lower() == "true": data[k] = True
+                        elif v.lower() == "false": data[k] = False
+                        else:
+                            try:
+                                data[k] = float(v) if "." in v else int(v)
+                            except ValueError:
+                                data[k] = v
+        for k, v in default_config.items():
+            if k not in data:
+                data[k] = v
+        return data
+    except Exception as e:
+        logger.error("Error reading config %s, using defaults: %s", config_path, e)
+        return default_config
+
+
+# ---------------------------------------------------------------------------
+# SQLite Index Database
+# ---------------------------------------------------------------------------
+
+class DatabaseIndex:
+    SCHEMA = """
+    CREATE TABLE IF NOT EXISTS sessions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        start_time TIMESTAMP NOT NULL,
+        end_time TIMESTAMP NOT NULL,
+        duration_seconds REAL NOT NULL,
+        active_play_seconds REAL NOT NULL,
+        note_count INTEGER NOT NULL,
+        device_name TEXT NOT NULL,
+        file_path TEXT NOT NULL UNIQUE,
+        key_signature TEXT,
+        tempo_bpm REAL DEFAULT 120.0,
+        starred BOOLEAN DEFAULT 0,
+        notes TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_sessions_start ON sessions(start_time);
+    CREATE INDEX IF NOT EXISTS idx_sessions_starred ON sessions(starred);
+    """
+
+    def __init__(self, db_path: Path):
+        self.db_path = db_path
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        self._init_db()
+
+    def _get_connection(self):
+        conn = sqlite3.connect(str(self.db_path), timeout=10.0)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    def _init_db(self):
+        with self._get_connection() as conn:
+            conn.executescript(self.SCHEMA)
+
+    def insert_session(
+        self,
+        start_time: str,
+        end_time: str,
+        duration_seconds: float,
+        active_play_seconds: float,
+        note_count: int,
+        device_name: str,
+        file_path: str,
+        key_signature: str | None = None,
+        tempo_bpm: float = 120.0,
+        starred: bool = False,
+        notes: str = "",
+    ) -> int:
+        query = """
+        INSERT INTO sessions (
+            start_time, end_time, duration_seconds, active_play_seconds,
+            note_count, device_name, file_path, key_signature, tempo_bpm,
+            starred, notes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        with self._get_connection() as conn:
+            cur = conn.execute(
+                query,
+                (
+                    start_time,
+                    end_time,
+                    round(duration_seconds, 2),
+                    round(active_play_seconds, 2),
+                    note_count,
+                    device_name,
+                    file_path,
+                    key_signature,
+                    round(tempo_bpm, 1),
+                    1 if starred else 0,
+                    notes,
+                ),
+            )
+            return cur.lastrowid
+
+
+# ---------------------------------------------------------------------------
+# Standard MIDI File Builder (Type 0)
+# ---------------------------------------------------------------------------
+
+def encode_vlq(value: int) -> bytes:
+    """Encode an integer into MIDI Variable-Length Quantity (VLQ)."""
+    if value < 0:
+        value = 0
+    buf = bytearray([value & 0x7F])
+    value >>= 7
+    while value > 0:
+        buf.insert(0, (value & 0x7F) | 0x80)
+        value >>= 7
+    return bytes(buf)
+
+
+def build_midi_file(
+    events: list[tuple[float, bytes]],
+    division: int = DEFAULT_DIVISION,
+    tempo_bpm: float = DEFAULT_TEMPO_BPM,
+    track_name: str = "midikeep take",
+) -> bytes:
+    """
+    Constructs a valid Standard MIDI File (SMF Type 0) byte string.
+    events: list of (delta_seconds, raw_midi_bytes)
+    """
+    tempo_us = int(60_000_000 / tempo_bpm)
+    ticks_per_second = (division * 1_000_000) / tempo_us
+
+    track_data = bytearray()
+
+    # Meta Event: Set Tempo (delta 0)
+    track_data.extend(b"\x00\xFF\x51\x03")
+    track_data.extend(struct.pack(">I", tempo_us)[1:])  # 3 bytes
+
+    # Meta Event: Time Signature (4/4, 24 MIDI clocks per quarter note, 8 32nd notes per beat)
+    track_data.extend(b"\x00\xFF\x58\x04\x04\x02\x18\x08")
+
+    # Meta Event: Track Name
+    name_bytes = track_name.encode("utf-8", errors="replace")
+    track_data.extend(b"\x00\xFF\x03" + encode_vlq(len(name_bytes)) + name_bytes)
+
+    # Sequence events
+    for dt_sec, msg_bytes in events:
+        dt_ticks = int(round(dt_sec * ticks_per_second))
+        track_data.extend(encode_vlq(dt_ticks))
+        track_data.extend(msg_bytes)
+
+    # Meta Event: End of Track (delta 0)
+    track_data.extend(b"\x00\xFF\x2F\x00")
+
+    # Construct SMF header and track
+    header = struct.pack(">4sIHHH", b"MThd", 6, 0, 1, division)
+    track = struct.pack(">4sI", b"MTrk", len(track_data)) + track_data
+    return header + track
+
+
+# ---------------------------------------------------------------------------
+# Key Signature Estimation
+# ---------------------------------------------------------------------------
+
+def estimate_key(notes: list[int]) -> str | None:
+    """Estimate musical key using Krumhansl-Schmuckler pitch class profiles."""
+    if len(notes) < 4:
+        return None
+
+    counts = [0] * 12
+    for n in notes:
+        counts[n % 12] += 1
+
+    mean_counts = sum(counts) / 12.0
+    s_counts = math.sqrt(sum((c - mean_counts) ** 2 for c in counts))
+    if s_counts == 0:
+        return None
+
+    best_corr = -2.0
+    best_key = None
+
+    for tonic in range(12):
+        for mode, profile in [("Major", MAJOR_PROFILE), ("Minor", MINOR_PROFILE)]:
+            mean_prof = sum(profile) / 12.0
+            s_prof = math.sqrt(sum((p - mean_prof) ** 2 for p in profile))
+            cov = sum(
+                (counts[(tonic + i) % 12] - mean_counts) * (profile[i] - mean_prof)
+                for i in range(12)
+            )
+            corr = cov / (s_counts * s_prof)
+            if corr > best_corr:
+                best_corr = corr
+                best_key = f"{PITCH_NAMES[tonic]} {mode}"
+
+    return best_key
+
+
+# ---------------------------------------------------------------------------
+# Active Session State & Journaling
+# ---------------------------------------------------------------------------
+
+class ActiveSession:
+    def __init__(
+        self,
+        start_wall_time: datetime,
+        start_mono_time: float,
+        device_name: str,
+        sessions_dir: Path,
+        journal_dir: Path,
+        division: int = DEFAULT_DIVISION,
+        tempo_bpm: float = DEFAULT_TEMPO_BPM,
+    ):
+        self.start_wall_time = start_wall_time
+        self.start_mono_time = start_mono_time
+        self.last_event_mono = start_mono_time
+        self.last_note_mono = start_mono_time
+        self.device_names: set[str] = {device_name} if device_name else set()
+        self.division = division
+        self.tempo_bpm = tempo_bpm
+
+        date_str = start_wall_time.strftime("%Y/%m/%d")
+        time_str = start_wall_time.strftime("%H-%M-%S")
+        self.target_dir = sessions_dir / date_str
+        self.target_file = self.target_dir / f"session_{time_str}.mid"
+
+        journal_dir.mkdir(parents=True, exist_ok=True)
+        ts_id = start_wall_time.strftime("%Y%m%d_%H%M%S")
+        self.journal_file = journal_dir / f"session_{ts_id}.journal"
+        self.journal_handle = None
+
+        self.events: list[tuple[float, bytes]] = []
+        self.active_notes: set[tuple[int, int]] = set()
+        self.all_notes: list[int] = []
+        self.note_count = 0
+
+        self.active_play_seconds = 0.0
+        self._note_cluster_start: float | None = None
+
+        self._init_journal(device_name)
+
+    def _init_journal(self, device_name: str):
+        try:
+            self.journal_handle = open(self.journal_file, "a", encoding="utf-8")
+            header = {
+                "type": "init",
+                "start_wall": self.start_wall_time.isoformat(),
+                "start_mono": self.start_mono_time,
+                "device_name": device_name,
+                "file_path": str(self.target_file),
+                "tempo_bpm": self.tempo_bpm,
+                "division": self.division,
+            }
+            import json
+            self.journal_handle.write(json.dumps(header) + "\n")
+            self.journal_handle.flush()
+        except Exception as e:
+            logger.error("Failed to initialize journal file %s: %s", self.journal_file, e)
+
+    def record_event(self, msg_bytes: bytes, now_mono: float, device_name: str | None = None):
+        if device_name:
+            self.device_names.add(device_name)
+
+        status = msg_bytes[0]
+        msg_type = status & 0xF0
+        channel = status & 0x0F
+
+        dt_sec = max(0.0, now_mono - self.last_event_mono)
+        self.last_event_mono = now_mono
+        self.events.append((dt_sec, msg_bytes))
+
+        # Note-On vs Note-Off
+        if msg_type == 0x90 and len(msg_bytes) >= 3:
+            note = msg_bytes[1]
+            velocity = msg_bytes[2]
+            if velocity > 0:
+                self.note_count += 1
+                self.all_notes.append(note)
+                self.last_note_mono = now_mono
+                if not self.active_notes and self._note_cluster_start is None:
+                    self._note_cluster_start = now_mono
+                self.active_notes.add((channel, note))
+            else:
+                self.active_notes.discard((channel, note))
+                self.last_note_mono = now_mono
+                if not self.active_notes and self._note_cluster_start is not None:
+                    self.active_play_seconds += max(0.0, now_mono - self._note_cluster_start)
+                    self._note_cluster_start = None
+
+        elif msg_type == 0x80 and len(msg_bytes) >= 3:
+            note = msg_bytes[1]
+            self.active_notes.discard((channel, note))
+            self.last_note_mono = now_mono
+            if not self.active_notes and self._note_cluster_start is not None:
+                self.active_play_seconds += max(0.0, now_mono - self._note_cluster_start)
+                self._note_cluster_start = None
+
+        if self.journal_handle:
+            try:
+                import json
+                rec = {"type": "ev", "dt": dt_sec, "hex": msg_bytes.hex()}
+                self.journal_handle.write(json.dumps(rec) + "\n")
+            except Exception as e:
+                logger.debug("Journal write failed: %s", e)
+
+    def flush_journal(self):
+        if self.journal_handle:
+            try:
+                self.journal_handle.flush()
+            except Exception:
+                pass
+
+    def finalize(self, db: DatabaseIndex, now_mono: float) -> str:
+        if self._note_cluster_start is not None:
+            self.active_play_seconds += max(0.0, now_mono - self._note_cluster_start)
+            self._note_cluster_start = None
+
+        # 1. Synthesize Note-Off for any lingering held notes
+        if self.active_notes:
+            dt = max(0.0, now_mono - self.last_event_mono)
+            first = True
+            for ch, n in list(self.active_notes):
+                off_msg = bytes([0x80 | (ch & 0x0F), n & 0x7F, 64])
+                self.events.append((dt if first else 0.0, off_msg))
+                first = False
+            self.active_notes.clear()
+
+        # 2. Build MIDI file
+        self.target_dir.mkdir(parents=True, exist_ok=True)
+        device_str = ", ".join(sorted(self.device_names)) if self.device_names else "MIDI Device"
+        midi_data = build_midi_file(
+            self.events,
+            division=self.division,
+            tempo_bpm=self.tempo_bpm,
+            track_name=f"midikeep take: {device_str}",
+        )
+
+        tmp_file = self.target_file.with_suffix(".tmp")
+        with open(tmp_file, "wb") as f:
+            f.write(midi_data)
+        tmp_file.replace(self.target_file)
+
+        # 3. Compute stats & update DB
+        end_wall_time = datetime.now(timezone.utc)
+        duration_seconds = max(0.0, now_mono - self.start_mono_time)
+        key_sig = estimate_key(self.all_notes)
+
+        db.insert_session(
+            start_time=self.start_wall_time.isoformat(),
+            end_time=end_wall_time.isoformat(),
+            duration_seconds=duration_seconds,
+            active_play_seconds=self.active_play_seconds,
+            note_count=self.note_count,
+            device_name=device_str,
+            file_path=str(self.target_file),
+            key_signature=key_sig,
+            tempo_bpm=self.tempo_bpm,
+        )
+
+        # 4. Clean up journal file
+        if self.journal_handle:
+            try:
+                self.journal_handle.close()
+            except Exception:
+                pass
+            self.journal_handle = None
+
+        try:
+            if self.journal_file.exists():
+                self.journal_file.unlink()
+        except Exception as e:
+            logger.warning("Could not unlink journal file %s: %s", self.journal_file, e)
+
+        logger.info(
+            "Finalized session -> %s (Notes: %d, Duration: %.1fs, Active: %.1fs, Key: %s)",
+            self.target_file,
+            self.note_count,
+            duration_seconds,
+            self.active_play_seconds,
+            key_sig or "Unknown",
+        )
+        return str(self.target_file)
+
+
+# ---------------------------------------------------------------------------
+# Journal Recovery on Startup
+# ---------------------------------------------------------------------------
+
+def recover_orphaned_journals(journal_dir: Path, db: DatabaseIndex):
+    """Recover and finalize any uncompleted sessions from daemon crashes/reboots."""
+    if not journal_dir.exists():
+        return
+
+    import json
+    for jfile in journal_dir.glob("*.journal"):
+        logger.info("Found orphaned journal: %s. Attempting recovery...", jfile.name)
+        try:
+            events: list[tuple[float, bytes]] = []
+            all_notes: list[int] = []
+            active_notes: set[tuple[int, int]] = set()
+            start_wall = None
+            start_mono = None
+            device_name = "Unknown Device"
+            file_path = None
+            tempo_bpm = DEFAULT_TEMPO_BPM
+            division = DEFAULT_DIVISION
+
+            with open(jfile, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    rec = json.loads(line)
+                    if rec.get("type") == "init":
+                        start_wall = rec.get("start_wall")
+                        start_mono = rec.get("start_mono", 0.0)
+                        device_name = rec.get("device_name", device_name)
+                        file_path = rec.get("file_path")
+                        tempo_bpm = rec.get("tempo_bpm", tempo_bpm)
+                        division = rec.get("division", division)
+                    elif rec.get("type") == "ev":
+                        dt = float(rec.get("dt", 0.0))
+                        raw = bytes.fromhex(rec["hex"])
+                        events.append((dt, raw))
+                        status = raw[0]
+                        mtype = status & 0xF0
+                        ch = status & 0x0F
+                        if mtype == 0x90 and len(raw) >= 3:
+                            note, vel = raw[1], raw[2]
+                            if vel > 0:
+                                all_notes.append(note)
+                                active_notes.add((ch, note))
+                            else:
+                                active_notes.discard((ch, note))
+                        elif mtype == 0x80 and len(raw) >= 3:
+                            active_notes.discard((ch, raw[1]))
+
+            if not events or not all_notes or not file_path:
+                logger.warning("Journal %s contains insufficient data; removing.", jfile.name)
+                jfile.unlink()
+                continue
+
+            for ch, n in active_notes:
+                events.append((0.0, bytes([0x80 | (ch & 0x0F), n & 0x7F, 64])))
+
+            target_path = Path(file_path)
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+            midi_bytes = build_midi_file(
+                events, division=division, tempo_bpm=tempo_bpm, track_name=f"midikeep recovered: {device_name}"
+            )
+            with open(target_path, "wb") as mf:
+                mf.write(midi_bytes)
+
+            total_duration = sum(dt for dt, _ in events)
+            key_sig = estimate_key(all_notes)
+            start_time_iso = start_wall or datetime.now(timezone.utc).isoformat()
+            end_time_iso = datetime.now(timezone.utc).isoformat()
+
+            db.insert_session(
+                start_time=start_time_iso,
+                end_time=end_time_iso,
+                duration_seconds=total_duration,
+                active_play_seconds=total_duration,
+                note_count=len(all_notes),
+                device_name=device_name,
+                file_path=str(target_path),
+                key_signature=key_sig,
+                tempo_bpm=tempo_bpm,
+                notes="Recovered after system restart",
+            )
+            jfile.unlink()
+            logger.info("Successfully recovered orphaned session to %s", target_path)
+        except Exception as e:
+            logger.error("Failed to recover journal %s: %s", jfile.name, e)
+
+
+# ---------------------------------------------------------------------------
+# ALSA Sequencer Client Implementation (libasound2 via ctypes)
+# ---------------------------------------------------------------------------
+
+class pollfd(ctypes.Structure):
+    _fields_ = [
+        ("fd", ctypes.c_int),
+        ("events", ctypes.c_short),
+        ("revents", ctypes.c_short),
+    ]
+
+
+class AlsaSequencerManager:
+    def __init__(self, client_name: str = "midikeep"):
+        self.asound = ctypes.CDLL("libasound.so.2")
+        self.client_name = client_name
+        self.seq = ctypes.c_void_p()
+        self.parser = ctypes.c_void_p()
+        self.my_client_id: int = -1
+        self.my_port_id: int = -1
+
+        self.connected_sources: dict[tuple[int, int], str] = {}
+        self.client_names: dict[int, str] = {}
+
+        self._init_alsa()
+
+    def _init_alsa(self):
+        err = self.asound.snd_seq_open(ctypes.byref(self.seq), b"default", SND_SEQ_OPEN_DUPLEX, SND_SEQ_NONBLOCK)
+        if err != 0 or not self.seq.value:
+            raise RuntimeError(f"snd_seq_open failed with error code: {err}")
+
+        self.asound.snd_seq_set_client_name(self.seq, self.client_name.encode("utf-8"))
+        self.my_client_id = self.asound.snd_seq_client_id(self.seq)
+
+        caps = SND_SEQ_PORT_CAP_WRITE | SND_SEQ_PORT_CAP_SUBS_WRITE
+        ptype = SND_SEQ_PORT_TYPE_APPLICATION | SND_SEQ_PORT_TYPE_MIDI_GENERIC
+        self.my_port_id = self.asound.snd_seq_create_simple_port(
+            self.seq, b"in", caps, ptype
+        )
+        if self.my_port_id < 0:
+            raise RuntimeError(f"snd_seq_create_simple_port failed: {self.my_port_id}")
+
+        # Connect to system announcements (Client 0, Port 1)
+        self.asound.snd_seq_connect_from(self.seq, self.my_port_id, 0, 1)
+
+        # Initialize MIDI event parser
+        self.asound.snd_midi_event_new(ctypes.c_size_t(256), ctypes.byref(self.parser))
+        self.asound.snd_midi_event_decode.restype = ctypes.c_long
+        self.asound.snd_midi_event_decode.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_void_p,
+            ctypes.c_long,
+            ctypes.c_void_p,
+        ]
+
+        logger.info(
+            "ALSA Sequencer initialized: client %d, port %d (%s:in)",
+            self.my_client_id,
+            self.my_port_id,
+            self.client_name,
+        )
+
+    def scan_and_connect_ports(self, blacklist: list[str] | None = None) -> list[str]:
+        blacklist = blacklist or []
+        newly_connected = []
+
+        cinfo_p = ctypes.c_void_p()
+        pinfo_p = ctypes.c_void_p()
+        self.asound.snd_seq_client_info_malloc(ctypes.byref(cinfo_p))
+        self.asound.snd_seq_port_info_malloc(ctypes.byref(pinfo_p))
+
+        self.asound.snd_seq_client_info_get_name.restype = ctypes.c_char_p
+        self.asound.snd_seq_port_info_get_name.restype = ctypes.c_char_p
+
+        try:
+            self.asound.snd_seq_client_info_set_client(cinfo_p, -1)
+            while self.asound.snd_seq_query_next_client(self.seq, cinfo_p) == 0:
+                cid = self.asound.snd_seq_client_info_get_client(cinfo_p)
+                cname = self.asound.snd_seq_client_info_get_name(cinfo_p).decode("utf-8", errors="ignore")
+                self.client_names[cid] = cname
+
+                if cid == self.my_client_id or cid == 0:
+                    continue
+
+                if any(b.lower() in cname.lower() for b in blacklist):
+                    continue
+
+                self.asound.snd_seq_port_info_set_client(pinfo_p, cid)
+                self.asound.snd_seq_port_info_set_port(pinfo_p, -1)
+
+                while self.asound.snd_seq_query_next_port(self.seq, pinfo_p) == 0:
+                    pid = self.asound.snd_seq_port_info_get_port(pinfo_p)
+                    pname = self.asound.snd_seq_port_info_get_name(pinfo_p).decode("utf-8", errors="ignore")
+                    caps = self.asound.snd_seq_port_info_get_capability(pinfo_p)
+
+                    is_readable = (caps & SND_SEQ_PORT_CAP_READ) and (caps & SND_SEQ_PORT_CAP_SUBS_READ)
+                    if is_readable:
+                        key = (cid, pid)
+                        if key not in self.connected_sources:
+                            res = self.asound.snd_seq_connect_from(self.seq, self.my_port_id, cid, pid)
+                            if res == 0:
+                                label = f"{cname} ({pname})"
+                                self.connected_sources[key] = label
+                                newly_connected.append(label)
+                                logger.info("Subscribed to MIDI input: %s [%d:%d]", label, cid, pid)
+                            else:
+                                logger.debug("Failed subscribing to [%d:%d]: code %d", cid, pid, res)
+
+        finally:
+            self.asound.snd_seq_client_info_free(cinfo_p)
+            self.asound.snd_seq_port_info_free(pinfo_p)
+
+        return newly_connected
+
+    def get_poll_descriptors(self) -> list[tuple[int, int]]:
+        count = self.asound.snd_seq_poll_descriptors_count(self.seq, select.POLLIN)
+        if count <= 0:
+            return []
+        pfd_array = (pollfd * count)()
+        self.asound.snd_seq_poll_descriptors(self.seq, pfd_array, count, select.POLLIN)
+        return [(pfd_array[i].fd, pfd_array[i].events) for i in range(count)]
+
+    def read_event(self) -> tuple[int, tuple[int, int], bytes | None] | None:
+        ev_ptr = ctypes.c_void_p()
+        err = self.asound.snd_seq_event_input(self.seq, ctypes.byref(ev_ptr))
+        if err < 0 or not ev_ptr.value:
+            return None
+
+        raw_ev = (ctypes.c_ubyte * 16).from_address(ev_ptr.value)
+        ev_type = raw_ev[0]
+        src_client = raw_ev[12]
+        src_port = raw_ev[13]
+        src_addr = (src_client, src_port)
+
+        if ev_type in (
+            SNDRV_SEQ_EVENT_CLIENT_START,
+            SNDRV_SEQ_EVENT_CLIENT_EXIT,
+            SNDRV_SEQ_EVENT_CLIENT_CHANGE,
+            SNDRV_SEQ_EVENT_PORT_START,
+            SNDRV_SEQ_EVENT_PORT_EXIT,
+            SNDRV_SEQ_EVENT_PORT_CHANGE,
+            SNDRV_SEQ_EVENT_PORT_SUBSCRIBED,
+            SNDRV_SEQ_EVENT_PORT_UNSUBSCRIBED,
+        ):
+            return (ev_type, src_addr, None)
+
+        out_buf = (ctypes.c_ubyte * 256)()
+        n = self.asound.snd_midi_event_decode(self.parser, out_buf, 256, ev_ptr)
+        if n > 0:
+            return (ev_type, src_addr, bytes(out_buf[:n]))
+
+        return (ev_type, src_addr, None)
+
+    def get_source_device_name(self, src_addr: tuple[int, int]) -> str:
+        if src_addr in self.connected_sources:
+            return self.connected_sources[src_addr]
+        cid, _ = src_addr
+        return self.client_names.get(cid, f"Client-{cid}")
+
+    def close(self):
+        if self.parser and self.parser.value:
+            self.asound.snd_midi_event_free(self.parser)
+            self.parser = ctypes.c_void_p()
+        if self.seq and self.seq.value:
+            self.asound.snd_seq_close(self.seq)
+            self.seq = ctypes.c_void_p()
+
+
+# ---------------------------------------------------------------------------
+# Daemon Main Loop & Signal Management
+# ---------------------------------------------------------------------------
+
+class MidikeepDaemon:
+    def __init__(self, data_dir: Path | None = None, config_path: Path | None = None, silence_threshold: float | None = None):
+        paths = get_default_paths()
+        self.data_dir = data_dir or paths["data_dir"]
+        self.sessions_dir = self.data_dir / "sessions"
+        self.journal_dir = self.data_dir / "journal"
+        self.db_path = self.data_dir / "index.db"
+        self.config_path = config_path or paths["config_path"]
+
+        self.config = load_config(self.config_path)
+        if silence_threshold is not None:
+            self.config["silence_threshold_seconds"] = float(silence_threshold)
+
+        self.db = DatabaseIndex(self.db_path)
+        self.running = False
+        self.alsa: AlsaSequencerManager | None = None
+        self.active_session: ActiveSession | None = None
+        self.last_journal_flush = time.monotonic()
+
+    def handle_signal(self, signum, frame):
+        logger.info("Received termination signal %d. Shutting down gracefully...", signum)
+        self.running = False
+
+    def run(self):
+        signal.signal(signal.SIGINT, self.handle_signal)
+        signal.signal(signal.SIGTERM, self.handle_signal)
+
+        recover_orphaned_journals(self.journal_dir, self.db)
+
+        self.alsa = AlsaSequencerManager(client_name="midikeep")
+        self.alsa.scan_and_connect_ports(blacklist=self.config.get("device_blacklist"))
+
+        poller = select.poll()
+        for fd, ev_mask in self.alsa.get_poll_descriptors():
+            poller.register(fd, ev_mask)
+
+        self.running = True
+        logger.info(
+            "Midikeep Daemon started successfully. Silence threshold: %ds. Storage: %s",
+            int(self.config["silence_threshold_seconds"]),
+            self.data_dir,
+        )
+
+        silence_threshold = float(self.config["silence_threshold_seconds"])
+        journal_interval = float(self.config["journal_interval_seconds"])
+        log_midi_clock = bool(self.config.get("log_midi_clock", False))
+
+        while self.running:
+            try:
+                poll_results = poller.poll(1000)
+            except InterruptedError:
+                break
+            except Exception as e:
+                logger.error("Error during poll: %s", e)
+                break
+
+            now_mono = time.monotonic()
+
+            if poll_results:
+                while True:
+                    ev = self.alsa.read_event()
+                    if not ev:
+                        break
+
+                    ev_type, src_addr, midi_bytes = ev
+
+                    if ev_type in (
+                        SNDRV_SEQ_EVENT_CLIENT_START,
+                        SNDRV_SEQ_EVENT_CLIENT_EXIT,
+                        SNDRV_SEQ_EVENT_CLIENT_CHANGE,
+                        SNDRV_SEQ_EVENT_PORT_START,
+                        SNDRV_SEQ_EVENT_PORT_EXIT,
+                        SNDRV_SEQ_EVENT_PORT_CHANGE,
+            SNDRV_SEQ_EVENT_PORT_SUBSCRIBED,
+            SNDRV_SEQ_EVENT_PORT_UNSUBSCRIBED,
+                    ):
+                        logger.info("ALSA system announcement received (event %d). Rescanning ports...", ev_type)
+                        self.alsa.scan_and_connect_ports(blacklist=self.config.get("device_blacklist"))
+                        continue
+
+                    if not midi_bytes:
+                        continue
+
+                    status = midi_bytes[0]
+                    if not log_midi_clock and status in (0xF8, 0xFE):
+                        continue
+
+                    msg_type = status & 0xF0
+                    is_note_on = (msg_type == 0x90 and len(midi_bytes) >= 3 and midi_bytes[2] > 0)
+
+                    if self.active_session is None:
+                        if is_note_on:
+                            dev_name = self.alsa.get_source_device_name(src_addr)
+                            logger.info("First Note-On received from %s. Starting new session!", dev_name)
+                            self.active_session = ActiveSession(
+                                start_wall_time=datetime.now(timezone.utc),
+                                start_mono_time=now_mono,
+                                device_name=dev_name,
+                                sessions_dir=self.sessions_dir,
+                                journal_dir=self.journal_dir,
+                                division=int(self.config.get("division", DEFAULT_DIVISION)),
+                                tempo_bpm=float(self.config.get("tempo_bpm", DEFAULT_TEMPO_BPM)),
+                            )
+                            self.active_session.record_event(midi_bytes, now_mono, dev_name)
+                    else:
+                        dev_name = self.alsa.get_source_device_name(src_addr)
+                        self.active_session.record_event(midi_bytes, now_mono, dev_name)
+
+            if self.active_session is not None:
+                silence_elapsed = now_mono - self.active_session.last_note_mono
+                if silence_elapsed >= silence_threshold:
+                    logger.info("Silence threshold of %ds reached. Finalizing session.", int(silence_threshold))
+                    self.active_session.finalize(self.db, now_mono)
+                    self.active_session = None
+
+                elif now_mono - self.last_journal_flush >= journal_interval:
+                    self.active_session.flush_journal()
+                    self.last_journal_flush = now_mono
+
+        if self.active_session is not None:
+            logger.info("Daemon stopping; finalizing active session...")
+            self.active_session.finalize(self.db, time.monotonic())
+            self.active_session = None
+
+        if self.alsa:
+            self.alsa.close()
+            self.alsa = None
+
+        logger.info("Midikeep Daemon exited cleanly.")
+
+
+# ---------------------------------------------------------------------------
+# Entry Point
+# ---------------------------------------------------------------------------
+
+def main():
+    parser = argparse.ArgumentParser(description="Midikeep Background MIDI Recording Engine")
+    parser.add_argument("--data-dir", type=Path, help="Override root midikeep data directory")
+    parser.add_argument("--config", type=Path, help="Override path to config.yaml")
+    parser.add_argument("--silence-threshold", type=float, help="Override silence threshold in seconds")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose debug logging")
+    parser.add_argument("-f", "--foreground", action="store_true", help="Run in foreground (default for systemd)")
+
+    args = parser.parse_args()
+
+    log_level = logging.DEBUG if args.verbose else logging.INFO
+    logging.basicConfig(
+        level=log_level,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+    daemon = MidikeepDaemon(
+        data_dir=args.data_dir,
+        config_path=args.config,
+        silence_threshold=args.silence_threshold,
+    )
+    daemon.run()
+
+
+if __name__ == "__main__":
+    main()
