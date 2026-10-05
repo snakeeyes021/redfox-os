@@ -775,11 +775,25 @@ configure-xway-scale-on:
     gsettings set org.gnome.mutter.wayland xwayland-scaling-factor 0.0
     echo "Enabled xwayland-native-scaling (forced factor to 0.0)"
 
+# Enable Midikeep background MIDI recording engine
+enable-midikeep:
+    systemctl --user enable --now midikeep.service
+    echo "Midikeep service enabled and started."
+
+# Disable Midikeep background MIDI recording engine
+disable-midikeep:
+    systemctl --user disable --now midikeep.service
+    echo "Midikeep service disabled and stopped."
+
+# Configure Music Production / Audio Workstation
+configure-music: enable-midikeep
+    echo "Configured music workstation."
+
 # Configure Dev Environment
 configure-dev: configure-vscode configure-cursor configure-antigravity
 
 # Configure Matt's Environment
-configure-matt: redfox-enforce-config apply-hardware-quirks add-swap configure-nordvpn reset-hostname configure-keybindings-default configure-dev configure-text-editor-dev configure-terminal-default configure-powersaver-no-suspend configure-xway-scale-off
+configure-matt: redfox-enforce-config apply-hardware-quirks add-swap configure-nordvpn reset-hostname configure-keybindings-default configure-dev configure-text-editor-dev configure-terminal-default configure-powersaver-no-suspend configure-xway-scale-off configure-music
     mkdir -p ~/dev
     gnome-extensions enable unblank@sun.wxg@gmail.com
     # just runs hardware atoms here eventually
