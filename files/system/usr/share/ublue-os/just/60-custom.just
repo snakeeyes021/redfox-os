@@ -785,8 +785,46 @@ disable-midikeep:
     systemctl --user disable --now midikeep.service
     echo "Midikeep service disabled and stopped."
 
+# Mark active Midikeep take with a Clapper flag (★)
+mark-midikeep:
+    /usr/bin/midikeep mark
+
+# Restart Midikeep session / finalize current take immediately
+restart-midikeep:
+    /usr/bin/midikeep restart
+
+# Configure Midikeep global key shortcuts (<Ctrl><Alt><Super>k and <Ctrl><Alt><Super>r)
+configure-midikeep-shortcuts:
+    #!/usr/bin/python3
+    import subprocess
+    import ast
+
+    def set_slot(slot, name, cmd, binding):
+        base = f"/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/{slot}/"
+        subprocess.run(["dconf", "write", f"{base}name", f"'{name}'"])
+        subprocess.run(["dconf", "write", f"{base}command", f"'{cmd}'"])
+        subprocess.run(["dconf", "write", f"{base}binding", f"'{binding}'"])
+        return base
+
+    out = subprocess.check_output(
+        ["gsettings", "get", "org.gnome.settings-daemon.plugins.media-keys", "custom-keybindings"],
+        text=True,
+    ).strip()
+    bindings = ast.literal_eval(out) if out.startswith("[") else []
+
+    p1 = set_slot("midikeep-mark", "Midikeep Mark Take (Clapper)", "/usr/bin/midikeep mark", "<Control><Alt><Super>k")
+    p2 = set_slot("midikeep-restart", "Midikeep Restart Take", "/usr/bin/midikeep restart", "<Control><Alt><Super>r")
+
+    for p in [p1, p2]:
+        if p not in bindings:
+            bindings.append(p)
+
+    val = "[" + ", ".join(f"'{b}'" for b in bindings) + "]"
+    subprocess.run(["dconf", "write", "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings", val])
+    print("Configured Midikeep shortcuts: <Control><Alt><Super>k (Clapper) and <Control><Alt><Super>r (Restart)")
+
 # Configure Music Production / Audio Workstation
-configure-music: enable-midikeep
+configure-music: enable-midikeep configure-midikeep-shortcuts
     echo "Configured music workstation."
 
 # Configure Dev Environment

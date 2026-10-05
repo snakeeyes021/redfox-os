@@ -16,6 +16,12 @@ loader = importlib.machinery.SourceFileLoader("midikeep_daemon", str(daemon_path
 spec = importlib.util.spec_from_loader("midikeep_daemon", loader)
 daemon = importlib.util.module_from_spec(spec)
 loader.exec_module(daemon)
+cli_path = Path(__file__).resolve().parent.parent / "files" / "system" / "usr" / "bin" / "midikeep"
+cli_loader = importlib.machinery.SourceFileLoader("midikeep_cli", str(cli_path))
+cli_spec = importlib.util.spec_from_loader("midikeep_cli", cli_loader)
+midikeep_cli = importlib.util.module_from_spec(cli_spec)
+cli_loader.exec_module(midikeep_cli)
+
 
 
 class TestDatabaseIndex(unittest.TestCase):
@@ -278,12 +284,22 @@ class TestLiveDaemonE2E(unittest.TestCase):
             text=True,
         )
         try:
-            time.sleep(0.6)
-            out = subprocess.check_output(["aplaymidi", "-l"], text=True)
+            time.sleep(0.8)
+            pid_file = test_dir / "midikeep.pid"
+            test_pid = pid_file.read_text().strip() if pid_file.exists() else str(proc.pid)
+            
+            # Use aconnect -l to find client matching test_pid
+            out = subprocess.check_output(["aconnect", "-l"], text=True)
             midikeep_port = None
+            current_client = None
             for line in out.splitlines():
-                if "midikeep" in line:
-                    midikeep_port = line.split()[0]
+                if line.startswith("client "):
+                    cid = line.split()[1].rstrip(":")
+                    if f"pid={test_pid}" in line:
+                        current_client = cid
+                elif current_client and "in" in line:
+                    pid = line.split()[0]
+                    midikeep_port = f"{current_client}:{pid}"
                     break
             self.assertIsNotNone(midikeep_port, "Could not find midikeep port")
 
@@ -325,6 +341,131 @@ class TestLiveDaemonE2E(unittest.TestCase):
             except Exception:
                 proc.kill()
             shutil.rmtree(test_dir)
+
+
+class TestMarkerAndRestart(unittest.TestCase):
+    def setUp(self):
+        self.temp_dir = tempfile.mkdtemp()
+        self.data_dir = Path(self.temp_dir)
+        self.sessions_dir = self.data_dir / "sessions"
+        self.journal_dir = self.data_dir / "journal"
+        self.db = daemon.DatabaseIndex(self.data_dir / "index.db")
+
+    def tearDown(self):
+        shutil.rmtree(self.temp_dir)
+
+    def test_marker_meta_event_and_starring(self):
+        start_wall = datetime.now(timezone.utc)
+        mono_t = 1000.0
+
+        session = daemon.ActiveSession(
+            start_wall_time=start_wall,
+            start_mono_time=mono_t,
+            device_name="Test Controller",
+            sessions_dir=self.sessions_dir,
+            journal_dir=self.journal_dir,
+        )
+
+        mono_t += 0.2
+        session.record_event(bytes([0x90, 60, 100]), mono_t)
+        mono_t += 0.5
+        # Add clapper marker
+        session.add_marker("Clapper ★", mono_t)
+        self.assertTrue(session.starred)
+        self.assertIn("Clapper ★", session.markers)
+
+        mono_t += 0.5
+        session.record_event(bytes([0x80, 60, 64]), mono_t)
+        final_file = session.finalize(self.db, mono_t)
+
+        # Verify MIDI file contains standard MIDI marker 0xFF 0x06
+        data = Path(final_file).read_bytes()
+        self.assertIn(b"\xFF\x06", data)
+        self.assertIn("Clapper".encode("utf-8"), data)
+
+        # Verify database entry has starred = 1
+        with self.db._get_connection() as conn:
+            row = conn.execute("SELECT * FROM sessions WHERE file_path = ?", (final_file,)).fetchone()
+            self.assertEqual(row["starred"], 1)
+            self.assertIn("Clapper", row["notes"])
+
+    def test_running_status_restoration(self):
+        start_wall = datetime.now(timezone.utc)
+        mono_t = 1000.0
+
+        session = daemon.ActiveSession(
+            start_wall_time=start_wall,
+            start_mono_time=mono_t,
+            device_name="Test Controller",
+            sessions_dir=self.sessions_dir,
+            journal_dir=self.journal_dir,
+        )
+
+        # 1. Full Note-On 0x90
+        session.record_event(bytes([0x90, 60, 100]), mono_t)
+        # 2. Stripped running status event (only data bytes 62, 90)
+        session.record_event(bytes([62, 90]), mono_t + 0.1)
+
+        # Both notes should be registered
+        self.assertEqual(session.note_count, 2)
+        self.assertIn((0, 60), session.active_notes)
+        self.assertIn((0, 62), session.active_notes)
+        if session.journal_handle:
+            session.journal_handle.close()
+
+
+class TestCliCommands(unittest.TestCase):
+    def setUp(self):
+        self.temp_dir = tempfile.mkdtemp()
+        self.data_dir = Path(self.temp_dir)
+        self.db_path = self.data_dir / "index.db"
+        self.db = daemon.DatabaseIndex(self.db_path)
+        self.paths = {
+            "data_dir": self.data_dir,
+            "sessions_dir": self.data_dir / "sessions",
+            "journal_dir": self.data_dir / "journal",
+            "db_path": self.db_path,
+            "pid_file": self.data_dir / "midikeep.pid",
+            "config_path": self.data_dir / "config.yaml",
+        }
+
+    def tearDown(self):
+        shutil.rmtree(self.temp_dir)
+
+    def test_cli_star_and_list(self):
+        # Insert a session
+        fake_file = self.data_dir / "fake.mid"
+        fake_file.write_bytes(b"MThd")
+        sid = self.db.insert_session(
+            start_time="2026-10-05T12:00:00+00:00",
+            end_time="2026-10-05T12:05:00+00:00",
+            duration_seconds=300.0,
+            active_play_seconds=250.0,
+            note_count=100,
+            device_name="Keystation",
+            file_path=str(fake_file),
+            key_signature="C Major",
+            starred=False,
+        )
+
+        # Test starring via CLI handler
+        class Args:
+            pass
+
+        args = Args()
+        args.session_id = sid
+        midikeep_cli.cmd_star(args, self.paths)
+
+        with self.db._get_connection() as conn:
+            row = conn.execute("SELECT starred FROM sessions WHERE id = ?", (sid,)).fetchone()
+            self.assertEqual(row["starred"], 1)
+
+        # Test export
+        export_dest = self.data_dir / "exported.mid"
+        args.output = str(export_dest)
+        midikeep_cli.cmd_export(args, self.paths)
+        self.assertTrue(export_dest.exists())
+        self.assertEqual(export_dest.read_bytes(), b"MThd")
 
 if __name__ == "__main__":
     unittest.main()
