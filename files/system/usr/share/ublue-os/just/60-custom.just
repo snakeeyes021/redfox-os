@@ -165,6 +165,24 @@ install-soundthread:
 uninstall-soundthread:
     /usr/bin/uninstall-soundthread
 
+# Install Pianola (MIDI viewer & archive playback Flatpak)
+install-pianola:
+    #!/usr/bin/bash
+    set -euo pipefail
+    TEMP_BUNDLE=$(mktemp --suffix=.flatpak)
+    trap 'rm -f "$TEMP_BUNDLE"' EXIT
+    echo "Downloading Pianola Flatpak bundle..."
+    curl -sL https://github.com/snakeeyes021/pianola/releases/latest/download/tech.redfoxlabs.Pianola.flatpak -o "$TEMP_BUNDLE"
+    echo "Installing Pianola..."
+    flatpak install --user -y --noninteractive --or-update "$TEMP_BUNDLE"
+    echo "Pianola installed successfully!"
+
+# Uninstall Pianola
+uninstall-pianola:
+    echo "Uninstalling Pianola..."
+    flatpak uninstall --user -y tech.redfoxlabs.Pianola
+    echo "Pianola uninstalled successfully!"
+
 # Run complete system, Flatpak, Brew, and application updates via Topgrade
 [group("system")]
 update:
@@ -602,7 +620,7 @@ install-daily:
         com.spotify.Client
 
 # Install Audio Production Apps
-install-audio: install-soundthread
+install-audio: install-soundthread install-pianola
     flatpak install -y flathub \
         org.ardour.Ardour \
         info.puredata.Pd \
