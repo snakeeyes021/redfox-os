@@ -30,7 +30,17 @@ update:
             echo "=================================================="
         fi
 
-        if rpm-ostree status 2>/dev/null | grep -qi "staged"; then
+        # Check if a new OS deployment was staged/pending reboot
+        HAS_STAGED=false
+        if rpm-ostree status --json 2>/dev/null | jq -e '.deployments[0].booted == false' >/dev/null 2>&1; then
+            HAS_STAGED=true
+        elif rpm-ostree status 2>/dev/null | awk '/^Deployments:/{flag=1; next} flag && /^  / {if ($1 != "●") exit 0; else exit 1}'; then
+            HAS_STAGED=true
+        elif rpm-ostree status 2>/dev/null | grep -qi "staged"; then
+            HAS_STAGED=true
+        fi
+
+        if [ "$HAS_STAGED" = true ]; then
             echo " 🎉 System update complete! A new OS deployment is staged."
             echo "    Updates will take full effect after a reboot."
             echo "=================================================="
