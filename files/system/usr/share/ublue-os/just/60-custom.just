@@ -184,10 +184,53 @@ uninstall-pianola:
 [group("system")]
 update:
     #!/usr/bin/bash
+    set -euo pipefail
+
+    /usr/bin/topgrade --config /usr/share/ublue-os/topgrade.toml
+
+    # In interactive terminals, inspect staged state and prompt user
     if [[ -t 0 && -t 1 ]]; then
-        /usr/bin/topgrade --config /usr/share/ublue-os/topgrade.toml --keep
-    else
-        /usr/bin/topgrade --config /usr/share/ublue-os/topgrade.toml
+        echo ""
+        echo "=================================================="
+
+        if rpm-ostree status 2>/dev/null | grep -qi "staged"; then
+            echo " 🎉 System update complete! A new OS deployment is staged."
+            echo "    Updates will take full effect after a reboot."
+            echo "=================================================="
+            echo ""
+            while true; do
+                read -r -p "Choose an action: [r]eboot, [d]iff, [c]hangelog, [q]uit (default: q): " CHOICE
+                case "${CHOICE,,}" in
+                    r|reboot)
+                        echo "Rebooting..."
+                        systemctl reboot
+                        break
+                        ;;
+                    d|diff)
+                        echo ""
+                        rpm-ostree db diff || true
+                        echo ""
+                        ;;
+                    c|changelog|changelogs)
+                        echo ""
+                        (just changelogs 2>/dev/null || ujust changelogs 2>/dev/null || echo "No changelog available.")
+                        echo ""
+                        ;;
+                    q|quit|"")
+                        echo "Exiting. Remember to reboot when convenient."
+                        break
+                        ;;
+                    *)
+                        echo "Invalid choice. Please enter 'r', 'd', 'c', or 'q'."
+                        ;;
+                esac
+            done
+        else
+            echo " 🎉 System & application updates complete!"
+            echo "=================================================="
+            echo ""
+            read -r -p "Press [Enter] to close this window..." _
+        fi
     fi
 
 # Run the optional Bazzite graphical updater
