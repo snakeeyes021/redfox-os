@@ -14,3 +14,4 @@ rpm_ostree = true
 [commands]
 "SoundThread" = "just install-soundthread"
 "Gearlever" = "just update-appimages"
+"RedFox Apps" = "/usr/bin/update-redfox-apps"
