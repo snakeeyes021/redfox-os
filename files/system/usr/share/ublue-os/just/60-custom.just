@@ -165,15 +165,20 @@ install-soundthread:
 uninstall-soundthread:
     /usr/bin/uninstall-soundthread
 
-# Run complete system, Flatpak, Brew, and application updates via Topgrade
-[group("system")]
-update:
-    #!/usr/bin/bash
-    if [[ -t 0 && -t 1 ]]; then
-        /usr/bin/topgrade --config /usr/share/ublue-os/topgrade.toml --keep
-    else
-        /usr/bin/topgrade --config /usr/share/ublue-os/topgrade.toml
-    fi
+# Update all installed RedFox Labs applications
+update-redfox-apps:
+    /usr/bin/update-redfox-apps
+
+# Install Pianola (MIDI viewer & archive playback Flatpak)
+install-pianola:
+    /usr/bin/update-redfox-apps tech.redfoxlabs.Pianola
+
+# Uninstall Pianola
+uninstall-pianola:
+    echo "Uninstalling Pianola..."
+    flatpak uninstall --user -y tech.redfoxlabs.Pianola
+    rm -f "${XDG_DATA_HOME:-$HOME/.local/share}/redfox-apps/tech.redfoxlabs.Pianola.tag"
+    echo "Pianola uninstalled successfully!"
 
 # Run the optional Bazzite graphical updater
 update-gui:
@@ -602,7 +607,7 @@ install-daily:
         com.spotify.Client
 
 # Install Audio Production Apps
-install-audio: install-soundthread
+install-audio: install-soundthread install-pianola
     flatpak install -y flathub \
         org.ardour.Ardour \
         info.puredata.Pd \
@@ -775,11 +780,68 @@ configure-xway-scale-on:
     gsettings set org.gnome.mutter.wayland xwayland-scaling-factor 0.0
     echo "Enabled xwayland-native-scaling (forced factor to 0.0)"
 
+# Enable Midikeep background MIDI recording engine
+enable-midikeep:
+    systemctl --user enable --now midikeep.service
+    echo "Midikeep service enabled and started."
+
+# Disable Midikeep background MIDI recording engine
+disable-midikeep:
+    systemctl --user disable --now midikeep.service
+    echo "Midikeep service disabled and stopped."
+
+# Mark active Midikeep take with a Clapper flag (★)
+mark-midikeep:
+    /usr/bin/midikeep mark
+
+# Prompt for comment and mark active Midikeep take (<Ctrl><Alt><Super>m)
+comment-midikeep:
+    /usr/bin/midikeep mark --interactive
+
+# Restart Midikeep session / finalize current take immediately
+restart-midikeep:
+    /usr/bin/midikeep restart
+
+# Configure Midikeep global key shortcuts (<Ctrl><Alt><Super>k, <Ctrl><Alt><Super>r, and <Ctrl><Alt><Super>m)
+configure-midikeep-shortcuts:
+    #!/usr/bin/python3
+    import subprocess
+    import ast
+
+    def set_slot(slot, name, cmd, binding):
+        base = f"/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/{slot}/"
+        subprocess.run(["dconf", "write", f"{base}name", f"'{name}'"])
+        subprocess.run(["dconf", "write", f"{base}command", f"'{cmd}'"])
+        subprocess.run(["dconf", "write", f"{base}binding", f"'{binding}'"])
+        return base
+
+    out = subprocess.check_output(
+        ["gsettings", "get", "org.gnome.settings-daemon.plugins.media-keys", "custom-keybindings"],
+        text=True,
+    ).strip()
+    bindings = ast.literal_eval(out) if out.startswith("[") else []
+
+    p1 = set_slot("midikeep-mark", "Midikeep Mark Take (Clapper)", "/usr/bin/midikeep mark", "<Control><Alt><Super>k")
+    p2 = set_slot("midikeep-restart", "Midikeep Restart Take", "/usr/bin/midikeep restart", "<Control><Alt><Super>r")
+    p3 = set_slot("midikeep-comment", "Midikeep Mark Take with Comment", "/usr/bin/midikeep mark --interactive", "<Control><Alt><Super>m")
+
+    for p in [p1, p2, p3]:
+        if p not in bindings:
+            bindings.append(p)
+
+    val = "[" + ", ".join(f"'{b}'" for b in bindings) + "]"
+    subprocess.run(["dconf", "write", "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings", val])
+    print("Configured Midikeep shortcuts: <Control><Alt><Super>k (Clapper), <Control><Alt><Super>r (Restart), <Control><Alt><Super>m (Comment)")
+
+# Configure Music Production / Audio Workstation
+configure-music: enable-midikeep configure-midikeep-shortcuts
+    echo "Configured music workstation."
+
 # Configure Dev Environment
 configure-dev: configure-vscode configure-cursor configure-antigravity
 
 # Configure Matt's Environment
-configure-matt: redfox-enforce-config apply-hardware-quirks add-swap configure-nordvpn reset-hostname configure-keybindings-default configure-dev configure-text-editor-dev configure-terminal-default configure-powersaver-no-suspend configure-xway-scale-off
+configure-matt: redfox-enforce-config apply-hardware-quirks add-swap configure-nordvpn reset-hostname configure-keybindings-default configure-dev configure-text-editor-dev configure-terminal-default configure-powersaver-no-suspend configure-xway-scale-off configure-music
     mkdir -p ~/dev
     gnome-extensions enable unblank@sun.wxg@gmail.com
     # just runs hardware atoms here eventually
