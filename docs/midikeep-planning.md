@@ -159,27 +159,27 @@ A companion command-line utility for status inspection, querying, live monitorin
   * `midikeep star <session_id>`: Flags a session as a favorite.
   * `midikeep prune --older-than <days>`: Optional manual cleanup (infinite retention remains default).
 
-### 2.2 The Graphical Interface (`midikeep-ui`)
-A lightweight, modern GTK4/Libadwaita application adhering to RedFoxOS aesthetics.
+### 2.2 The Graphical Interface: Pianola (`tech.redfoxlabs.Pianola`)
+A modern GTK4/Libadwaita desktop application adhering to GNOME Human Interface Guidelines (HIG).
 
+* **Repository:** `snakeeyes021/pianola`
+* **Distribution Model:** Standalone Flatpak bundle built via GitHub Actions and published via GitHub Releases (`tech.redfoxlabs.Pianola.flatpak`).
+* **OS Integration:** Integrated into RedFox via `ujust install-pianola` and chained into `ujust install-audio` (and `install-creative` / `install-matt`).
+* **Sandboxing & Permissions:**
+  * `--filesystem=xdg-data/midikeep:rw` (Direct access to `~/.local/share/midikeep/index.db` and sessions/journal)
+  * `--socket=pulseaudio`, `--socket=wayland`, `--socket=fallback-x11`
+  * Bundled FluidSynth 2.4.1 and `FluidR3_GM.sf2` SoundFont for instant playback
+  * File associations: `audio/midi;audio/x-midi;`
 * **Key Views & Features:**
   1. **Visual Timeline & Day Picker:**
      * Infinite vertical/horizontal scrolling calendar.
-     * Sessions are rendered as distinct blocks on a 24-hour strip, visually scaled by active note density.
-  2. **Interactive Piano Roll Preview:**
-     * Clicking any session renders a vector-based mini piano roll showing note pitches and durations over time.
-     * Integrated Audio Audition: Lightweight synthesizer (via FluidSynth / SoundFont or simple polyphonic engine) allows instant listening to the session right inside the app without launching a heavy DAW.
+     * Sessions rendered on a continuous strip, visual note density indicators.
+  2. **Interactive Piano Roll Preview & Playback:**
+     * Interactive vector piano roll with scrubbing, zooming, and playback via bundled FluidSynth.
   3. **Native Drag-and-Drop:**
-     * The musician can click and drag any session block directly out of the Midikeep window and drop it into:
-       * **Bitwig Studio**
-       * **Reaper**
-       * **Ardour**
-       * **Dorico / MuseScore**
-       * **Nautilus / File Manager**
+     * Direct drag-and-drop export to DAWs (Bitwig, Reaper, Ardour) and file managers.
   4. **Tagging & Curation:**
-     * Quick-tag sessions with tags (`melody`, `chords`, `riff`, `good take`).
-     * Star button to bookmark standout ideas.
-     * Rename session with a custom label (e.g. "Intro riff for Song B").
+     * Star button syncing with `index.db` starred status.
 
 ---
 
@@ -191,23 +191,23 @@ A lightweight, modern GTK4/Libadwaita application adhering to RedFoxOS aesthetic
 | `files/system/usr/bin/midikeep-daemon` | Core headless ALSA listener & silence clustering daemon |
 | `files/system/usr/bin/midikeep` | CLI control, export, and querying tool |
 | `files/system/usr/lib/systemd/user/midikeep.service` | Systemd user service unit (opt-in) |
-| `files/system/usr/share/applications/tech.redfoxlabs.midikeep.desktop` | Desktop launcher entry for `midikeep-ui` |
-| `recipes/_common-modules.yml` | Base RPM dependencies (`alsa-lib`, `python3-rtmidi` / `mido`) |
-| `files/system/usr/share/ublue-os/just/60-custom.just` | `enable-midikeep`, `disable-midikeep`, `configure-music` recipes |
+| `recipes/_common-modules.yml` | Base RPM dependencies (`alsa-utils`) |
+| `files/system/usr/share/ublue-os/just/60-custom.just` | `enable-midikeep`, `disable-midikeep`, `install-pianola`, `install-audio`, `configure-music` recipes |
 
-### Phase 1: Core Engine (Daemon + Storage)
+### Phase 1: Core Engine (Daemon + Storage) [COMPLETED]
 1. Implement `midikeep-daemon` with ALSA Sequencer port autoconnect.
-2. Implement 15-minute silence clustering logic and Type 0/1 MIDI writer.
-3. Wire SQLite indexer.
+2. Implement 15-minute silence clustering logic and Type 0 MIDI writer.
+3. Wire SQLite indexer (`index.db`) and crash journal (`journal/`).
 4. Add user systemd unit and `enable-midikeep`/`disable-midikeep` ujust recipes.
 5. Chain `enable-midikeep` into `configure-music` and `configure-matt`.
 
-### Phase 2: CLI Interface & Export Engine
-1. Implement `/usr/bin/midikeep` CLI with `status`, `list`, and `export`.
-2. Test end-to-end extraction into standard `.mid` files.
-3. Validate compatibility with Bitwig, Reaper, and Dorico.
+### Phase 2: CLI Interface & Export Engine [COMPLETED]
+1. Implement `/usr/bin/midikeep` CLI with `status`, `list`, `star`, and `export`.
+2. Verified end-to-end extraction and SMF Type 0 validity.
+3. Added `mark` (SIGUSR1 Clapper ★) and `restart` (SIGUSR2) commands.
+4. Configured GNOME shortcuts `Ctrl+Alt+Super+K` and `Ctrl+Alt+Super+R`.
 
-### Phase 3: GTK4 / Libadwaita GUI (`midikeep-ui`)
-1. Build Libadwaita UI with Timeline and Day Picker.
-2. Implement mini piano roll preview widget with basic audio playback.
-3. Implement XDS / Wayland drag-and-drop export protocol.
+### Phase 3: GTK4 / Libadwaita GUI: Pianola (`tech.redfoxlabs.Pianola`) [INTEGRATED]
+1. Packaged as GNOME 47 Flatpak bundle with FluidSynth.
+2. Added `ujust install-pianola` and `uninstall-pianola` to `60-custom.just`.
+3. Chained `install-pianola` into `ujust install-audio`.
