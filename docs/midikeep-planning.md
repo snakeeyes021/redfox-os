@@ -194,7 +194,9 @@ A modern GTK4/Libadwaita desktop application adhering to GNOME Human Interface G
 | `files/system/usr/bin/midikeep` | CLI control, export, and querying tool |
 | `files/system/usr/lib/systemd/user/midikeep.service` | Systemd user service unit (opt-in) |
 | `recipes/_common-modules.yml` | Base RPM dependencies (`alsa-utils`) |
-| `files/system/usr/share/ublue-os/just/60-custom.just` | `enable-midikeep`, `disable-midikeep`, `install-pianola`, `install-audio`, `configure-music` recipes |
+| `files/system/usr/bin/update-redfox-apps` | Unified updater for RedFox Labs Flatpak applications |
+| `files/system/usr/share/ublue-os/topgrade.toml` | Integrated `update-redfox-apps` into system update pipeline |
+| `files/system/usr/share/ublue-os/just/60-custom.just` | `enable-midikeep`, `disable-midikeep`, `install-pianola`, `update-redfox-apps`, `install-audio`, `configure-music` recipes |
 
 ### Phase 1: Core Engine (Daemon + Storage) [COMPLETED]
 1. Implement `midikeep-daemon` with ALSA Sequencer port autoconnect.
@@ -214,5 +216,7 @@ A modern GTK4/Libadwaita desktop application adhering to GNOME Human Interface G
 
 ### Phase 3: GTK4 / Libadwaita GUI: Pianola (`tech.redfoxlabs.Pianola`) [INTEGRATED]
 1. Packaged as GNOME 47 Flatpak bundle with FluidSynth.
-2. Added `ujust install-pianola` and `uninstall-pianola` to `60-custom.just`.
-3. Chained `install-pianola` into `ujust install-audio`.
+2. Added `files/system/usr/bin/update-redfox-apps` unified updater for RedFox Labs Flatpak applications.
+3. Integrated `update-redfox-apps` into `topgrade.toml` to automatically keep installed RedFox apps updated.
+4. Added `ujust install-pianola`, `update-redfox-apps`, and `uninstall-pianola` to `60-custom.just`.
+5. Chained `install-pianola` into `ujust install-audio`.

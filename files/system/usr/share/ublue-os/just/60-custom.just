@@ -165,22 +165,19 @@ install-soundthread:
 uninstall-soundthread:
     /usr/bin/uninstall-soundthread
 
+# Update all installed RedFox Labs applications
+update-redfox-apps:
+    /usr/bin/update-redfox-apps
+
 # Install Pianola (MIDI viewer & archive playback Flatpak)
 install-pianola:
-    #!/usr/bin/bash
-    set -euo pipefail
-    TEMP_BUNDLE=$(mktemp --suffix=.flatpak)
-    trap 'rm -f "$TEMP_BUNDLE"' EXIT
-    echo "Downloading Pianola Flatpak bundle..."
-    curl -sL https://github.com/snakeeyes021/pianola/releases/latest/download/tech.redfoxlabs.Pianola.flatpak -o "$TEMP_BUNDLE"
-    echo "Installing Pianola..."
-    flatpak install --user -y --noninteractive --or-update "$TEMP_BUNDLE"
-    echo "Pianola installed successfully!"
+    /usr/bin/update-redfox-apps tech.redfoxlabs.Pianola
 
 # Uninstall Pianola
 uninstall-pianola:
     echo "Uninstalling Pianola..."
     flatpak uninstall --user -y tech.redfoxlabs.Pianola
+    rm -f "${XDG_DATA_HOME:-$HOME/.local/share}/redfox-apps/tech.redfoxlabs.Pianola.tag"
     echo "Pianola uninstalled successfully!"
 
 # Run complete system, Flatpak, Brew, and application updates via Topgrade
