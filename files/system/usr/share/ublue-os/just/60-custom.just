@@ -184,14 +184,29 @@ uninstall-pianola:
 [group("system")]
 update:
     #!/usr/bin/bash
-    set -euo pipefail
+    set -uo pipefail
 
-    /usr/bin/topgrade --config /usr/share/ublue-os/topgrade.toml
+    TOPGRADE_STATUS=0
+    /usr/bin/topgrade --config /usr/share/ublue-os/topgrade.toml || TOPGRADE_STATUS=$?
 
-    # In interactive terminals, inspect staged state and prompt user
-    if [[ -t 0 && -t 1 ]]; then
+    # Check if we have an interactive terminal (controlling tty or terminal stdout)
+    INTERACTIVE=false
+    TTY_IN="/dev/stdin"
+    if [ -c /dev/tty ]; then
+        INTERACTIVE=true
+        TTY_IN="/dev/tty"
+    elif [[ -t 0 || -t 1 ]]; then
+        INTERACTIVE=true
+    fi
+
+    if [ "$INTERACTIVE" = true ]; then
         echo ""
         echo "=================================================="
+
+        if [ "$TOPGRADE_STATUS" -ne 0 ]; then
+            echo " ⚠️  Topgrade completed with warning/status code $TOPGRADE_STATUS."
+            echo "=================================================="
+        fi
 
         if rpm-ostree status 2>/dev/null | grep -qi "staged"; then
             echo " 🎉 System update complete! A new OS deployment is staged."
@@ -199,7 +214,7 @@ update:
             echo "=================================================="
             echo ""
             while true; do
-                read -r -p "Choose an action: [r]eboot, [d]iff, [c]hangelog, [q]uit (default: q): " CHOICE
+                read -r -p "Choose an action: [r]eboot, [d]iff, [c]hangelog, [q]uit (default: q): " CHOICE < "$TTY_IN" || CHOICE="q"
                 case "${CHOICE,,}" in
                     r|reboot)
                         echo "Rebooting..."
@@ -229,8 +244,10 @@ update:
             echo " 🎉 System & application updates complete!"
             echo "=================================================="
             echo ""
-            read -r -p "Press [Enter] to close this window..." _
+            read -r -p "Press [Enter] to close this window..." _ < "$TTY_IN" || true
         fi
+    else
+        exit "$TOPGRADE_STATUS"
     fi
 
 # Run the optional Bazzite graphical updater
