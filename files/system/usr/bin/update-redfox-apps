@@ -40,6 +40,18 @@ install_or_update_app() {
         IS_INSTALLED=true
     fi
 
+    # If tag file doesn't exist yet, inspect installed Flatpak metadata to avoid redundant downloads
+    if [ "$IS_INSTALLED" = true ] && [ -z "$CURRENT_TAG" ]; then
+        local INSTALLED_VER
+        INSTALLED_VER=$(flatpak info --user "$APP_ID" 2>/dev/null | awk '/^ *Version:/{print $2}' || true)
+        if [ -n "$INSTALLED_VER" ] && [ "$LATEST_TAG" != "latest" ]; then
+            if [ "$INSTALLED_VER" = "$LATEST_TAG" ] || [ "$INSTALLED_VER" = "${LATEST_TAG#v}" ] || [ "v$INSTALLED_VER" = "$LATEST_TAG" ]; then
+                CURRENT_TAG="$LATEST_TAG"
+                echo "$CURRENT_TAG" > "$TAG_FILE" 2>/dev/null || true
+            fi
+        fi
+    fi
+
     if [ "$IS_INSTALLED" = true ] && [ "$FORCE" = false ] && [ -n "$CURRENT_TAG" ] && [ "$CURRENT_TAG" = "$LATEST_TAG" ] && [ "$LATEST_TAG" != "latest" ]; then
         echo "   [OK] $APP_ID is already up to date ($CURRENT_TAG)."
         return 0
@@ -63,13 +75,23 @@ install_or_update_app() {
     fi
 
     echo "   Installing Flatpak bundle..."
-    flatpak install --user -y --noninteractive --or-update "$TEMP_BUNDLE"
+    local INSTALL_OUTPUT
+    if ! INSTALL_OUTPUT=$(flatpak install --user -y --noninteractive --or-update "$TEMP_BUNDLE" 2>&1); then
+        if echo "$INSTALL_OUTPUT" | grep -qi "already installed"; then
+            echo "   [OK] $APP_ID is already installed and up to date."
+        else
+            echo "   ❌ Installation failed for $APP_ID:"
+            echo "$INSTALL_OUTPUT"
+            return 1
+        fi
+    fi
 
     if [ "$LATEST_TAG" != "latest" ]; then
         echo "$LATEST_TAG" > "$TAG_FILE"
     fi
 
     echo "   [OK] $APP_ID installed successfully ($LATEST_TAG)."
+    return 0
 }
 
 # --- Main Dispatch ---
@@ -94,7 +116,9 @@ else
         if flatpak info --user "$APP_ID" &>/dev/null; then
             UPDATED_ANY=true
             REPO="${REDFOX_APPS[$APP_ID]}"
-            install_or_update_app "$APP_ID" "$REPO" false
+            install_or_update_app "$APP_ID" "$REPO" false || {
+                echo "   ⚠️ Warning: Could not update $APP_ID during this cycle."
+            }
         fi
     done
 
@@ -103,4 +127,5 @@ else
     else
         echo "=== RedFox Labs Applications update check complete ==="
     fi
+    exit 0
 fi
