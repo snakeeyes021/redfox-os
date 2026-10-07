@@ -32,12 +32,15 @@ update:
 
         # Check if a new OS deployment was staged/pending reboot
         HAS_STAGED=false
-        if rpm-ostree status --json 2>/dev/null | jq -e '.deployments[0].booted == false' >/dev/null 2>&1; then
-            HAS_STAGED=true
-        elif rpm-ostree status 2>/dev/null | awk '/^Deployments:/{flag=1; next} flag && /^  / {if ($1 != "●") exit 0; else exit 1}'; then
-            HAS_STAGED=true
-        elif rpm-ostree status 2>/dev/null | grep -qi "staged"; then
-            HAS_STAGED=true
+        if command -v jq >/dev/null 2>&1; then
+            if rpm-ostree status --json 2>/dev/null | jq -e 'any(.deployments[]; .staged == true)' >/dev/null 2>&1; then
+                HAS_STAGED=true
+            fi
+        else
+            FIRST_DEPLOYMENT=$(rpm-ostree status 2>/dev/null | sed -n '/^Deployments:/{n;p}')
+            if [ -n "$FIRST_DEPLOYMENT" ] && ! echo "$FIRST_DEPLOYMENT" | grep -q '^[●*]'; then
+                HAS_STAGED=true
+            fi
         fi
 
         if [ "$HAS_STAGED" = true ]; then
