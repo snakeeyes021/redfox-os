@@ -807,11 +807,15 @@ disable-midikeep:
 mark-midikeep:
     /usr/bin/midikeep mark
 
+# Prompt for comment and mark active Midikeep take (<Ctrl><Alt><Super>m)
+comment-midikeep:
+    /usr/bin/midikeep mark --interactive
+
 # Restart Midikeep session / finalize current take immediately
 restart-midikeep:
     /usr/bin/midikeep restart
 
-# Configure Midikeep global key shortcuts (<Ctrl><Alt><Super>k and <Ctrl><Alt><Super>r)
+# Configure Midikeep global key shortcuts (<Ctrl><Alt><Super>k, <Ctrl><Alt><Super>r, and <Ctrl><Alt><Super>m)
 configure-midikeep-shortcuts:
     #!/usr/bin/python3
     import subprocess
@@ -832,14 +836,15 @@ configure-midikeep-shortcuts:
 
     p1 = set_slot("midikeep-mark", "Midikeep Mark Take (Clapper)", "/usr/bin/midikeep mark", "<Control><Alt><Super>k")
     p2 = set_slot("midikeep-restart", "Midikeep Restart Take", "/usr/bin/midikeep restart", "<Control><Alt><Super>r")
+    p3 = set_slot("midikeep-comment", "Midikeep Mark Take with Comment", "/usr/bin/midikeep mark --interactive", "<Control><Alt><Super>m")
 
-    for p in [p1, p2]:
+    for p in [p1, p2, p3]:
         if p not in bindings:
             bindings.append(p)
 
     val = "[" + ", ".join(f"'{b}'" for b in bindings) + "]"
     subprocess.run(["dconf", "write", "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings", val])
-    print("Configured Midikeep shortcuts: <Control><Alt><Super>k (Clapper) and <Control><Alt><Super>r (Restart)")
+    print("Configured Midikeep shortcuts: <Control><Alt><Super>k (Clapper), <Control><Alt><Super>r (Restart), <Control><Alt><Super>m (Comment)")
 
 # Configure Music Production / Audio Workstation
 configure-music: enable-midikeep configure-midikeep-shortcuts
