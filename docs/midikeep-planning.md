@@ -155,6 +155,8 @@ A companion command-line utility for status inspection, querying, live monitorin
   * `midikeep list [--today|--yesterday|--from <date>|--limit <N>]`: Tabular list of recorded sessions showing timestamp, duration, note count, device, and starred status.
   * `midikeep export [--last <duration>|--session <id>|--latest] -o <dest.mid>`:
     * Extracts an exact session or arbitrary time window (e.g. `midikeep export --last 10m -o idea.mid`).
+  * `midikeep mark [-c COMMENT] [-i]`: Mark active take with a Clapper (★), embedding standard SMF marker meta-event `0xFF 0x06` and starring the take. If `-i` / `--interactive`, prompts via desktop dialog.
+  * `midikeep comment [TEXT] [-i]`: Add a commented Clapper marker to active take.
   * `midikeep monitor`: Live terminal view printing incoming MIDI notes, velocities, and controllers in real-time (diagnostic mode).
   * `midikeep star <session_id>`: Flags a session as a favorite.
   * `midikeep prune --older-than <days>`: Optional manual cleanup (infinite retention remains default).
@@ -202,10 +204,13 @@ A modern GTK4/Libadwaita desktop application adhering to GNOME Human Interface G
 5. Chain `enable-midikeep` into `configure-music` and `configure-matt`.
 
 ### Phase 2: CLI Interface & Export Engine [COMPLETED]
-1. Implement `/usr/bin/midikeep` CLI with `status`, `list`, `star`, and `export`.
+1. Implement `/usr/bin/midikeep` CLI with `status`, `list`, `star`, `export`, and `mark`.
 2. Verified end-to-end extraction and SMF Type 0 validity.
-3. Added `mark` (SIGUSR1 Clapper ★) and `restart` (SIGUSR2) commands.
-4. Configured GNOME shortcuts `Ctrl+Alt+Super+K` and `Ctrl+Alt+Super+R`.
+3. Added `mark` (SIGUSR1 Clapper ★), `restart` (SIGUSR2), and commented clapper (`mark --comment` / `mark --interactive`).
+4. Configured GNOME shortcuts:
+   * `Ctrl+Alt+Super+K`: Instant Clapper take marker (★)
+   * `Ctrl+Alt+Super+R`: Immediate take restart / finalize
+   * `Ctrl+Alt+Super+M`: Commented Clapper take marker (interactive dialog)
 
 ### Phase 3: GTK4 / Libadwaita GUI: Pianola (`tech.redfoxlabs.Pianola`) [INTEGRATED]
 1. Packaged as GNOME 47 Flatpak bundle with FluidSynth.

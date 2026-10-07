@@ -577,6 +577,8 @@ def recover_orphaned_journals(journal_dir: Path, db: DatabaseIndex):
             file_path = None
             tempo_bpm = DEFAULT_TEMPO_BPM
             division = DEFAULT_DIVISION
+            starred = False
+            markers: list[str] = []
 
             with open(jfile, "r", encoding="utf-8") as f:
                 for line in f:
@@ -593,10 +595,11 @@ def recover_orphaned_journals(journal_dir: Path, db: DatabaseIndex):
                         division = rec.get("division", division)
                     elif rec.get("type") == "marker":
                         dt = float(rec.get("dt", 0.0))
-                        label = rec.get("label", "Clapper")
+                        label = rec.get("label", "Clapper ★")
                         lbytes = label.encode("utf-8", errors="replace")
                         events.append((dt, b"\xFF\x06" + encode_vlq(len(lbytes)) + lbytes))
                         starred = True
+                        markers.append(label)
                     elif rec.get("type") == "ev":
                         dt = float(rec.get("dt", 0.0))
                         raw = bytes.fromhex(rec["hex"])
@@ -636,6 +639,12 @@ def recover_orphaned_journals(journal_dir: Path, db: DatabaseIndex):
             start_time_iso = start_wall or datetime.now(timezone.utc).isoformat()
             end_time_iso = datetime.now(timezone.utc).isoformat()
 
+            notes_desc = "Recovered after system restart"
+            if markers:
+                notes_desc = f"Markers: {', '.join(markers)} (recovered)"
+            elif starred:
+                notes_desc = "★ Marked with clapper (recovered)"
+
             db.insert_session(
                 start_time=start_time_iso,
                 end_time=end_time_iso,
@@ -646,7 +655,8 @@ def recover_orphaned_journals(journal_dir: Path, db: DatabaseIndex):
                 file_path=str(target_path),
                 key_signature=key_sig,
                 tempo_bpm=tempo_bpm,
-                notes="Recovered after system restart",
+                starred=starred,
+                notes=notes_desc,
             )
             jfile.unlink()
             logger.info("Successfully recovered orphaned session to %s", target_path)
@@ -853,23 +863,34 @@ class MidikeepDaemon:
         self.running = False
 
     def handle_sigusr1(self, signum, frame):
-        """Clapper action: Add marker to active take, star it, and show notification."""
+        """Clapper action: Add marker (with optional custom comment) to active take, star it, and show notification."""
         now_mono = time.monotonic()
+        marker_file = self.data_dir / "marker.msg"
+        label = "Clapper ★"
+        if marker_file.exists():
+            try:
+                msg = marker_file.read_text(encoding="utf-8").strip()
+                marker_file.unlink(missing_ok=True)
+                if msg:
+                    label = f"Clapper: {msg}" if not msg.startswith("Clapper") else msg
+            except Exception as e:
+                logger.warning("Error reading marker.msg: %s", e)
+
         if self.active_session is not None:
-            self.active_session.add_marker("Clapper ★", now_mono)
-            logger.info("Clapper / Marker added to active session at %.2fs", now_mono)
+            self.active_session.add_marker(label, now_mono)
+            logger.info("Marker '%s' added to active session at %.2fs", label, now_mono)
             try:
                 subprocess.run(
-                    ["notify-send", "Midikeep", "Marked take with Clapper! ★", "-i", "audio-speakers", "-t", "2000"],
+                    ["notify-send", "Midikeep", f"Marked take: {label}", "-i", "audio-speakers", "-t", "2500"],
                     check=False,
                 )
             except Exception:
                 pass
         else:
-            logger.info("Clapper triggered, but no session is currently active.")
+            logger.info("Marker triggered ('%s'), but no session is currently active.", label)
             try:
                 subprocess.run(
-                    ["notify-send", "Midikeep", "No active take in progress to mark.", "-i", "audio-speakers", "-t", "2000"],
+                    ["notify-send", "Midikeep", f"No active take in progress to mark ({label}).", "-i", "audio-speakers", "-t", "2000"],
                     check=False,
                 )
             except Exception:

@@ -4,6 +4,8 @@ import time
 import shutil
 import tempfile
 import unittest
+import unittest.mock
+import signal
 import sqlite3
 import subprocess
 import importlib.util
@@ -389,6 +391,42 @@ class TestMarkerAndRestart(unittest.TestCase):
             self.assertEqual(row["starred"], 1)
             self.assertIn("Clapper", row["notes"])
 
+    def test_comment_marker_in_daemon_and_smf(self):
+        d = daemon.MidikeepDaemon(data_dir=self.data_dir)
+        d.active_session = daemon.ActiveSession(
+            start_wall_time=datetime.now(timezone.utc),
+            start_mono_time=1000.0,
+            device_name="Test Controller",
+            sessions_dir=self.sessions_dir,
+            journal_dir=self.journal_dir,
+        )
+        d.active_session.record_event(bytes([0x90, 60, 100]), 1000.1)
+
+        # Write marker.msg with custom comment
+        marker_file = self.data_dir / "marker.msg"
+        marker_file.write_text("Verse 2 melody idea", encoding="utf-8")
+
+        # Trigger handle_sigusr1
+        d.handle_sigusr1(signal.SIGUSR1, None)
+
+        # marker.msg should be consumed and deleted
+        self.assertFalse(marker_file.exists())
+
+        # Session should have the marker
+        self.assertTrue(d.active_session.starred)
+        self.assertIn("Clapper: Verse 2 melody idea", d.active_session.markers)
+
+        # Finalize and verify SMF and DB
+        final_file = d.active_session.finalize(self.db, 1001.0)
+        data = Path(final_file).read_bytes()
+        self.assertIn(bytes([0xFF, 0x06]), data)
+        self.assertIn("Verse 2 melody idea".encode("utf-8"), data)
+
+        with self.db._get_connection() as conn:
+            row = conn.execute("SELECT * FROM sessions WHERE file_path = ?", (final_file,)).fetchone()
+            self.assertEqual(row["starred"], 1)
+            self.assertIn("Verse 2 melody idea", row["notes"])
+
     def test_running_status_restoration(self):
         start_wall = datetime.now(timezone.utc)
         mono_t = 1000.0
@@ -466,6 +504,21 @@ class TestCliCommands(unittest.TestCase):
         midikeep_cli.cmd_export(args, self.paths)
         self.assertTrue(export_dest.exists())
         self.assertEqual(export_dest.read_bytes(), b"MThd")
+
+    def test_cli_mark_with_comment(self):
+        class Args:
+            pass
+        args = Args()
+        args.comment = "Awesome guitar solo"
+        args.interactive = False
+        args.text = None
+
+        with unittest.mock.patch.object(midikeep_cli, "send_daemon_signal", return_value=True):
+            midikeep_cli.cmd_mark(args, self.paths)
+
+        marker_file = self.data_dir / "marker.msg"
+        self.assertTrue(marker_file.exists())
+        self.assertEqual(marker_file.read_text("utf-8"), "Awesome guitar solo")
 
 if __name__ == "__main__":
     unittest.main()
