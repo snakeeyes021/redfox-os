@@ -143,14 +143,16 @@ uninstall-zed:
 
 # Install Antigravity CLI
 install-antigravity-cli:
-    echo "Installing Antigravity CLI..."
-    curl -fsSL https://antigravity.google/cli/install.sh | bash
-    echo "Antigravity CLI installed!"
+    echo "Installing Antigravity CLI (agy)..."
+    bash -c "set -euo pipefail; curl -fsSL https://antigravity.google/cli/install.sh | bash"
+    ln -sf "$HOME/.local/bin/agy" "$HOME/.local/bin/antigravity-cli"
+    echo "Antigravity CLI installed as 'agy' (alias 'antigravity-cli')!"
 
 # Uninstall Antigravity CLI
 uninstall-antigravity-cli:
     echo "Uninstalling Antigravity CLI..."
-    rm -rf ~/.local/bin/antigravity
+    rm -f "$HOME/.local/bin/agy" "$HOME/.local/bin/antigravity-cli"
+    rm -rf "$HOME/.cache/antigravity"
     echo "Antigravity CLI uninstalled!"
 
 # Configure Heroic
