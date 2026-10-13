@@ -7,7 +7,7 @@ set -euo pipefail
 echo "Resolving Antigravity Hub 2.x from updater manifest..."
 
 HUB_MANIFEST_URL="https://antigravity-hub-auto-updater-974169037036.us-central1.run.app/manifest/latest-x64-linux.yml"
-HUB_FALLBACK_ID="2.22.0-5446056071266304"
+HUB_FALLBACK_ID="2.23.0-5238607586394112"
 
 HUB_RELEASE_ID=$(curl -sSL --max-time 10 "$HUB_MANIFEST_URL" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+-[0-9]+' | head -n1 || true)
 
