@@ -1,8 +1,8 @@
 name: bluebuild-unstable
 on:
-  schedule:
-    - cron:
-        "15 06 * * *" # build at 06:15 UTC every day (15 minutes after main)
+  # Daily builds come from schedule-unstable.yml, which dispatches this workflow
+  # with --ref unstable. A `schedule` trigger here would run on the default
+  # branch (main), and BlueBuild would publish that build as :latest.
   push:
     branches:
       - unstable
@@ -20,6 +20,8 @@ concurrency:
 jobs:
   bluebuild:
     name: Build Custom Image (unstable)
+    # Never build from main here: BlueBuild tags default-branch builds as :latest
+    if: github.event_name == 'pull_request' || github.ref_name == 'unstable'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -34,10 +36,8 @@ jobs:
           - recipe-main.yml
 
     steps:
-      - name: Checkout unstable branch
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: unstable
 
       # the build is fully handled by the reusable github action
       - name: Build Custom Image
@@ -49,18 +49,21 @@ jobs:
           pr_event_number: ${{ github.event.number }}
           maximize_build_space: true
           skip_checkout: true
-        env:
-          GITHUB_REF_NAME: unstable
 
       - name: Tag as :unstable
         if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_ACTOR: ${{ github.actor }}
+          RECIPE: ${{ matrix.recipe }}
+          OWNER: ${{ github.repository_owner }}
         run: |
-          IMAGE_NAME=$(awk '/^name:/ {print $2}' "recipes/${{ matrix.recipe }}")
-          IMAGE_URI="ghcr.io/${{ github.repository_owner }}/${IMAGE_NAME}"
-          echo "${{ github.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          IMAGE_NAME=$(awk '/^name:/ {print $2}' "recipes/${RECIPE}")
+          IMAGE_URI="ghcr.io/${OWNER}/${IMAGE_NAME}"
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$GH_ACTOR" --password-stdin
 
           # Find the br-unstable-* tag created by bluebuild
-          TAG=$(skopeo list-tags --creds="${{ github.actor }}:${{ github.token }}" "docker://${IMAGE_URI}" | jq -r '.Tags[]' | grep '^br-unstable-' | sort -V | tail -n1)
+          TAG=$(skopeo list-tags --creds="${GH_ACTOR}:${GH_TOKEN}" "docker://${IMAGE_URI}" | jq -r '.Tags[]' | grep '^br-unstable-' | sort -V | tail -n1)
           if [ -z "$TAG" ]; then
             echo "Error: No br-unstable-* tag found for ${IMAGE_URI}"
             exit 1
@@ -68,6 +71,6 @@ jobs:
 
           echo "Copying ${IMAGE_URI}:${TAG} to ${IMAGE_URI}:unstable..."
           cosign copy -f \
-            --registry-username "${{ github.actor }}" \
-            --registry-password "${{ github.token }}" \
+            --registry-username "$GH_ACTOR" \
+            --registry-password "$GH_TOKEN" \
             "${IMAGE_URI}:${TAG}" "${IMAGE_URI}:unstable"
