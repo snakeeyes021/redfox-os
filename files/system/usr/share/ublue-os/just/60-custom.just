@@ -106,6 +106,12 @@ configure-antigravity:
 
 # Configure Text Editor Dev Mode (Indentation)
 configure-text-editor-dev:
+    #!/usr/bin/bash
+    set -euo pipefail
+    if ! flatpak info org.gnome.TextEditor &>/dev/null; then
+        echo "GNOME Text Editor (Flatpak) is not installed. Skipping."
+        exit 0
+    fi
     echo "Configuring Text Editor for Development (Spaces, 4 per tab)..."
     flatpak run --command=gsettings org.gnome.TextEditor set org.gnome.TextEditor indent-style 'space'
     flatpak run --command=gsettings org.gnome.TextEditor set org.gnome.TextEditor tab-width 4
@@ -113,6 +119,12 @@ configure-text-editor-dev:
 
 # Reset Text Editor Configuration (Indentation)
 configure-text-editor-reset:
+    #!/usr/bin/bash
+    set -euo pipefail
+    if ! flatpak info org.gnome.TextEditor &>/dev/null; then
+        echo "GNOME Text Editor (Flatpak) is not installed. Skipping."
+        exit 0
+    fi
     echo "Resetting Text Editor indentation to defaults..."
     flatpak run --command=gsettings org.gnome.TextEditor reset org.gnome.TextEditor indent-style
     flatpak run --command=gsettings org.gnome.TextEditor reset org.gnome.TextEditor tab-width
@@ -120,6 +132,12 @@ configure-text-editor-reset:
 
 # Theme Text Editor Dewy (Visuals)
 theme-text-editor-dewy:
+    #!/usr/bin/bash
+    set -euo pipefail
+    if ! flatpak info org.gnome.TextEditor &>/dev/null; then
+        echo "GNOME Text Editor (Flatpak) is not installed. Skipping."
+        exit 0
+    fi
     echo "Configuring Text Editor Visuals (Dark Mode, Line Numbers, Map, Highlight)..."
     flatpak run --command=gsettings org.gnome.TextEditor set org.gnome.TextEditor style-variant 'dark'
     flatpak run --command=gsettings org.gnome.TextEditor set org.gnome.TextEditor show-line-numbers true
@@ -128,6 +146,12 @@ theme-text-editor-dewy:
 
 # Theme Text Editor Default (Visuals Reset)
 theme-text-editor-default:
+    #!/usr/bin/bash
+    set -euo pipefail
+    if ! flatpak info org.gnome.TextEditor &>/dev/null; then
+        echo "GNOME Text Editor (Flatpak) is not installed. Skipping."
+        exit 0
+    fi
     echo "Resetting Text Editor visuals to defaults..."
     flatpak run --command=gsettings org.gnome.TextEditor reset org.gnome.TextEditor style-variant
     flatpak run --command=gsettings org.gnome.TextEditor reset org.gnome.TextEditor show-line-numbers
@@ -377,13 +401,19 @@ preset-dock-ubuntu: _disable-redfox-dock-hacks
 preset-dock-gnome: _disable-redfox-dock-hacks
     gnome-extensions disable dash-to-dock@micxgx.gmail.com
 
-preset-dock-win-classic: _disable-redfox-dock-hacks
+# Dock preset: Windows (classic) (not implemented yet)
+preset-dock-win-classic:
+    # TODO: add back the `_disable-redfox-dock-hacks` dependency when this preset is implemented
     echo "TODO: Implement preset-dock-win-classic"
 
-preset-dock-win-new: _disable-redfox-dock-hacks
+# Dock preset: Windows (11-style) (not implemented yet)
+preset-dock-win-new:
+    # TODO: add back the `_disable-redfox-dock-hacks` dependency when this preset is implemented
     echo "TODO: Implement preset-dock-win-new"
 
-preset-dock-macos: _disable-redfox-dock-hacks
+# Dock preset: macOS (not implemented yet)
+preset-dock-macos:
+    # TODO: add back the `_disable-redfox-dock-hacks` dependency when this preset is implemented
     echo "TODO: Implement preset-dock-macos"
 
 # --- REDFOX DOCK PRESET RECIPE AND UTILITIES ---
