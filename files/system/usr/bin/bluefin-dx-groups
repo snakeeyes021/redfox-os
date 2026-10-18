@@ -1,10 +1,49 @@
 #!/usr/bin/env bash
 
-# Clean up any gshadow inconsistencies to prevent systemd-sysusers from failing (runs every boot)
-echo "Cleaning up gshadow database..."
-yes | grpck || true
+GSHADOW="/etc/gshadow"
+
+# Remove /etc/gshadow entries for groups that exist nowhere. Existence is checked with
+# getent, which sees both /etc/group and the image's /usr/lib/group (nss-altfiles).
+# (grpck only knows /etc/group, so it treats every /usr/lib/group entry as orphaned.)
+repair_gshadow() {
+  if ! getent group root >/dev/null; then
+    echo "Group lookups are not working; leaving $GSHADOW untouched."
+    return 1
+  fi
+
+  local name orphans=()
+  while IFS=: read -r name _; do
+    [ -n "$name" ] || continue
+    getent group "$name" >/dev/null || orphans+=("$name")
+  done <"$GSHADOW"
+
+  if [ ${#orphans[@]} -eq 0 ]; then
+    echo "No orphaned $GSHADOW entries found."
+    return 0
+  fi
+  echo "Removing $GSHADOW entries for groups that don't exist: ${orphans[*]}"
+
+  local tmp
+  tmp=$(mktemp "$(dirname "$GSHADOW")/.gshadow.XXXXXX") || return 1
+  awk -F: -v drop="$(printf '%s\n' "${orphans[@]}")" \
+    'BEGIN { n = split(drop, list, "\n"); for (i = 1; i <= n; i++) skip[list[i]] = 1 } !($1 in skip)' \
+    "$GSHADOW" >"$tmp"
+  chown --reference="$GSHADOW" "$tmp"
+  chmod --reference="$GSHADOW" "$tmp"
+  chcon --reference="$GSHADOW" "$tmp" 2>/dev/null || true
+  cp -a "$GSHADOW" "$GSHADOW-"
+  mv -f "$tmp" "$GSHADOW"
+}
+
+# Create system users/groups declared by packages (e.g. ClamAV's clamupdate/virusgroup).
+# systemd-sysusers.service is normally skipped on image-based systems, so run it every boot.
+# It refuses to create a group that already has a stale gshadow entry (which image updates
+# can leave behind); only in that case, drop entries for nonexistent groups and retry.
 echo "Regenerating system users..."
-systemd-sysusers
+if ! systemd-sysusers; then
+  echo "systemd-sysusers failed; checking $GSHADOW for entries of groups that don't exist..."
+  repair_gshadow && systemd-sysusers || echo "systemd-sysusers is still failing; see the messages above."
+fi
 
 # SCRIPT VERSION (increment this number every time you update this script)
 GROUP_SETUP_VER=2
