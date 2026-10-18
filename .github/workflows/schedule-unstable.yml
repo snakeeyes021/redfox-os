@@ -1,0 +1,22 @@
+name: schedule-unstable
+# GitHub only fires `schedule` on the default branch, so the daily unstable
+# build is kicked off from here as a workflow_dispatch on the unstable ref.
+# That run executes with GITHUB_REF_NAME=unstable, so BlueBuild tags it
+# br-unstable-* (then copied to :unstable) instead of :latest.
+# GITHUB_TOKEN is allowed to trigger workflow_dispatch events.
+on:
+  schedule:
+    - cron:
+        "15 06 * * *" # build at 06:15 UTC every day (15 minutes after main)
+  workflow_dispatch: # allow manually triggering the dispatch
+permissions:
+  actions: write
+jobs:
+  dispatch:
+    name: Dispatch unstable build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run build-unstable.yml on the unstable branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run build-unstable.yml --repo "$GITHUB_REPOSITORY" --ref unstable
