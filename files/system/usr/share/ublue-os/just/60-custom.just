@@ -55,12 +55,38 @@ _print-bootstrap-recap:
 redfox-reset-config:
     /usr/bin/redfox-config reset
 
-# Reset hostname to "redfox" (from whatever was inherited from upstream, likely "bazzite")
+# Set hostname: this machine's name from config.yaml (machines.<id>.hostname), otherwise
+# "redfox" if the hostname is still an upstream default. Never overrides a name you picked.
 reset-hostname:
-    @echo "Setting hostname to redfox..."
-    hostnamectl set-hostname redfox
-    hostnamectl set-hostname --pretty "RedFoxOS"
-    @echo "Done! Please reboot for all changes to take full effect."
+    #!/usr/bin/bash
+    set -euo pipefail
+    NAME=""
+    if /usr/bin/redfox-config get machines &>/dev/null; then
+        SERIAL=$(sudo cat /sys/class/dmi/id/product_serial 2>/dev/null || true)
+        NAME=$(/usr/bin/redfox-config machine hostname --id "$SERIAL" 2>/dev/null || true)
+    fi
+    CURRENT=$(hostnamectl hostname 2>/dev/null || hostname)
+    PRETTY="$NAME"
+    if [ -z "$NAME" ]; then
+        case "$CURRENT" in
+            bazzite|fedora|localhost|localhost.localdomain|localhost-live|"")
+                NAME="redfox"
+                PRETTY="RedFoxOS"
+                ;;
+            *)
+                echo "[OK] Keeping hostname '$CURRENT' (no machines entry for this device in config.yaml)."
+                exit 0
+                ;;
+        esac
+    fi
+    if [ "$CURRENT" = "$NAME" ]; then
+        echo "[OK] Hostname is already '$NAME'."
+        exit 0
+    fi
+    echo "Setting hostname to $NAME..."
+    hostnamectl set-hostname "$NAME"
+    hostnamectl set-hostname --pretty "$PRETTY"
+    echo "Done! Please reboot for all changes to take full effect."
 
 # Configure Git
 configure-git:
@@ -467,34 +493,58 @@ fix-acer-nouveau:
     echo "Found NVIDIA devices: $NV_IDS"
     
     # Check if kargs are already set to avoid triggering an ostree deployment loop
-    if ! rpm-ostree kargs | grep -q "vfio-pci.ids=$NV_IDS"; then
+    KARGS=$(rpm-ostree kargs)
+    if ! grep -q "vfio-pci.ids=$NV_IDS" <<< "$KARGS" || ! grep -q "module_blacklist=nouveau,nvidia" <<< "$KARGS"; then
         echo "Binding dead dGPU to vfio-pci to force D3 sleep state..."
         
         # 1. rd.driver.pre=vfio-pci : Loads the stub driver into the initramfs before anything else.
         # 2. vfio-pci.ids=... : Tells the stub driver to permanently claim your specific Acer GPU.
         # 3. module_blacklist : Failsafe to ensure nouveau/nvidia don't race the stub driver and hit the bad VRAM.
+        #    It's a single parameter (a repeated one overrides the earlier value), so both go in one list;
+        #    the old split form is removed if present.
         sudo rpm-ostree kargs \
+            --delete-if-present="module_blacklist=nouveau" \
+            --delete-if-present="module_blacklist=nvidia" \
             --append-if-missing="rd.driver.pre=vfio-pci" \
             --append-if-missing="vfio-pci.ids=$NV_IDS" \
-            --append-if-missing="module_blacklist=nouveau" \
-            --append-if-missing="module_blacklist=nvidia"
+            --append-if-missing="module_blacklist=nouveau,nvidia"
             
         echo "Success! The dead dGPU will be permanently isolated and put to sleep on the next reboot."
     else
         echo "The Acer dGPU is already quarantined. No action needed."
     fi
 
+# Apply this machine's hardware quirk recipes from config.yaml (machines.<id>.quirks)
 apply-hardware-quirks:
     #!/usr/bin/bash
     set -euo pipefail
-    SERIAL=$(sudo cat /sys/class/dmi/id/product_serial 2>/dev/null || true)
-    QUIRK=$(/usr/bin/redfox-config get-quirk "$SERIAL" 2>/dev/null || true)
-    if [ -n "$QUIRK" ]; then
-        echo "Hardware match found! Applying quirk: $QUIRK"
-        just "$QUIRK"
-    else
-        echo "No specific hardware quirks mapped for this device."
+    LOG_FILE="${XDG_RUNTIME_DIR:-$HOME/.cache}/redfox-bootstrap-current.log"
+    if ! /usr/bin/redfox-config get machines &>/dev/null; then
+        if /usr/bin/redfox-config get hardware.quirks &>/dev/null; then
+            echo "[WARN] config.yaml uses the old 'hardware.quirks' format; move entries under 'machines:'."
+            echo "- Hardware quirks skipped (config.yaml uses old hardware.quirks format; move to machines:)" >> "$LOG_FILE"
+        else
+            echo "No machines configured in config.yaml. Skipping hardware quirks."
+        fi
+        exit 0
     fi
+    SERIAL=$(sudo cat /sys/class/dmi/id/product_serial 2>/dev/null || true)
+    mapfile -t QUIRKS < <(/usr/bin/redfox-config machine quirks --id "$SERIAL" 2>/dev/null || true)
+    if [ ${#QUIRKS[@]} -eq 0 ]; then
+        echo "No hardware quirks mapped for this device."
+        exit 0
+    fi
+    for QUIRK in "${QUIRKS[@]}"; do
+        if [[ ! "$QUIRK" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
+            echo "[WARN] Ignoring invalid quirk recipe name: '$QUIRK'"
+            echo "- Hardware quirk '$QUIRK' ignored (not a valid recipe name)" >> "$LOG_FILE"
+            continue
+        fi
+        echo "Hardware match found! Applying quirk: $QUIRK"
+        if ! just "$QUIRK"; then
+            echo "- Hardware quirk '$QUIRK' failed (retry with: ujust $QUIRK)" >> "$LOG_FILE"
+        fi
+    done
 
 # Configure NordVPN silently from config.yaml (never aborts a bootstrap; problems go to the recap)
 configure-nordvpn:
@@ -767,7 +817,8 @@ configure-terminal-tilix:
     dconf write /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/name "'Tilix'"
     dconf write /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/command "'tilix'"
     dconf write /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/binding "'<Control><Alt>t'"
-    dconf write /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings "['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/']"
+    # Add custom0 to the keybinding list without dropping other entries (e.g. Midikeep shortcuts)
+    python3 -c 'import ast, subprocess as sp; key = "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings"; slot = key + "/custom0/"; out = sp.check_output(["dconf", "read", key], text=True).strip(); b = ast.literal_eval(out.removeprefix("@as ")) if out else []; b = b if slot in b else b + [slot]; sp.run(["dconf", "write", key, "@as " + repr(b)], check=True)'
     
     # 3. Reload Nautilus to pick up the extension config
     nautilus -q || true    
@@ -784,8 +835,8 @@ configure-terminal-default:
     dconf reset /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/name
     dconf reset /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/command
     dconf reset /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/binding
-    # Note: We leave the custom-keybindings array alone or empty it if this was the only one
-    dconf write /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings "@as []"
+    # Remove only custom0 from the keybinding list (other entries, e.g. Midikeep shortcuts, stay)
+    python3 -c 'import ast, subprocess as sp; key = "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings"; slot = key + "/custom0/"; out = sp.check_output(["dconf", "read", key], text=True).strip(); b = ast.literal_eval(out.removeprefix("@as ")) if out else []; sp.run(["dconf", "write", key, "@as " + repr([x for x in b if x != slot])], check=True)'
     
     # 3. Reload Nautilus
     nautilus -q || true

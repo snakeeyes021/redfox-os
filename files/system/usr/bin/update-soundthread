@@ -9,6 +9,12 @@ REPO="j-p-higgins/SoundThread"
 # Godot App UserData path
 CONFIG_DIR="$HOME/.local/share/godot/app_userdata/$APP_NAME"
 CONFIG_FILE="$CONFIG_DIR/settings.ini"
+VERSION_FILE="$INSTALL_DIR/.redfox-version"
+
+# --if-installed: update an existing install only (used by the system updater)
+if [ "${1:-}" = "--if-installed" ] && [ ! -d "$INSTALL_DIR" ]; then
+    exit 0
+fi
 
 echo -e "Note: This installer downloads unverified software directly from the developer's public repo (GitHub). \033[1;31mEnsure you trust the source and the author before running.\033[0m"
 
@@ -32,6 +38,11 @@ if [ -z "$TAG_NAME" ] || [ "$TAG_NAME" == "null" ]; then
 fi
 
 echo "Latest version: $TAG_NAME"
+
+if [ -d "$INSTALL_DIR" ] && [ "$(cat "$VERSION_FILE" 2>/dev/null || true)" = "$TAG_NAME" ]; then
+    echo "[OK] $APP_NAME is already up to date ($TAG_NAME)."
+    exit 0
+fi
 
 # Construct download URL (assuming standard naming convention based on user input)
 # Pattern: SoundThread_v1.0.1-beta_linux_x86_64.tar.gz
@@ -115,5 +126,7 @@ EOF
 
 # Make executable just in case
 chmod +x "$INSTALL_DIR/SoundThread.x86_64"
+
+echo "$TAG_NAME" > "$VERSION_FILE"
 
 echo "$APP_NAME $SUCCESS_MSG to $TAG_NAME successfully."

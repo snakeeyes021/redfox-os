@@ -1,13 +1,19 @@
 #!/usr/bin/env python3
 """
 redfox-config: Unified Declarative Configuration Engine for RedFoxOS
-Manages on-device secrets, preferences, and hardware quirk mappings stored
-in ~/.config/redfox/config.yaml.
+Manages on-device secrets, preferences, and per-machine settings (hostname,
+hardware quirks) stored in ~/.config/redfox/config.yaml.
+
+One config file can describe all of a user's machines:
+
+    machines:
+      ABC123SERIAL:          # DMI serial, board_version, product_name, ...
+        hostname: oryx
+        quirks: [fix-oryp9-mouse]
 """
 
 import os
 import sys
-import json
 import argparse
 import subprocess
 import urllib.request
@@ -31,62 +37,44 @@ DMI_SERIAL_PATH = Path("/sys/class/dmi/id/product_serial")
 
 
 def load_yaml(path: Path) -> dict:
-    """Load YAML file using PyYAML if available, with basic fallback."""
+    """Load a YAML mapping from disk (empty dict if missing or not a mapping)."""
+    import yaml
     if not path.exists():
         return {}
-    try:
-        import yaml
-        with open(path, "r", encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-            return data if isinstance(data, dict) else {}
-    except ImportError:
-        pass
-
-    # Simple key-value / block fallback
-    data = {}
-    current_section = None
     with open(path, "r", encoding="utf-8") as f:
-        for line in f:
-            line_str = line.strip()
-            if not line_str or line_str.startswith("#"):
-                continue
-            if not line.startswith(" ") and ":" in line_str:
-                k = line_str.split(":", 1)[0].strip()
-                current_section = k
-                data[current_section] = {}
-            elif current_section and line.startswith("  ") and ":" in line_str:
-                k, v = line_str.split(":", 1)
-                data[current_section][k.strip()] = v.strip().strip('"\'')
-    return data
+        data = yaml.safe_load(f)
+    return data if isinstance(data, dict) else {}
 
 
 def parse_yaml_text(text: str) -> dict:
     """Parse raw YAML string."""
-    try:
-        import yaml
-        data = yaml.safe_load(text)
-        if isinstance(data, dict):
-            return data
-        raise ValueError("Configuration YAML must be a mapping/dictionary of key-values.")
-    except ImportError:
-        # Basic check
-        if ":" not in text:
-            raise ValueError("Invalid configuration text: missing key-value mappings.")
-        return {"raw": text}
+    import yaml
+    data = yaml.safe_load(text)
+    if isinstance(data, dict):
+        return data
+    raise ValueError("Configuration YAML must be a mapping/dictionary of key-values.")
 
 
 def save_config_text(text: str):
     """Save raw text to ~/.config/redfox/config.yaml with 0600 permissions (backing up previous)."""
-    USER_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    USER_CONFIG_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
     if USER_CONFIG_PATH.exists():
         try:
             import shutil
             shutil.copy2(USER_CONFIG_PATH, USER_CONFIG_PATH.with_suffix(".yaml.bak"))
         except Exception:
             pass
-    with open(USER_CONFIG_PATH, "w", encoding="utf-8") as f:
+    tmp = USER_CONFIG_PATH.with_name(f".{USER_CONFIG_PATH.name}.tmp")
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
         f.write(text.strip() + "\n")
-    os.chmod(USER_CONFIG_PATH, 0o600)
+    os.replace(tmp, USER_CONFIG_PATH)
+
+
+def section(cfg: dict, key: str) -> dict:
+    """Return a mapping section of the config (empty dict if unset, empty, or not a mapping)."""
+    val = cfg.get(key)
+    return val if isinstance(val, dict) else {}
 
 
 def get_current_dmi_serial() -> str:
@@ -135,6 +123,38 @@ def get_hardware_identifiers(explicit_serial: str = None) -> list:
     return identifiers
 
 
+def find_machine(cfg: dict, explicit_id: str = None) -> tuple:
+    """Find this device's entry under `machines:`. Returns (matched_id, entry) or (None, None).
+
+    An explicit identifier (e.g. a serial read via sudo) is tried first, then the
+    auto-detected identifiers in priority order.
+    """
+    machines = section(cfg, "machines")
+    if not machines:
+        return None, None
+    entries = {str(k).strip(): v for k, v in machines.items()}
+    candidates = ([explicit_id.strip()] if explicit_id and explicit_id.strip() else []) + get_hardware_identifiers()
+    for ident in candidates:
+        if ident in entries:
+            entry = entries[ident]
+            return ident, entry if isinstance(entry, dict) else {}
+    return None, None
+
+
+def as_list(val) -> list:
+    """Normalize a scalar-or-list YAML value to a list of non-empty strings."""
+    if val is None:
+        return []
+    items = val if isinstance(val, list) else [val]
+    return [str(v).strip() for v in items if v is not None and str(v).strip()]
+
+
+def warn_legacy_quirks(cfg: dict):
+    if section(cfg, "hardware").get("quirks"):
+        print("[WARN] 'hardware.quirks' is no longer used. Move each entry to 'machines:', e.g.\n"
+              "  machines:\n    <serial-or-model>:\n      quirks: [<recipe>]", file=sys.stderr)
+
+
 # --- Commands ---
 
 def cmd_setup(args):
@@ -152,7 +172,10 @@ def cmd_setup(args):
     # 2. Source argument provided (URL or file)
     elif source:
         source_str = source.strip()
-        if source_str.startswith("http://") or source_str.startswith("https://"):
+        if source_str.startswith("http://"):
+            print("[ERROR] Refusing to download configuration over plain http://. Use an https:// URL.")
+            sys.exit(1)
+        if source_str.startswith("https://"):
             print(f"Downloading configuration from: {source_str}...")
             try:
                 req = urllib.request.Request(source_str, headers={"User-Agent": "RedFoxOS-redfox-config/1.0"})
@@ -178,8 +201,8 @@ def cmd_setup(args):
             print(f"[!] Existing configuration found: {USER_CONFIG_PATH}")
             print("    (To edit existing values without overwriting, exit and run: redfox-config edit)")
             print("    Pasting a new configuration will replace the existing file (backup saved to .bak).\n")
-        print("Enter a URL, file path, or paste your YAML configuration below.")
-        print("(Press Enter on a blank line or Ctrl+D when finished. Press Enter now to skip):\n")
+        print("Enter an https:// URL, a file path, or paste your YAML configuration below.")
+        print("(When pasting, press Enter twice on empty lines or Ctrl+D when finished. Press Enter now to skip):\n")
 
         lines = []
         try:
@@ -200,12 +223,12 @@ def cmd_setup(args):
                 cmd_setup(args)
                 return
 
-            # User is pasting YAML directly
+            # User is pasting YAML directly. Single blank lines are kept (YAML often
+            # has them between sections); two empty lines in a row end the paste.
             lines.append(first_line)
             while True:
                 line = input()
-                if line == "":
-                    # Empty line acts as completion sentinel
+                if line == "" and lines and lines[-1] == "":
                     break
                 lines.append(line)
         except EOFError:
@@ -230,53 +253,45 @@ def cmd_setup(args):
 
     # Display module summary
     print("\nEvaluating modules:")
-    if "nordvpn" in parsed and parsed["nordvpn"].get("token"):
+    if section(parsed, "nordvpn").get("token"):
         print("  [✔] NordVPN Setup   : Access token found -> Ready for WireGuard provisioning.")
     else:
         print("  [―] NordVPN Setup   : No token configured -> Using standard network connection.")
 
-    identifiers = get_hardware_identifiers()
-    quirks = parsed.get("hardware", {}).get("quirks", {})
-    if isinstance(quirks, dict) and quirks:
-        str_quirks = {str(k).strip(): str(v).strip() for k, v in quirks.items()}
-        print(f"  [✔] Hardware Quirks : {len(str_quirks)} quirk rule(s) registered.")
-        matched = False
-        for ident in identifiers:
-            if ident in str_quirks:
-                print(f"      • Detected hardware match ({ident}) -> Matches quirk: '{str_quirks[ident]}'")
-                matched = True
-                break
-        if not matched:
-            dev_desc = identifiers[0] if identifiers else "this device"
-            print(f"      • Detected hardware ({dev_desc}) -> No specific quirks mapped for this device.")
+    machines = section(parsed, "machines")
+    if machines:
+        print(f"  [✔] Machines        : {len(machines)} machine(s) registered.")
+        ident, entry = find_machine(parsed)
+        if ident:
+            hostname = entry.get("hostname") or "(unchanged)"
+            quirks = ", ".join(as_list(entry.get("quirks"))) or "none"
+            print(f"      • This device matches '{ident}' -> hostname: {hostname}, quirks: {quirks}")
+        else:
+            ids = get_hardware_identifiers()
+            dev_desc = ids[0] if ids else "this device"
+            print(f"      • Detected hardware ({dev_desc}) -> No machine entry for this device.")
+            print("        (The DMI serial may need sudo to read; bootstrap recipes pass it in automatically.)")
     else:
-        print("  [―] Hardware Quirks : No hardware quirks registered.")
+        print("  [―] Machines        : No machine-specific settings registered.")
+    warn_legacy_quirks(parsed)
 
     print("\n🎉 RedFoxOS configuration setup complete!")
 
 
-def cmd_get_quirk(args):
-    """Lookup matched hardware quirk for this machine (serial or model/board name)."""
-    explicit_target = getattr(args, "target", None) or getattr(args, "serial", None)
+def cmd_machine(args):
+    """Print a field of this device's `machines:` entry (lists print one item per line)."""
     cfg = load_yaml(USER_CONFIG_PATH)
-    quirks = cfg.get("hardware", {}).get("quirks", {})
-    if not isinstance(quirks, dict) or not quirks:
-        sys.exit(0)
-
-    str_quirks = {str(k).strip(): str(v).strip() for k, v in quirks.items()}
-
-    # 1. If explicit target was given, test it first
-    if explicit_target and explicit_target.strip() in str_quirks:
-        print(str_quirks[explicit_target.strip()])
-        sys.exit(0)
-
-    # 2. Check detected hardware identifiers (serial, board_version, product_name)
-    for ident in get_hardware_identifiers():
-        if ident in str_quirks:
-            print(str_quirks[ident])
-            sys.exit(0)
-
-    sys.exit(0)
+    warn_legacy_quirks(cfg)
+    ident, entry = find_machine(cfg, getattr(args, "id", None))
+    if not ident:
+        sys.exit(1)
+    if not args.field:
+        print(ident)
+        return
+    values = as_list(entry.get(args.field))
+    if not values:
+        sys.exit(1)
+    print("\n".join(values))
 
 
 def cmd_get(args):
@@ -295,11 +310,8 @@ def cmd_get(args):
         sys.exit(1)
 
     if isinstance(val, (dict, list)):
-        try:
-            import yaml
-            print(yaml.dump(val, default_flow_style=False).strip())
-        except ImportError:
-            print(json.dumps(val, indent=2))
+        import yaml
+        print(yaml.dump(val, default_flow_style=False).strip())
     else:
         print(str(val))
 
@@ -317,18 +329,15 @@ def cmd_show(args):
         return
 
     # Mask token
-    if "nordvpn" in cfg and "token" in cfg["nordvpn"]:
+    if section(cfg, "nordvpn").get("token"):
         tok = str(cfg["nordvpn"]["token"])
         if len(tok) > 8:
             cfg["nordvpn"]["token"] = tok[:4] + "..." + tok[-4:]
         else:
             cfg["nordvpn"]["token"] = "********"
 
-    try:
-        import yaml
-        print(yaml.dump(cfg, default_flow_style=False, sort_keys=False).strip())
-    except ImportError:
-        print(json.dumps(cfg, indent=2))
+    import yaml
+    print(yaml.dump(cfg, default_flow_style=False, sort_keys=False).strip())
 
 
 def cmd_edit(args):
@@ -369,8 +378,8 @@ def build_parser():
     main_description = """Unified Declarative Configuration Engine for RedFoxOS.
 
 COMMANDS:
-    setup [SOURCE]    Ingest and validate configuration (paste, local file, or URL)
-    get-quirk [SERIAL] Lookup matched hardware quirk recipe name for this device
+    setup [SOURCE]    Ingest and validate configuration (paste, local file, or https URL)
+    machine [FIELD]   Print this device's machines entry (e.g. 'hostname', 'quirks')
     get <KEY>         Retrieve a specific configuration value (e.g. 'nordvpn.token')
     show              Display active configuration with tokens masked
     edit              Open ~/.config/redfox/config.yaml in preferred editor
@@ -379,7 +388,8 @@ COMMANDS:
     main_epilog = """EXAMPLES:
     redfox-config setup              # Interactive prompt (paste YAML, enter URL or file)
     redfox-config setup mycfg.yaml   # Ingest directly from local file
-    redfox-config get-quirk          # Print matching recipe name (e.g. 'framework-13')
+    redfox-config machine quirks     # Print this device's quirk recipes, one per line
+    redfox-config machine hostname   # Print this device's configured hostname
     redfox-config get nordvpn.token  # Print configured NordVPN access token
     redfox-config show               # Display configuration with secrets masked"""
 
@@ -402,14 +412,16 @@ COMMANDS:
     )
     p_setup.add_argument("source", nargs="?", help="Optional file path or URL to configuration YAML")
 
-    # get-quirk
-    p_quirk = subparsers.add_parser(
-        "get-quirk",
-        usage="redfox-config get-quirk [TARGET]",
-        description="Match machine serial, board version, or model against hardware.quirks mapping.",
-        help="Get matching hardware quirk recipe name for this device"
+    # machine
+    p_machine = subparsers.add_parser(
+        "machine",
+        usage="redfox-config machine [FIELD] [--id ID]",
+        description="Match this device (DMI serial, board version, or model) against the 'machines' section. "
+                    "Without FIELD, prints the matched machine key. Exits 1 if there is no match or no value.",
+        help="Print a field from this device's machines entry"
     )
-    p_quirk.add_argument("target", nargs="?", help="Optional serial or model name (auto-detected if omitted)")
+    p_machine.add_argument("field", nargs="?", help="Field to print (e.g. 'hostname', 'quirks')")
+    p_machine.add_argument("--id", help="Identifier to try first (e.g. a serial read with sudo)")
 
     # get
     p_get = subparsers.add_parser(
@@ -463,8 +475,8 @@ def main():
     try:
         if args.command == "setup":
             cmd_setup(args)
-        elif args.command == "get-quirk":
-            cmd_get_quirk(args)
+        elif args.command == "machine":
+            cmd_machine(args)
         elif args.command == "get":
             cmd_get(args)
         elif args.command == "show":
