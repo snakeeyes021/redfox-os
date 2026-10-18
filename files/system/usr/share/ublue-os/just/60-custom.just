@@ -171,6 +171,12 @@ uninstall-soundthread:
 update-redfox-apps:
     /usr/bin/update-redfox-apps
 
+# Install RedFox App Fleet (all RedFox Labs Flatpak applications)
+install-redfox-app-fleet: install-pianola install-thirties
+
+# Uninstall RedFox App Fleet
+uninstall-redfox-app-fleet: uninstall-pianola uninstall-thirties
+
 # Install Pianola (MIDI viewer & archive playback Flatpak)
 install-pianola:
     /usr/bin/update-redfox-apps tech.redfoxlabs.Pianola
@@ -178,9 +184,28 @@ install-pianola:
 # Uninstall Pianola
 uninstall-pianola:
     echo "Uninstalling Pianola..."
-    flatpak uninstall --user -y tech.redfoxlabs.Pianola
+    if flatpak info --user tech.redfoxlabs.Pianola &> /dev/null; then \
+        flatpak uninstall --user -y tech.redfoxlabs.Pianola; \
+        echo "Pianola uninstalled successfully!"; \
+    else \
+        echo "Pianola is not installed."; \
+    fi
     rm -f "${XDG_DATA_HOME:-$HOME/.local/share}/redfox-apps/tech.redfoxlabs.Pianola.tag"
-    echo "Pianola uninstalled successfully!"
+
+# Install Thirties (half-hour block AI scheduling assistant Flatpak)
+install-thirties:
+    /usr/bin/update-redfox-apps tech.redfoxlabs.Thirties
+
+# Uninstall Thirties
+uninstall-thirties:
+    echo "Uninstalling Thirties..."
+    if flatpak info --user tech.redfoxlabs.Thirties &> /dev/null; then \
+        flatpak uninstall --user -y tech.redfoxlabs.Thirties; \
+        echo "Thirties uninstalled successfully!"; \
+    else \
+        echo "Thirties is not installed."; \
+    fi
+    rm -f "${XDG_DATA_HOME:-$HOME/.local/share}/redfox-apps/tech.redfoxlabs.Thirties.tag"
 
 # Run the optional Bazzite graphical updater
 update-gui:
@@ -693,7 +718,7 @@ install-creative: install-audio install-graphics install-photos install-video in
 # Level 2: Molecules (Logical Groups)
 
 # Install Matt's Bundle
-install-matt: install-dev install-bluefin-dx install-creative install-daily install-productivity install-compatibility install-basic install-comms
+install-matt: install-redfox-app-fleet install-dev install-bluefin-dx install-creative install-daily install-productivity install-compatibility install-basic install-comms
     flatpak install -y flathub \
         com.jeffser.Alpaca
 

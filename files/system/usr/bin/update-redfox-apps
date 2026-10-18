@@ -4,6 +4,7 @@ set -euo pipefail
 # Registry of RedFox Labs Flatpak applications: APP_ID -> REPO_SLUG
 declare -A REDFOX_APPS=(
     ["tech.redfoxlabs.Pianola"]="snakeeyes021/pianola"
+    ["tech.redfoxlabs.Thirties"]="snakeeyes021/thirties"
 )
 
 TAG_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/redfox-apps"
