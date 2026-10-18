@@ -807,13 +807,21 @@ configure-xway-scale-on:
     gsettings set org.gnome.mutter.wayland xwayland-scaling-factor 0.0
     echo "Enabled xwayland-native-scaling (forced factor to 0.0)"
 
-# Enable Midikeep background MIDI recording engine
-enable-midikeep:
+# Enable Midikeep (background MIDI recording service + global key shortcuts)
+enable-midikeep: start-midikeep-service configure-midikeep-shortcuts
+    echo "Midikeep enabled."
+
+# Disable Midikeep (stop background MIDI recording service + remove global key shortcuts)
+disable-midikeep: stop-midikeep-service remove-midikeep-shortcuts
+    echo "Midikeep disabled."
+
+# Start Midikeep background MIDI recording service
+start-midikeep-service:
     systemctl --user enable --now midikeep.service
     echo "Midikeep service enabled and started."
 
-# Disable Midikeep background MIDI recording engine
-disable-midikeep:
+# Stop Midikeep background MIDI recording service
+stop-midikeep-service:
     systemctl --user disable --now midikeep.service
     echo "Midikeep service disabled and stopped."
 
@@ -860,8 +868,30 @@ configure-midikeep-shortcuts:
     subprocess.run(["dconf", "write", "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings", val])
     print("Configured Midikeep shortcuts: <Control><Alt><Super>k (Clapper), <Control><Alt><Super>r (Restart), <Control><Alt><Super>m (Comment)")
 
+# Remove Midikeep global key shortcuts
+remove-midikeep-shortcuts:
+    #!/usr/bin/python3
+    import subprocess
+    import ast
+
+    base = "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings"
+    slots = [f"{base}/{slot}/" for slot in ["midikeep-mark", "midikeep-restart", "midikeep-comment"]]
+
+    out = subprocess.check_output(
+        ["gsettings", "get", "org.gnome.settings-daemon.plugins.media-keys", "custom-keybindings"],
+        text=True,
+    ).strip()
+    bindings = ast.literal_eval(out) if out.startswith("[") else []
+    bindings = [b for b in bindings if b not in slots]
+
+    val = "@as [" + ", ".join(f"'{b}'" for b in bindings) + "]"
+    subprocess.run(["dconf", "write", base, val])
+    for slot in slots:
+        subprocess.run(["dconf", "reset", "-f", slot])
+    print("Removed Midikeep shortcuts.")
+
 # Configure Music Production / Audio Workstation
-configure-music: enable-midikeep configure-midikeep-shortcuts
+configure-music: enable-midikeep
     echo "Configured music workstation."
 
 # Configure Dev Environment

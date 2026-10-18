@@ -139,8 +139,8 @@ WantedBy=default.target
   * **Not enabled by default globally** for all RedFoxOS users.
   * Packaged into the image at `/usr/lib/systemd/user/midikeep.service` and activated cleanly on a per-user basis.
   * Controlled via dedicated `ujust` recipes:
-    * `ujust enable-midikeep`: Runs `systemctl --user enable --now midikeep.service`.
-    * `ujust disable-midikeep`: Runs `systemctl --user disable --now midikeep.service`.
+    * `ujust enable-midikeep`: Starts `midikeep.service` and registers the global key shortcuts (`start-midikeep-service` + `configure-midikeep-shortcuts`).
+    * `ujust disable-midikeep`: Stops the service and removes the shortcuts (`stop-midikeep-service` + `remove-midikeep-shortcuts`).
     * Included in `configure-music` (for any user setting up an audio workstation) and automatically chained into `configure-matt` / `bootstrap-matt`.
 
 ---
