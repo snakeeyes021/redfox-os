@@ -44,9 +44,12 @@ NMCLI_UP_DOWN_TIMEOUT = 15
 # refresh replaces a server once its load reaches this percentage (or it goes offline)
 REFRESH_LOAD_THRESHOLD = 85
 
-# Tunnel routing. Nord's WireGuard servers are IPv4-only.
-PEER_ALLOWED_IPS = "0.0.0.0/0"
-IPV6_SETTINGS = ["ipv6.method", "disabled"]
+# Tunnel routing. Nord's WireGuard servers are IPv4-only, so IPv6 is routed into the
+# tunnel too (where it is dropped) instead of leaking outside it on IPv6 networks.
+# The tunnel gets a private ULA address so NetworkManager installs the IPv6 route;
+# a ULA source also makes the system prefer IPv4, so apps don't stall on IPv6.
+PEER_ALLOWED_IPS = "0.0.0.0/0;::/0"
+IPV6_SETTINGS = ["ipv6.method", "manual", "ipv6.addresses", "fdc8:5ee3:9a1d::2/128"]
 
 # Country alias fixes (e.g., UK is GB in ISO-3166-1)
 COUNTRY_ALIASES = {
@@ -349,6 +352,32 @@ def provision_connection(server: dict, private_key: str):
     ])
 
 
+def routing_upgrade_peer(conn: dict) -> str:
+    """Return an updated peer spec if an existing connection predates IPv6 leak protection, else ''."""
+    res = nmcli_run(["-g", "wireguard.peers,ipv6.method", "connection", "show", "uuid", conn["uuid"]], check=False)
+    lines = res.stdout.splitlines()
+    if res.returncode != 0 or len(lines) < 2 or "allowed-ips=" not in lines[0]:
+        return ""
+    peer, method = lines[0].replace("\\:", ":"), lines[1].strip()
+    if "::/0" in peer and method == IPV6_SETTINGS[1]:
+        return ""
+    return re.sub(r"allowed-ips=\S+", f"allowed-ips={PEER_ALLOWED_IPS}", peer)
+
+
+def upgrade_routing(installed: list, dry_run: bool):
+    """Bring connections created by older versions up to the current routing settings."""
+    stale = [(c, peer) for c in installed for peer in [routing_upgrade_peer(c)] if peer]
+    if not stale:
+        return
+    if dry_run:
+        print(f"[DRY RUN] {len(stale)} connection(s) would be updated to block IPv6 leaks.")
+        return
+    print(f"Updating {len(stale)} connection(s) to block IPv6 leaks...")
+    for c, peer in stale:
+        nmcli_run(["connection", "modify", "uuid", c["uuid"], "wireguard.peers", peer, *IPV6_SETTINGS])
+        print(f"  [UPDATED] {c['name']}{' (reconnect to apply)' if c['active'] else ''}")
+
+
 def touch_connection(name: str):
     """Bring a connection up and back down so GNOME lists it as recently used."""
     for action in ("up", "down"):
@@ -425,6 +454,7 @@ def cmd_sync(args):
     installed = get_managed_connections()
     allocated_nums = {c["server_num"] for c in installed if c.get("server_num")}
     problems = []
+    upgrade_routing(installed, is_dry_run)
 
     # --- Mode A: Refresh (replace installed servers that are offline or overloaded) ---
     if is_refresh:
@@ -525,7 +555,7 @@ def cmd_sync(args):
         to_remove.extend(c for c in installed if rule_key(c["country_code"], c["category"]) not in wanted)
 
     if not planned_servers and not to_remove:
-        print("\nFleet already matches your profile. No changes needed.")
+        print("\nFleet already matches your profile. No servers to add or remove.")
         finish_with_problems(problems)
         return
 
