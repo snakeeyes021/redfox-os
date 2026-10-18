@@ -41,8 +41,8 @@ API_BASE = "https://api.nordvpn.com/v1"
 NORD_DNS = "103.86.96.100,103.86.99.100"
 WIREGUARD_PORT = 51820
 NMCLI_UP_DOWN_TIMEOUT = 15
-# Number of current recommendations a server may appear in before refresh replaces it
-REFRESH_POOL_SIZE = 5
+# refresh replaces a server once its load reaches this percentage (or it goes offline)
+REFRESH_LOAD_THRESHOLD = 85
 
 # Tunnel routing. Nord's WireGuard servers are IPv4-only.
 PEER_ALLOWED_IPS = "0.0.0.0/0"
@@ -236,6 +236,24 @@ def get_recommendations(country_id: int, category: str = "standard", limit: int 
     return results
 
 
+def get_country_server_health(country_id: int) -> dict:
+    """Map server number -> {"load", "status"} for every WireGuard server in a country."""
+    params = [
+        f"filters[country_id]={country_id}",
+        "filters[servers_technologies][identifier]=wireguard_udp",
+        "limit=10000",
+        "fields[servers.hostname]",
+        "fields[servers.load]",
+        "fields[servers.status]",
+    ]
+    health = {}
+    for s in api_request(f"/servers?{'&'.join(params)}"):
+        m = re.search(r"(\d+)", s.get("hostname", ""))
+        if m:
+            health[m.group(1)] = {"load": s.get("load", 0), "status": s.get("status")}
+    return health
+
+
 def format_connection_name(server: dict) -> str:
     """Format connection display name: NordVPN <CTRY> #<NUM> [(P2P)]."""
     country = display_country(server.get("country_code", "VPN"))
@@ -408,15 +426,16 @@ def cmd_sync(args):
     allocated_nums = {c["server_num"] for c in installed if c.get("server_num")}
     problems = []
 
-    # --- Mode A: Refresh (replace installed servers that are no longer recommended) ---
+    # --- Mode A: Refresh (replace installed servers that are offline or overloaded) ---
     if is_refresh:
         if not installed:
             print("No NordVPN connections are currently installed to refresh.")
             print("Run 'redfox-nord sync' to deploy your initial fleet.")
             return
 
-        print(f"Checking {len(installed)} installed connection(s) against current recommendations...")
+        print(f"Checking load and status of {len(installed)} installed connection(s)...")
         refreshed_servers = []
+        health_by_country = {}
 
         for c in installed:
             try:
@@ -425,27 +444,31 @@ def cmd_sync(args):
                 problems.append(f"Could not determine country for '{c['name']}'")
                 continue
 
-            # Recommendations for this country, ignoring servers used by *other* connections
-            others = allocated_nums - {c.get("server_num")}
+            if c_obj["id"] not in health_by_country:
+                health_by_country[c_obj["id"]] = get_country_server_health(c_obj["id"])
+            health = health_by_country[c_obj["id"]].get(c.get("server_num"))
+            if health and health["status"] == "online" and health["load"] < REFRESH_LOAD_THRESHOLD:
+                continue  # healthy; keep it
+            reason = "offline or removed" if not health or health["status"] != "online" else f"load {health['load']}%"
+
             recs = get_recommendations(c_obj["id"], category=c.get("category", "standard"),
-                                       limit=REFRESH_POOL_SIZE, exclude_nums=others)
+                                       limit=1, exclude_nums=allocated_nums)
             if not recs:
-                problems.append(f"No recommendations available for {c_obj['name']}")
+                problems.append(f"No replacement available for '{c['name']}' ({reason})")
                 continue
-            if c.get("server_num") in {r["server_num"] for r in recs}:
-                continue  # still among the best servers; keep it
 
             new_server = recs[0]
+            new_server["reason"] = reason
             new_server["country_code"] = c_obj["code"]
             allocated_nums.add(new_server["server_num"])
             refreshed_servers.append((c, new_server))
 
         if not refreshed_servers:
-            print("All installed servers are still among Nord's recommended servers. No changes needed.")
+            print(f"All installed servers are online and below {REFRESH_LOAD_THRESHOLD}% load. No changes needed.")
         else:
             print(f"Found {len(refreshed_servers)} server(s) to replace:")
             for old_conn, new_s in refreshed_servers:
-                print(f"  • {old_conn['name']} -> {new_s['hostname']} (Load: {new_s['load']}%)")
+                print(f"  • {old_conn['name']} ({new_s['reason']}) -> {new_s['hostname']} (Load: {new_s['load']}%)")
 
             if is_dry_run:
                 print("\n[DRY RUN] No system changes made.")
@@ -783,7 +806,7 @@ def build_parser():
 
 COMMANDS:
     sync [OPTIONS]               Reconcile local WireGuard fleet with active profile
-    refresh [OPTIONS]            Replace installed servers that are no longer among Nord's recommendations
+    refresh [OPTIONS]            Replace installed servers that are offline or overloaded (>= 85% load)
     add <COUNTRY> [OPTIONS]      Provision the lowest-load server in a country
     remove <TARGET> [OPTIONS]    Remove connection(s) by exact name, server number, hostname, or country
     list [OPTIONS]               Display installed connections and active tunnel status
@@ -794,7 +817,7 @@ COMMANDS:
     main_epilog = """EXAMPLES:
     redfox-nord sync                 # Add any servers your profile is missing (never removes)
     redfox-nord sync --clean         # Also remove connections your profile doesn't call for
-    redfox-nord sync --refresh       # Replace servers that are no longer recommended
+    redfox-nord sync --refresh       # Replace servers that are offline or overloaded
     redfox-nord add US --p2p         # Add a distinct US P2P node to Quick Settings
     redfox-nord add ES               # Add Spain to Quick Settings
     redfox-nord remove ES            # Remove all Spain connections
@@ -837,7 +860,7 @@ preserves manual additions. Use --clean to also remove connections beyond the pr
 EXAMPLES:
     redfox-nord sync                 # Standard sync (adds only what's missing)
     redfox-nord sync --clean         # Match the profile exactly (removes extras)
-    redfox-nord sync --refresh       # Replace servers that are no longer recommended
+    redfox-nord sync --refresh       # Replace servers that are offline or overloaded
     redfox-nord sync --dry-run       # Preview recommended servers without applying"""
     p_sync = subparsers.add_parser(
         "sync",
@@ -848,7 +871,7 @@ EXAMPLES:
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
     p_sync.add_argument("--clean", action="store_true", help="Also remove connections beyond what the profile calls for")
-    p_sync.add_argument("--refresh", action="store_true", help="Replace installed servers that are no longer among Nord's recommendations")
+    p_sync.add_argument("--refresh", action="store_true", help=f"Replace installed servers that are offline or at >= {REFRESH_LOAD_THRESHOLD}%% load")
     p_sync.add_argument("--dry-run", action="store_true", help="Preview recommendation changes without altering NetworkManager")
     p_sync.add_argument("--token", metavar="<TOKEN>", help="Override NordVPN Access Token")
 
@@ -856,9 +879,9 @@ EXAMPLES:
     p_refresh = subparsers.add_parser(
         "refresh",
         usage="redfox-nord refresh [OPTIONS]",
-        description=f"Replace installed servers that are no longer among Nord's top {REFRESH_POOL_SIZE} recommended (lowest-load) servers for their country.",
+        description=f"Replace installed servers that are offline, removed, or at >= {REFRESH_LOAD_THRESHOLD}% load with Nord's current lowest-load recommendation.",
         epilog="""EXAMPLES:\n    redfox-nord refresh\n    redfox-nord refresh --dry-run""",
-        help="Replace installed servers that are no longer recommended",
+        help="Replace installed servers that are offline or overloaded",
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
     p_refresh.add_argument("--dry-run", action="store_true", help="Preview recommendations without making network changes")
