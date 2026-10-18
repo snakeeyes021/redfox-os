@@ -98,5 +98,5 @@ changelogs:
 [group("system")]
 changelogs-testing:
     #!/usr/bin/bash
-    CONTENT=$(curl -s https://api.github.com/repos/ublue-os/bazzite/releases/latest | jq -r 'map(select(.prerelease)) | .[0].body')
+    CONTENT=$(curl -s https://api.github.com/repos/ublue-os/bazzite/releases | jq -r 'map(select(.prerelease)) | .[0].body // "No testing changelog available."')
        echo "$CONTENT" | glow -

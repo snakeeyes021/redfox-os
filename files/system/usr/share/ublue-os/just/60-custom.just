@@ -584,14 +584,14 @@ nord-add *args:
 nord-remove *args:
     /usr/bin/redfox-nord remove "$@"
 
-# Enable weekly ClamAV antivirus scans
+# Enable weekly ClamAV antivirus scans (and the signature updater they rely on)
 enable-clamav-weekly:
-    sudo systemctl enable --now clamscan-weekly.timer
+    sudo systemctl enable --now clamav-freshclam.service clamscan-weekly.timer
     systemctl list-timers clamscan-weekly.timer
 
-# Disable weekly ClamAV antivirus scans
+# Disable weekly ClamAV antivirus scans and signature updates
 disable-clamav-weekly:
-    sudo systemctl disable --now clamscan-weekly.timer
+    sudo systemctl disable --now clamscan-weekly.timer clamav-freshclam.service
 
 # Create and enable a swapfile (Default: 16G)
 add-swap size="16G":

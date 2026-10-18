@@ -55,4 +55,4 @@
     * **OpenCode:** Foreground interactive developer agent. Runs inside the terminal (Ptyxis/Tilix) paired with the human developer for real-time coding, refactoring, and debugging.
 * **Task: `install-opencode` / `uninstall-opencode` Recipes:** Script the automated deployment of the OpenCode binary to `~/.local/bin/opencode` (or system layer if RPM available).
 * **Task: Provider Wiring & Zero-Config Local Inference:** Pre-configure OpenCode (`~/.config/opencode/config.json`) to automatically register the local Ollama instance (`http://localhost:11434/v1`) as a default offline model provider.
-* **Task: Secret Integration:** Allow OpenCode to transparently source cloud model API keys (OpenAI, Anthropic, OpenRouter) cached via `redfox-config` / `secrets.env`.
+* **Task: Secret Integration:** Allow OpenCode to transparently source cloud model API keys (OpenAI, Anthropic, OpenRouter) stored in `~/.config/redfox/config.yaml` via `redfox-config`.

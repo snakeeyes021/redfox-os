@@ -44,7 +44,7 @@
     - [ ] **Implement** ujust "configure" recipes for starship bluefin (system default, "reset"), starship bazzite (deviation), starship off (deviation)
 
 ## 🌳 The `ujust` Architecture Tree
-*The master plan for `files/system/usr/share/ublue-os/just/99-redfox.just`.*
+*The master plan for `files/system/usr/share/ublue-os/just/60-custom.just`.*
 
 > **Architecture Note: Deviations vs. Resets**
 > *   **Deviation Recipes** (e.g., `set-window-controls-right`) use `gsettings set` to apply specific user preferences.
@@ -53,10 +53,10 @@
 > **Architecture Note: Interactivity Strategy (The "Front Desk" Pattern)**
 > *   **Goal:** To allow a user to run a long recipe (like `bootstrap-matt`) and immediately walk away without the script hanging 20 minutes later asking for a password or configuration link.
 > *   **Implementation:** 
->     1. **`setup-secrets` Atom:** A dedicated atom acts as the "Front Desk." It is the *only* place interactivity (prompts for URLs, VPN credentials, etc.) is allowed. It caches these answers securely in `~/.config/redfox/secrets.env`.
->     2. **Dependency Chaining:** Any recipe (Level 1, 2, or 3) that requires a secret or `sudo` MUST list `setup-secrets` as its very first dependency. `just` handles deduplication, meaning `setup-secrets` will only run once per `just` invocation, even if 10 sub-recipes depend on it.
->     3. **Sudo Caching:** `setup-secrets` runs `sudo -v` immediately to cache the root password.
->     4. **Silent Execution:** All other scripts/atoms must be completely non-interactive. They read from the cached `secrets.env` file or fail gracefully if it is missing.
+>     1. **`redfox-enforce-config` Atom:** The "Front Desk." It is the only place configuration is requested: if `~/.config/redfox/config.yaml` is missing it runs `redfox-config setup` (paste, file, or https URL). One config file describes all of a user's machines (NordVPN token and servers, plus a `machines:` section with per-machine hostname and hardware quirks).
+>     2. **Dependency Chaining:** Any recipe chain that needs configuration lists `redfox-enforce-config` as its first dependency. `just` handles deduplication, so it only runs once per invocation.
+>     3. **Silent Execution:** All other atoms read from `config.yaml` via `redfox-config` and skip gracefully when something isn't configured, recording what was skipped or failed in the end-of-bootstrap recap.
+>     4. **Not yet met:** `sudo`/polkit prompts still happen inside individual recipes (hardware quirks, swap, hostname, ClamAV), though they cluster near the start of `configure-*`.
 
 ### Level 1: Atoms (Single-Purpose Scripts)
 - [ ] `configure-git`: Interactive setup (User/Email/SSH) using `gh` CLI.
@@ -159,12 +159,12 @@
 
 ## 🛠️ Ujust Idempotency Fixes
 - [x] **Research & Fix:** Identify and resolve recipes that fail or cause issues when run multiple times.
-    - [x] `add-swap`: Idempotent; offers to recreate or skips if already active.
+    - [x] `add-swap`: Idempotent; skips if already active at the requested size, recreates it if the size differs.
     - [x] `install-gemini-cli`: Fails if already installed via Homebrew. (No, this is fine as is--it's *supposed* to be installed via homebrew, and running this will update it) (gemini cli deprecated/removed)
     - [x] `uninstall-gemini-cli`: Fails if not installed. Now fixed. (deprecated/removed)
     - [x] `install-zed`: Should check for existing installation before running `curl | sh`. (No, this is not necessary; re-running will simply update it)
     - [x] `fix-oryp9-mouse`: Idempotent; checks if udev rule already exists and matches content.
-    - [x] `configure-nordvpn`: Idempotent; `import-nord-configs` now deduplicates connections and always enforces sort order.
+    - [x] `configure-nordvpn`: Idempotent; `redfox-nord sync` only adds servers the profile is missing, so re-running changes nothing.
 
 ## 🎨 Branding & Aesthetics
 - [ ] **Wallpapers**

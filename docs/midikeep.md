@@ -148,18 +148,17 @@ WantedBy=default.target
 ## Epic 2: Retrieval, CLI, and User Interface
 
 ### 2.1 The `midikeep` CLI Tool (`/usr/bin/midikeep`)
-A companion command-line utility for status inspection, querying, live monitoring, and exporting.
+A companion command-line utility for status inspection, querying, marking, and exporting.
 
 * **Subcommands:**
   * `midikeep status`: Reports daemon status, active ALSA subscriptions, currently connected controllers, and total sessions recorded today.
-  * `midikeep list [--today|--yesterday|--from <date>|--limit <N>]`: Tabular list of recorded sessions showing timestamp, duration, note count, device, and starred status.
-  * `midikeep export [--last <duration>|--session <id>|--latest] -o <dest.mid>`:
-    * Extracts an exact session or arbitrary time window (e.g. `midikeep export --last 10m -o idea.mid`).
-  * `midikeep mark [-c COMMENT] [-i]`: Mark active take with a Clapper (★), embedding standard SMF marker meta-event `0xFF 0x06` and starring the take. If `-i` / `--interactive`, prompts via desktop dialog.
-  * `midikeep comment [TEXT] [-i]`: Add a commented Clapper marker to active take.
-  * `midikeep monitor`: Live terminal view printing incoming MIDI notes, velocities, and controllers in real-time (diagnostic mode).
-  * `midikeep star <session_id>`: Flags a session as a favorite.
-  * `midikeep prune --older-than <days>`: Optional manual cleanup (infinite retention remains default).
+  * `midikeep list [--today] [--starred] [--limit <N>]`: Tabular list of recorded sessions showing timestamp, duration, note count, device, and starred status.
+  * `midikeep export (--session <id>|--latest) -o <dest.mid>`: Exports a recorded session as a standard MIDI file.
+  * `midikeep mark [-c COMMENT] [-i]` (aliases `clap`, `flag`): Mark active take with a Clapper (★), embedding standard SMF marker meta-event `0xFF 0x06` and starring the take. If `-i` / `--interactive`, prompts via desktop dialog.
+  * `midikeep comment [TEXT] [-i]` (aliases `memo`, `note`): Add a commented Clapper marker to active take.
+  * `midikeep restart` (aliases `split`, `new`): Finalize the active take immediately and start a new one.
+  * `midikeep star <session_id>`: Toggles a session's favorite flag.
+* **Ideas, not implemented:** `export --last <duration>` (arbitrary time-window export), `list --yesterday` / `--from <date>`, a live `monitor` view, and `prune --older-than <days>`.
 
 ### 2.2 The Graphical Interface: Pianola (`tech.redfoxlabs.Pianola`)
 A modern GTK4/Libadwaita desktop application adhering to GNOME Human Interface Guidelines (HIG).

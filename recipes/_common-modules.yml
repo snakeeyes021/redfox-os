@@ -66,7 +66,7 @@ modules:
         - libvirtd.service
         - bluefin-dx-groups.service
         - incus-workaround.service
-        - clamav-freshclam.service
+        # clamav-freshclam.service is enabled by `ujust enable-clamav-weekly` (opt-in)
     user:
       enabled:
         - redfox-user-setup.service
@@ -122,4 +122,3 @@ modules:
       - fix-tilix-vte.sh
       - install-smooth-overview.sh
       - install-antigravity.sh
-      # - patch-insync.sh # TODO: This may not have worked as intended. Difficult to say. Investigate. 
