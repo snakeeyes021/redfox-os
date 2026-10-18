@@ -290,6 +290,10 @@ def cmd_get(args):
         else:
             sys.exit(1)
 
+    # Treat empty values (e.g. "token:" with nothing after it) as unset
+    if val is None or val == "":
+        sys.exit(1)
+
     if isinstance(val, (dict, list)):
         try:
             import yaml

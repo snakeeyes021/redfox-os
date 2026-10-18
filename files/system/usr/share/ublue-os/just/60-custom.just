@@ -7,7 +7,7 @@ redfox-enforce-config:
     #!/usr/bin/bash
     set -euo pipefail
     CONFIG_FILE="$HOME/.config/redfox/config.yaml"
-    LOG_FILE="/tmp/redfox-bootstrap-current.log"
+    LOG_FILE="${XDG_RUNTIME_DIR:-$HOME/.cache}/redfox-bootstrap-current.log"
 
     if [ -s "$CONFIG_FILE" ]; then
         exit 0
@@ -21,9 +21,6 @@ redfox-enforce-config:
     # Interactive prompt via redfox-config setup
     /usr/bin/redfox-config setup || true
 
-# Backwards-compatible alias for existing scripts/habits
-redfox-enforce-secrets: redfox-enforce-config
-
 # Interactively setup or update configuration (paste, file, or URL)
 redfox-setup-config:
     /usr/bin/redfox-config setup
@@ -32,14 +29,10 @@ redfox-setup-config:
 redfox-edit-config:
     /usr/bin/redfox-config edit
 
-# Backwards-compatible aliases
-redfox-update-secrets: redfox-edit-config
-redfox-init-secrets: redfox-setup-config
-
 # Evaluates the run and archives the ledger
 _print-bootstrap-recap:
     #!/usr/bin/bash
-    LOG_FILE="/tmp/redfox-bootstrap-current.log"
+    LOG_FILE="${XDG_RUNTIME_DIR:-$HOME/.cache}/redfox-bootstrap-current.log"
     ARCHIVE_DIR="$HOME/.local/state/redfox"
     
     echo ""
@@ -49,7 +42,7 @@ _print-bootstrap-recap:
         echo "================================================================="
         cat "$LOG_FILE"
         echo "-----------------------------------------------------------------"
-        echo " You can configure these later by running: just redfox-edit-config"
+        echo " You can configure these later by running: ujust redfox-edit-config"
         
         mkdir -p "$ARCHIVE_DIR"
         mv "$LOG_FILE" "$ARCHIVE_DIR/bootstrap-$(date +%Y%m%d-%H%M%S).log"
@@ -61,9 +54,6 @@ _print-bootstrap-recap:
 # Permanently delete all saved configuration files
 redfox-reset-config:
     /usr/bin/redfox-config reset
-
-# Backwards-compatible alias
-redfox-reset-secrets: redfox-reset-config
 
 # Reset hostname to "redfox" (from whatever was inherited from upstream, likely "bazzite")
 reset-hostname:
@@ -506,14 +496,24 @@ apply-hardware-quirks:
         echo "No specific hardware quirks mapped for this device."
     fi
 
-# Configure NordVPN silently (relies on redfox-nord config or secrets)
+# Configure NordVPN silently from config.yaml (never aborts a bootstrap; problems go to the recap)
 configure-nordvpn:
-    @echo "Configuring NordVPN WireGuard connections..."
-    /usr/bin/redfox-nord sync || echo "[WARN] redfox-nord sync could not complete (offline or missing token)."
+    #!/usr/bin/bash
+    LOG_FILE="${XDG_RUNTIME_DIR:-$HOME/.cache}/redfox-bootstrap-current.log"
+    if ! /usr/bin/redfox-config get nordvpn.token &>/dev/null; then
+        echo "No NordVPN token in ~/.config/redfox/config.yaml. Skipping NordVPN setup."
+        echo "- NordVPN skipped (no nordvpn.token in config.yaml)" >> "$LOG_FILE"
+        exit 0
+    fi
+    echo "Configuring NordVPN WireGuard connections..."
+    if ! /usr/bin/redfox-nord sync; then
+        echo "[WARN] NordVPN setup did not fully complete (see output above)."
+        echo "- NordVPN setup incomplete (see output above; retry with: ujust nord-sync)" >> "$LOG_FILE"
+    fi
 
-# Nuke all VPN connections
+# Delete all RedFox-managed NordVPN connections (other VPNs are left alone)
 nuke-vpns:
-    @echo "WARNING: This will permanently delete all configured VPNs."
+    @echo "WARNING: This will permanently delete all RedFox NordVPN connections."
     /usr/bin/redfox-nord nuke -y
 
 # Synchronize NordVPN WireGuard fleet against active profile
@@ -524,13 +524,15 @@ nord-sync:
 nord-list:
     /usr/bin/redfox-nord list
 
-# Add a NordVPN connection (e.g. just nord-add US --p2p)
+# Add a NordVPN connection (e.g. ujust nord-add US --p2p)
+[positional-arguments]
 nord-add *args:
-    /usr/bin/redfox-nord add {{args}}
+    /usr/bin/redfox-nord add "$@"
 
-# Remove a NordVPN connection (e.g. just nord-remove US)
-nord-remove target:
-    /usr/bin/redfox-nord remove {{target}}
+# Remove NordVPN connection(s) (e.g. ujust nord-remove US, ujust nord-remove "NordVPN US #13024")
+[positional-arguments]
+nord-remove *args:
+    /usr/bin/redfox-nord remove "$@"
 
 # Enable weekly ClamAV antivirus scans
 enable-clamav-weekly:

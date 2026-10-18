@@ -1,3 +1,0 @@
-#!/bin/bash
-# Backward-compatible wrapper delegating to redfox-nord nuke
-exec /usr/bin/redfox-nord nuke "$@"
