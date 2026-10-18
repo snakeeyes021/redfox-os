@@ -631,21 +631,32 @@ add-swap size="16G":
     # Calculate exact bytes requested (e.g., 16G = 17179869184)
     REQ_BYTES=$(numfmt --from=iec {{size}})
     
-    if [ -f /var/swapfile ] && swapon --show | grep -q "/var/swapfile"; then
+    is_active() { swapon --show=NAME --noheadings | grep -qx "/var/swapfile"; }
+
+    if [ -f /var/swapfile ]; then
         CUR_BYTES=$(stat -c "%s" /var/swapfile 2>/dev/null || echo "0")
-        if [ "$CUR_BYTES" == "$REQ_BYTES" ]; then
+        if [ "$CUR_BYTES" != "$REQ_BYTES" ]; then
+            echo "Swap size mismatch. Resizing to {{size}}..."
+            sudo swapoff /var/swapfile 2>/dev/null || true
+            sudo rm -f /var/swapfile
+        elif is_active; then
             echo "[OK] Swapfile already active at requested size ({{size}})."
-            exit 0
+        else
+            # Left behind by an interrupted run or a manual swapoff: reuse it, or recreate if unusable
+            echo "Found inactive swapfile at requested size. Activating..."
+            if ! sudo swapon /var/swapfile; then
+                echo "Existing swapfile is unusable. Recreating..."
+                sudo rm -f /var/swapfile
+            fi
         fi
-        echo "Swap size mismatch. Resizing to {{size}}..."
-        sudo swapoff /var/swapfile
-        sudo rm -f /var/swapfile
     fi
 
-    echo "Creating {{size}} swapfile in /var/swapfile..."
-    # We use the native btrfs command to safely handle Copy-On-Write (NOCOW) requirements
-    sudo btrfs filesystem mkswapfile --size {{size}} /var/swapfile
-    sudo swapon /var/swapfile
+    if [ ! -f /var/swapfile ]; then
+        echo "Creating {{size}} swapfile in /var/swapfile..."
+        # We use the native btrfs command to safely handle Copy-On-Write (NOCOW) requirements
+        sudo btrfs filesystem mkswapfile --size {{size}} /var/swapfile
+        sudo swapon /var/swapfile
+    fi
     
     echo "Ensuring swap is persistent in /etc/fstab..."
     if ! grep -q '^/var/swapfile' /etc/fstab; then
