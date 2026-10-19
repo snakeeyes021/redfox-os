@@ -14,7 +14,7 @@ update:
     # Check if we have an interactive terminal (controlling tty or terminal stdout)
     INTERACTIVE=false
     TTY_IN="/dev/stdin"
-    if [ -c /dev/tty ]; then
+    if { : </dev/tty; } 2>/dev/null; then
         INTERACTIVE=true
         TTY_IN="/dev/tty"
     elif [[ -t 0 || -t 1 ]]; then

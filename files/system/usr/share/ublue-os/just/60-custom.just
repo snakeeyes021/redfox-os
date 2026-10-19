@@ -29,6 +29,10 @@ redfox-setup-config:
 redfox-edit-config:
     /usr/bin/redfox-config edit
 
+# Starts a fresh ledger for this bootstrap run
+_reset-bootstrap-recap:
+    rm -f "${XDG_RUNTIME_DIR:-$HOME/.cache}/redfox-bootstrap-current.log"
+
 # Evaluates the run and archives the ledger
 _print-bootstrap-recap:
     #!/usr/bin/bash
@@ -632,8 +636,9 @@ add-swap size="16G":
     #!/usr/bin/bash
     set -euo pipefail
     
-    # Calculate exact bytes requested (e.g., 16G = 17179869184)
-    REQ_BYTES=$(numfmt --from=iec {{size}})
+    # Calculate exact bytes requested (e.g., 16G = 17179869184); accepts 16g, 16G, 16GiB, 16GB
+    SIZE=$(echo "{{size}}" | tr '[:lower:]' '[:upper:]' | sed -E 's/I?B$//')
+    REQ_BYTES=$(numfmt --from=iec "$SIZE")
     
     is_active() { swapon --show=NAME --noheadings | grep -qx "/var/swapfile"; }
 
@@ -658,7 +663,7 @@ add-swap size="16G":
     if [ ! -f /var/swapfile ]; then
         echo "Creating {{size}} swapfile in /var/swapfile..."
         # We use the native btrfs command to safely handle Copy-On-Write (NOCOW) requirements
-        sudo btrfs filesystem mkswapfile --size {{size}} /var/swapfile
+        sudo btrfs filesystem mkswapfile --size "$SIZE" /var/swapfile
         sudo swapon /var/swapfile
     fi
     
@@ -1108,12 +1113,12 @@ theme-normie: theme-text-editor-default theme-sound-fedora theme-default-corners
 # --- BOOTSTRAP ORGANISMS ---
 
 # Bootstrap Matt
-bootstrap-matt: configure-matt install-matt theme-matt layout-matt _print-bootstrap-recap
+bootstrap-matt: _reset-bootstrap-recap configure-matt install-matt theme-matt layout-matt _print-bootstrap-recap
 # Bootstrap Dewy
-bootstrap-dewy: configure-dewy install-dewy theme-dewy layout-dewy _print-bootstrap-recap
+bootstrap-dewy: _reset-bootstrap-recap configure-dewy install-dewy theme-dewy layout-dewy _print-bootstrap-recap
 
 # Bootstrap Fedora
-bootstrap-fedora: theme-fedora layout-fedora configure-fedora _print-bootstrap-recap
+bootstrap-fedora: _reset-bootstrap-recap theme-fedora layout-fedora configure-fedora _print-bootstrap-recap
 
 # Bootstrap Normie
-bootstrap-normie: install-normie theme-normie layout-normie configure-normie _print-bootstrap-recap
+bootstrap-normie: _reset-bootstrap-recap install-normie theme-normie layout-normie configure-normie _print-bootstrap-recap
