@@ -13,21 +13,24 @@ def format_value(val_str):
     if val_lower == "false": return "false"
     if val_lower == "null": return "null"
     
-    # Catch integers, floats, and negative numbers
-    try:
-        float(val_str)
+    # JSON numbers (float() would also accept "nan", "inf", "1_000", which JSON doesn't)
+    if re.fullmatch(r"-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?", val_str):
         return val_str
-    except ValueError:
-        # If it fails, it's a string. Ensure it's wrapped in double quotes.
-        return f'"{val_str}"'
+    # Anything else is a string; json.dumps quotes and escapes it
+    return json.dumps(val_str)
 
 def validate_jsonc(text_content):
     """
     Validates JSONC in memory by stripping comments/commas and parsing it via AST.
     Raises json.JSONDecodeError if the resulting structure is invalid.
     """
-    # Strip single and multi-line comments
-    clean = re.sub(r"//.*?\n|/\*.*?\*/", "", text_content, flags=re.S)
+    # Strip single and multi-line comments, leaving string literals (e.g. "https://...") intact
+    clean = re.sub(
+        r'("(?:\\.|[^"\\])*")|//[^\n]*|/\*.*?\*/',
+        lambda m: m.group(1) or "",
+        text_content,
+        flags=re.S,
+    )
     # Strip trailing commas
     clean = re.sub(r",\s*([\]}])", r"\1", clean)
     # Attempt to load into AST (throws error if invalid)
@@ -55,7 +58,7 @@ def patch_jsonc_text(filepath, key, value_str):
 
         if pattern.search(content):
             # Key exists: Surgically replace only the value
-            new_content = pattern.sub(rf'\g<1>{new_value}', content, count=1)
+            new_content = pattern.sub(lambda m: m.group(1) + new_value, content, count=1)
         else:
             # Key doesn't exist: Inject it before the last closing brace
             last_brace_idx = content.rfind('}')

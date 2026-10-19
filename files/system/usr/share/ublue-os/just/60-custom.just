@@ -62,8 +62,12 @@ reset-hostname:
     set -euo pipefail
     NAME=""
     if /usr/bin/redfox-config get machines &>/dev/null; then
-        SERIAL=$(sudo cat /sys/class/dmi/id/product_serial 2>/dev/null || true)
-        NAME=$(/usr/bin/redfox-config machine hostname --id "$SERIAL" 2>/dev/null || true)
+        # Board/model names are readable without root; only read the DMI serial (sudo) if they don't match
+        NAME=$(/usr/bin/redfox-config machine hostname 2>/dev/null || true)
+        if [ -z "$NAME" ]; then
+            SERIAL=$(sudo cat /sys/class/dmi/id/product_serial 2>/dev/null || true)
+            NAME=$(/usr/bin/redfox-config machine hostname --id "$SERIAL" 2>/dev/null || true)
+        fi
     fi
     CURRENT=$(hostnamectl hostname 2>/dev/null || hostname)
     PRETTY="$NAME"
