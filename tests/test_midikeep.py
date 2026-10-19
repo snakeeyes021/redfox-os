@@ -406,8 +406,11 @@ class TestMarkerAndRestart(unittest.TestCase):
         marker_file = self.data_dir / "marker.msg"
         marker_file.write_text("Verse 2 melody idea", encoding="utf-8")
 
-        # Trigger handle_sigusr1
+        # Trigger handle_sigusr1 (queues the request); the main loop then applies it
         d.handle_sigusr1(signal.SIGUSR1, None)
+        self.assertEqual(len(d._pending_signals), 1)
+        d.process_pending_signals()
+        self.assertEqual(d._pending_signals, [])
 
         # marker.msg should be consumed and deleted
         self.assertFalse(marker_file.exists())
@@ -448,6 +451,76 @@ class TestMarkerAndRestart(unittest.TestCase):
         self.assertEqual(session.note_count, 2)
         self.assertIn((0, 60), session.active_notes)
         self.assertIn((0, 62), session.active_notes)
+        if session.journal_handle:
+            session.journal_handle.close()
+
+
+    def test_system_messages_dropped_from_smf_with_timing_kept(self):
+        # SysEx (MMC Stop), Start, and a marker meta event between two notes
+        events = [
+            (0.0, bytes([0x90, 60, 100])),
+            (0.5, bytes([0xF0, 0x7F, 0x7F, 0x06, 0x01, 0xF7])),
+            (0.5, bytes([0xFA])),
+            (0.0, b"\xFF\x06\x01M"),
+            (0.0, bytes([0x80, 60, 64])),
+        ]
+        data = daemon.build_midi_file(events, division=480, tempo_bpm=120.0, track_name="T")
+        self.assertNotIn(bytes([0xF0, 0x7F]), data)
+        self.assertNotIn(bytes([0xFA]), data)
+        self.assertIn(b"\xFF\x06\x01M", data)
+        # The marker carries the 1.0s of dropped deltas: 960 ticks = VLQ 0x87 0x40
+        self.assertIn(bytes([0x87, 0x40, 0xFF, 0x06]), data)
+
+    def test_journal_recovery_skips_truncated_line(self):
+        session = daemon.ActiveSession(
+            start_wall_time=datetime.now(timezone.utc),
+            start_mono_time=1000.0,
+            device_name="Test Controller",
+            sessions_dir=self.sessions_dir,
+            journal_dir=self.journal_dir,
+        )
+        session.record_event(bytes([0x90, 60, 100]), 1000.1)
+        session.record_event(bytes([0x80, 60, 64]), 1000.5)
+        session.flush_journal()
+        journal = session.journal_file
+        session.journal_handle.close()
+        with open(journal, "a", encoding="utf-8") as f:
+            f.write('{"type": "ev", "dt": 0.1, "he')  # crash mid-write
+
+        daemon.recover_orphaned_journals(self.journal_dir, self.db)
+
+        self.assertFalse(journal.exists())
+        with self.db._get_connection() as conn:
+            row = conn.execute("SELECT * FROM sessions").fetchone()
+        self.assertIsNotNone(row)
+        self.assertEqual(row["note_count"], 1)
+
+    def test_takes_in_same_second_get_distinct_files(self):
+        start = datetime.now(timezone.utc)
+        first = daemon.ActiveSession(
+            start_wall_time=start, start_mono_time=1000.0, device_name="Test",
+            sessions_dir=self.sessions_dir, journal_dir=self.journal_dir,
+        )
+        first.record_event(bytes([0x90, 60, 100]), 1000.1)
+        first_file = first.finalize(self.db, 1000.2)
+
+        second = daemon.ActiveSession(
+            start_wall_time=start, start_mono_time=1000.3, device_name="Test",
+            sessions_dir=self.sessions_dir, journal_dir=self.journal_dir,
+        )
+        second.record_event(bytes([0x90, 62, 100]), 1000.4)
+        second_file = second.finalize(self.db, 1000.5)
+
+        self.assertNotEqual(first_file, second_file)
+        self.assertTrue(Path(first_file).exists() and Path(second_file).exists())
+
+    def test_session_folder_uses_local_date(self):
+        start = datetime.now(timezone.utc)
+        session = daemon.ActiveSession(
+            start_wall_time=start, start_mono_time=1000.0, device_name="Test",
+            sessions_dir=self.sessions_dir, journal_dir=self.journal_dir,
+        )
+        self.assertEqual(session.target_dir, self.sessions_dir / start.astimezone().strftime("%Y/%m/%d"))
         if session.journal_handle:
             session.journal_handle.close()
 

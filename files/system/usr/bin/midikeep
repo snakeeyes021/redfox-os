@@ -138,6 +138,12 @@ def prompt_comment_gui() -> str | None:
     return None
 
 
+
+def local_day_start_utc() -> str:
+    """Start of today in local time, as a UTC ISO timestamp comparable with sessions.start_time."""
+    local_midnight = datetime.now().astimezone().replace(hour=0, minute=0, second=0, microsecond=0)
+    return local_midnight.astimezone(timezone.utc).isoformat()
+
 def cmd_mark(args, paths):
     """Trigger clapper / marker on active take, optionally with comment."""
     interactive = getattr(args, "interactive", False)
@@ -243,8 +249,7 @@ def cmd_status(args, paths):
             cur.execute("SELECT COUNT(*) FROM sessions")
             total = cur.fetchone()[0]
 
-            today_start = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-            cur.execute("SELECT COUNT(*) FROM sessions WHERE start_time >= ?", (today_start,))
+            cur.execute("SELECT COUNT(*) FROM sessions WHERE start_time >= ?", (local_day_start_utc(),))
             today_count = cur.fetchone()[0]
 
             cur.execute("SELECT COUNT(*) FROM sessions WHERE starred = 1")
@@ -272,9 +277,8 @@ def cmd_list(args, paths):
     conditions = []
 
     if getattr(args, "today", False):
-        today_start = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         conditions.append("start_time >= ?")
-        params.append(today_start)
+        params.append(local_day_start_utc())
 
     if getattr(args, "starred", False):
         conditions.append("starred = 1")
@@ -297,7 +301,7 @@ def cmd_list(args, paths):
     for r in rows:
         st = r["start_time"]
         try:
-            dt = datetime.fromisoformat(st)
+            dt = datetime.fromisoformat(st).astimezone()
             st_str = dt.strftime("%Y-%m-%d %H:%M:%S")
         except Exception:
             st_str = st[:19]

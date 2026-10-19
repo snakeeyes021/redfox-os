@@ -278,9 +278,18 @@ def build_midi_file(
     name_bytes = track_name.encode("utf-8", errors="replace")
     track_data.extend(b"\x00\xFF\x03" + encode_vlq(len(name_bytes)) + name_bytes)
 
-    # Sequence events
+    # Sequence events. Only channel messages (0x80-0xEF) and meta events (0xFF <type> <len> ...)
+    # are valid as-is in an MTrk chunk. Raw system messages from the wire (SysEx, MMC,
+    # Start/Stop/Clock, System Reset) would corrupt the file, so they are dropped and their
+    # delta time is carried over to the next event to keep timing intact.
+    carry_sec = 0.0
     for dt_sec, msg_bytes in events:
-        dt_ticks = int(round(dt_sec * ticks_per_second))
+        is_meta = len(msg_bytes) >= 3 and msg_bytes[0] == 0xFF
+        if not msg_bytes or (msg_bytes[0] >= 0xF0 and not is_meta):
+            carry_sec += dt_sec
+            continue
+        dt_ticks = int(round((dt_sec + carry_sec) * ticks_per_second))
+        carry_sec = 0.0
         track_data.extend(encode_vlq(dt_ticks))
         track_data.extend(msg_bytes)
 
@@ -353,10 +362,17 @@ class ActiveSession:
         self.division = division
         self.tempo_bpm = tempo_bpm
 
-        date_str = start_wall_time.strftime("%Y/%m/%d")
-        time_str = start_wall_time.strftime("%H-%M-%S")
+        # Folders and file names use local time; the database stores UTC timestamps
+        local_start = start_wall_time.astimezone()
+        date_str = local_start.strftime("%Y/%m/%d")
+        time_str = local_start.strftime("%H-%M-%S")
         self.target_dir = sessions_dir / date_str
         self.target_file = self.target_dir / f"session_{time_str}.mid"
+        # A take split with `midikeep restart` can start in the same second as the previous one
+        suffix = 2
+        while self.target_file.exists():
+            self.target_file = self.target_dir / f"session_{time_str}_{suffix}.mid"
+            suffix += 1
 
         journal_dir.mkdir(parents=True, exist_ok=True)
         ts_id = start_wall_time.strftime("%Y%m%d_%H%M%S")
@@ -585,7 +601,12 @@ def recover_orphaned_journals(journal_dir: Path, db: DatabaseIndex):
                     line = line.strip()
                     if not line:
                         continue
-                    rec = json.loads(line)
+                    try:
+                        rec = json.loads(line)
+                    except json.JSONDecodeError:
+                        # A crash mid-write can leave the last line truncated
+                        logger.warning("Skipping unreadable line in journal %s", jfile.name)
+                        continue
                     if rec.get("type") == "init":
                         start_wall = rec.get("start_wall")
                         start_mono = rec.get("start_mono", 0.0)
@@ -732,6 +753,7 @@ class AlsaSequencerManager:
     def scan_and_connect_ports(self, blacklist: list[str] | None = None) -> list[str]:
         blacklist = blacklist or []
         newly_connected = []
+        present: set[tuple[int, int]] = set()
 
         cinfo_p = ctypes.c_void_p()
         pinfo_p = ctypes.c_void_p()
@@ -765,6 +787,7 @@ class AlsaSequencerManager:
                     is_readable = (caps & SND_SEQ_PORT_CAP_READ) and (caps & SND_SEQ_PORT_CAP_SUBS_READ)
                     if is_readable:
                         key = (cid, pid)
+                        present.add(key)
                         if key not in self.connected_sources:
                             res = self.asound.snd_seq_connect_from(self.seq, self.my_port_id, cid, pid)
                             if res == 0:
@@ -778,6 +801,11 @@ class AlsaSequencerManager:
         finally:
             self.asound.snd_seq_client_info_free(cinfo_p)
             self.asound.snd_seq_port_info_free(pinfo_p)
+
+        # ALSA drops the subscription when a device goes away, and a replugged USB device
+        # usually comes back with the same client:port, so stale entries must be forgotten
+        for key in [k for k in self.connected_sources if k not in present]:
+            logger.info("MIDI input went away: %s [%d:%d]", self.connected_sources.pop(key), *key)
 
         return newly_connected
 
@@ -856,6 +884,7 @@ class MidikeepDaemon:
         self.running = False
         self.alsa: AlsaSequencerManager | None = None
         self.active_session: ActiveSession | None = None
+        self._pending_signals: list[tuple[str, float]] = []
         self.last_journal_flush = time.monotonic()
 
     def handle_signal(self, signum, frame):
@@ -863,8 +892,24 @@ class MidikeepDaemon:
         self.running = False
 
     def handle_sigusr1(self, signum, frame):
+        """Queue a clapper marker, timestamped now; applied by process_pending_signals()."""
+        self._pending_signals.append(("mark", time.monotonic()))
+
+    def handle_sigusr2(self, signum, frame):
+        """Queue a take restart, timestamped now; applied by process_pending_signals()."""
+        self._pending_signals.append(("restart", time.monotonic()))
+
+    def process_pending_signals(self):
+        """Apply queued SIGUSR1/SIGUSR2 requests outside signal-handler context."""
+        while self._pending_signals:
+            kind, now_mono = self._pending_signals.pop(0)
+            if kind == "mark":
+                self._mark_take(now_mono)
+            else:
+                self._restart_take(now_mono)
+
+    def _mark_take(self, now_mono: float):
         """Clapper action: Add marker (with optional custom comment) to active take, star it, and show notification."""
-        now_mono = time.monotonic()
         marker_file = self.data_dir / "marker.msg"
         label = "Clapper ★"
         if marker_file.exists():
@@ -896,9 +941,8 @@ class MidikeepDaemon:
             except Exception:
                 pass
 
-    def handle_sigusr2(self, signum, frame):
+    def _restart_take(self, now_mono: float):
         """Restart / split action: Finalize current take immediately and reset."""
-        now_mono = time.monotonic()
         if self.active_session is not None:
             logger.info("Session restart requested via signal. Finalizing take immediately...")
             target = self.active_session.finalize(self.db, now_mono)
@@ -926,6 +970,12 @@ class MidikeepDaemon:
         signal.signal(signal.SIGUSR1, self.handle_sigusr1)
         signal.signal(signal.SIGUSR2, self.handle_sigusr2)
 
+        # Wake poll() as soon as a signal arrives so queued requests are handled immediately
+        wake_r, wake_w = os.pipe()
+        os.set_blocking(wake_r, False)
+        os.set_blocking(wake_w, False)
+        signal.set_wakeup_fd(wake_w)
+
         # Write PID file
         pid_file = self.data_dir / "midikeep.pid"
         try:
@@ -942,6 +992,7 @@ class MidikeepDaemon:
         poller = select.poll()
         for fd, ev_mask in self.alsa.get_poll_descriptors():
             poller.register(fd, ev_mask)
+        poller.register(wake_r, select.POLLIN)
 
         self.running = True
         logger.info(
@@ -964,6 +1015,12 @@ class MidikeepDaemon:
                 break
 
             now_mono = time.monotonic()
+
+            try:
+                while os.read(wake_r, 4096):
+                    pass
+            except BlockingIOError:
+                pass
 
             if poll_results:
                 while True:
@@ -1014,6 +1071,8 @@ class MidikeepDaemon:
                     else:
                         dev_name = self.alsa.get_source_device_name(src_addr)
                         self.active_session.record_event(midi_bytes, now_mono, dev_name)
+
+            self.process_pending_signals()
 
             if self.active_session is not None:
                 silence_elapsed = now_mono - self.active_session.last_note_mono
