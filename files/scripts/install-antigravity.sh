@@ -11,11 +11,13 @@ HUB_FALLBACK_ID="2.23.0-5238607586394112"
 
 HUB_RELEASE_ID=$(curl -sSL --max-time 10 "$HUB_MANIFEST_URL" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+-[0-9]+' | head -n1 || true)
 
+hub_url() { echo "https://storage.googleapis.com/antigravity-public/antigravity-hub/$1/linux-x64/Antigravity.tar.gz"; }
+URL_20_FALLBACK=$(hub_url "$HUB_FALLBACK_ID")
 if [ -n "$HUB_RELEASE_ID" ]; then
-    URL_20="https://storage.googleapis.com/antigravity-public/antigravity-hub/${HUB_RELEASE_ID}/linux-x64/Antigravity.tar.gz"
+    URL_20=$(hub_url "$HUB_RELEASE_ID")
 else
     echo "Warning: Failed to parse Hub manifest. Falling back to pinned release."
-    URL_20="https://storage.googleapis.com/antigravity-public/antigravity-hub/${HUB_FALLBACK_ID}/linux-x64/Antigravity.tar.gz"
+    URL_20="$URL_20_FALLBACK"
 fi
 
 # ---------------------------------------------------------
@@ -27,14 +29,17 @@ IDE_FALLBACK_VER="2.5.5"
 IDE_FALLBACK_BUILD="4923483625488384"
 
 IDE_RAW=$(curl -sSL --max-time 10 "https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=antigravity-ide" || true)
-IDE_VER=$(echo "$IDE_RAW" | grep -E '^pkgver=' | head -n1 | cut -d'=' -f2 | tr -d ' "' || true)
-IDE_BUILD=$(echo "$IDE_RAW" | grep -E '^_build=' | head -n1 | cut -d'=' -f2 | tr -d ' "' || true)
+# Accept only plain version/build numbers (quoted or not); anything else falls back to the pin
+IDE_VER=$(echo "$IDE_RAW" | sed -nE "s/^pkgver=[\"']?([0-9]+(\.[0-9]+)+)[\"']?[[:space:]]*(#.*)?$/\1/p" | head -n1 || true)
+IDE_BUILD=$(echo "$IDE_RAW" | sed -nE "s/^_build=[\"']?([0-9]+)[\"']?[[:space:]]*(#.*)?$/\1/p" | head -n1 || true)
 
+ide_url() { echo "https://dl.google.com/release2/j0qc3/antigravity/stable/$1-$2/linux-x64/Antigravity%20IDE.tar.gz"; }
+URL_IDE_FALLBACK=$(ide_url "$IDE_FALLBACK_VER" "$IDE_FALLBACK_BUILD")
 if [ -n "$IDE_VER" ] && [ -n "$IDE_BUILD" ]; then
-    URL_IDE="https://dl.google.com/release2/j0qc3/antigravity/stable/${IDE_VER}-${IDE_BUILD}/linux-x64/Antigravity%20IDE.tar.gz"
+    URL_IDE=$(ide_url "$IDE_VER" "$IDE_BUILD")
 else
     echo "Warning: Failed to parse IDE upstream release. Falling back to pinned release."
-    URL_IDE="https://dl.google.com/release2/j0qc3/antigravity/stable/${IDE_FALLBACK_VER}-${IDE_FALLBACK_BUILD}/linux-x64/Antigravity%20IDE.tar.gz"
+    URL_IDE="$URL_IDE_FALLBACK"
 fi
 
 echo "Resolved Antigravity Hub: $URL_20"
@@ -43,21 +48,30 @@ echo "Resolved Antigravity IDE: $URL_IDE"
 # ---------------------------------------------------------
 # 3. Download & Extract
 # ---------------------------------------------------------
+# Download the resolved release; if it isn't there (e.g. a version not published yet), use the pin
+download() {
+    local url="$1" fallback="$2" out="$3"
+    curl -fL -o "$out" "$url" && return 0
+    [ "$url" = "$fallback" ] && return 1
+    echo "Warning: Download failed for $url. Falling back to pinned release."
+    curl -fL -o "$out" "$fallback"
+}
+
 echo "Downloading Antigravity Hub..."
-curl -fL -o /tmp/Antigravity.tar.gz "$URL_20"
+download "$URL_20" "$URL_20_FALLBACK" /tmp/Antigravity.tar.gz
 
 echo "Downloading Antigravity IDE..."
-curl -fL -o /tmp/Antigravity-IDE.tar.gz "$URL_IDE"
+download "$URL_IDE" "$URL_IDE_FALLBACK" /tmp/Antigravity-IDE.tar.gz
 
 echo "Extracting Antigravity Hub..."
 mkdir -p /usr/lib/antigravity
 rm -rf /usr/lib/antigravity/*
-tar -xzf /tmp/Antigravity.tar.gz -C /usr/lib/antigravity --strip-components=1
+tar --no-same-owner -xzf /tmp/Antigravity.tar.gz -C /usr/lib/antigravity --strip-components=1
 
 echo "Extracting Antigravity IDE..."
 mkdir -p /usr/lib/antigravity-ide
 rm -rf /usr/lib/antigravity-ide/*
-tar -xzf /tmp/Antigravity-IDE.tar.gz -C /usr/lib/antigravity-ide --strip-components=1
+tar --no-same-owner -xzf /tmp/Antigravity-IDE.tar.gz -C /usr/lib/antigravity-ide --strip-components=1
 
 echo "Setting executable permissions..."
 chmod +x /usr/lib/antigravity/antigravity 2>/dev/null || true

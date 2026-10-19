@@ -10,6 +10,7 @@ TEMP_DIR="/tmp/smooth-overview"
 
 # 1. Clone the repository
 git clone --depth 1 "$REPO_URL" "$TEMP_DIR"
+rm -rf "$TEMP_DIR/.git"
 
 # 2. Extract UUID from metadata.json
 # We'll use a simple grep/sed to avoid dependency on jq if it's not present
@@ -36,8 +37,8 @@ if [ -d "$INSTALL_DIR/schemas" ]; then
     glib-compile-schemas "$INSTALL_DIR/schemas"
 fi
 
-# 6. Set permissions (standard for /usr/share)
-chmod -R 755 "$INSTALL_DIR"
+# 6. Set permissions (standard for /usr/share: directories 755, files 644)
+chmod -R u=rwX,go=rX "$INSTALL_DIR"
 
 # 7. Cleanup
 rm -rf "$TEMP_DIR"

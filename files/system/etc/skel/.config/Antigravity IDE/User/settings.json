@@ -4,5 +4,5 @@
     "telemetry.telemetryLevel": "off",
     "git.autofetch": true,
     "git.confirmSync": false,
-    "editor.fontFamily": "'Cascadia Code', 'Droid Sans Mono', 'monospace', monospace, 'Symbols Nerd Font Mono'",
+    "editor.fontFamily": "'Cascadia Code', 'Droid Sans Mono', 'monospace', monospace, 'Symbols Nerd Font Mono'"
 }

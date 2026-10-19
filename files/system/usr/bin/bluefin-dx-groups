@@ -23,15 +23,22 @@ repair_gshadow() {
   fi
   echo "Removing $GSHADOW entries for groups that don't exist: ${orphans[*]}"
 
-  local tmp
+  # Build the new file next to the original and only swap it in if every step succeeded
+  local tmp expected
   tmp=$(mktemp "$(dirname "$GSHADOW")/.gshadow.XXXXXX") || return 1
-  awk -F: -v drop="$(printf '%s\n' "${orphans[@]}")" \
-    'BEGIN { n = split(drop, list, "\n"); for (i = 1; i <= n; i++) skip[list[i]] = 1 } !($1 in skip)' \
-    "$GSHADOW" >"$tmp"
-  chown --reference="$GSHADOW" "$tmp"
-  chmod --reference="$GSHADOW" "$tmp"
+  expected=$(($(wc -l <"$GSHADOW") - ${#orphans[@]}))
+  if ! awk -F: -v drop="$(printf '%s\n' "${orphans[@]}")" \
+      'BEGIN { n = split(drop, list, "\n"); for (i = 1; i <= n; i++) skip[list[i]] = 1 } !($1 in skip)' \
+      "$GSHADOW" >"$tmp" ||
+    [ "$(wc -l <"$tmp")" -ne "$expected" ] ||
+    ! chown --reference="$GSHADOW" "$tmp" ||
+    ! chmod --reference="$GSHADOW" "$tmp" ||
+    ! cp -a "$GSHADOW" "$GSHADOW-"; then
+    echo "Could not prepare a repaired $GSHADOW; leaving it untouched."
+    rm -f "$tmp"
+    return 1
+  fi
   chcon --reference="$GSHADOW" "$tmp" 2>/dev/null || true
-  cp -a "$GSHADOW" "$GSHADOW-"
   mv -f "$tmp" "$GSHADOW"
 }
 
@@ -44,6 +51,10 @@ if ! systemd-sysusers; then
   echo "systemd-sysusers failed; checking $GSHADOW for entries of groups that don't exist..."
   repair_gshadow && systemd-sysusers || echo "systemd-sysusers is still failing; see the messages above."
 fi
+
+# systemd-tmpfiles-setup ran earlier in boot, before any users added above existed, so entries
+# owned by them (e.g. ClamAV's /var/lib/clamav) were skipped. Create them now.
+systemd-tmpfiles --create || true
 
 # SCRIPT VERSION (increment this number every time you update this script)
 GROUP_SETUP_VER=2
