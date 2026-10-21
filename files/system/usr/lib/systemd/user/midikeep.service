@@ -1,0 +1,16 @@
+[Unit]
+Description=Midikeep Background MIDI Recording Engine
+After=sound.target pipewire.service
+Wants=sound.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/midikeep-daemon
+Restart=always
+RestartSec=5s
+Nice=-5
+MemoryHigh=30M
+MemoryMax=50M
+
+[Install]
+WantedBy=default.target

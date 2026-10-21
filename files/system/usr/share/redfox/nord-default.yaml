@@ -1,0 +1,9 @@
+# RedFoxOS Default NordVPN Profile
+# Provisions 5 standard WireGuard servers, leaving 3 slots free for user additions in GNOME Quick Settings.
+
+servers:
+  - country: US
+  - country: UK
+  - country: FR
+  - country: DE
+  - country: JP

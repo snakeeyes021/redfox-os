@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=RedFox Updater
+Comment=Update system packages, Flatpaks, Brew, and applications
+Exec=ptyxis -- ujust update
+Icon=redfox-updater
+Terminal=false
+Type=Application
+Categories=System;Settings;
