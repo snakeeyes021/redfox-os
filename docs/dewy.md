@@ -1,3 +1,5 @@
+> **Dewy:** commit changes to this file (and any other docs) to the `unstable` branch, not `main`. `main` only changes through pull requests (normally promoting `unstable`).
+
 ## Active Bugs & Gripes
 <!-- Anything broken, annoying, or behaving strangely on your machine -->
 
