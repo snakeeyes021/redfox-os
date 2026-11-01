@@ -160,6 +160,12 @@
 - [ ] `bootstrap-fedora`: Runs `theme-fedora`, `layout-fedora`, `configure-fedora` (no install-fedora).
 - [ ] `bootstrap-normie`: Runs `install-normie`, `theme-normie`, `layout-normie`, `configure-normie`.
 
+## 🔐 User Config, Secrets & the ujust Audit
+- [ ] **One secrets/config note per user:** the user keeps a single note in their secrets manager (Bitwarden or similar) that is their `~/.config/redfox/config.yaml`. It holds the settings that belong to the user rather than the OS, plus every secret or sensitive value, and RedFox sets everything else up from it automatically. Only a few integrations read it so far (NordVPN, per-machine hostname and quirks); audit which still need wiring.
+- [ ] **API keys for agents and tools:** keys (Gemini, Anthropic, OpenAI, etc.) come from the config, and RedFox puts each where its tool expects it (keyring or environment) instead of hand-editing `.bashrc`. A Gemini API key is still in the hp machine's `.bashrc`. Agent harness sign-ins (Claude Code, agy, T3, `gh`) stay a one-time prompt on first run unless the user goes the API-key route.
+- [ ] **Agent CLI themes:** terminal agents (Claude Code, agy, etc.) need a dark theme in the terminal but a light one inside VS Code. Pick defaults that follow where they're running.
+- [ ] **Audit the ujust recipes:** for each one, decide whether it belongs in the OS or is one user's quirk that should move into that user's config. Some stay baked in on purpose: `bootstrap-matt` and `bootstrap-dewy` are a nice touch, since RedFox is two brothers.
+
 ## 🛠️ Ujust Idempotency Fixes
 - [x] **Research & Fix:** Identify and resolve recipes that fail or cause issues when run multiple times.
     - [x] `add-swap`: Idempotent; skips if already active at the requested size, recreates it if the size differs.
