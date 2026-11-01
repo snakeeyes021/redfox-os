@@ -40,6 +40,9 @@
 - [x] **Dropbox:** Install official Dropbox client (flatpak)
     - [x] Remove maestral after dropbox is tested and experience is satisfactory (if maestral is not removed, improve maestral uninstall script to remove leftovers)
 - [x] **Implement** System-level GNOME Boxes + Virt-Manager
+- [ ] **Tailscale:** add to system defaults.
+- [ ] **Remove Winboat** from the defaults (reverses the Winboat item above).
+- [ ] **VS Code:** install the Antigravity extension.
 - [ ] **Implement** Starship terminal prompt by default with light-theme terminal (steal from Bluefin)
     - [ ] **Implement** ujust "configure" recipes for starship bluefin (system default, "reset"), starship bazzite (deviation), starship off (deviation)
 
@@ -191,11 +194,22 @@
 - [ ] Bake Ollama
 - [ ] implement 6 openclaw recipes (installs for openclaw, openclaw orchestrator, openclaw worker, and uninstalls for openclaw, orchestrator, and worker) -- see standalone to-do doc
 - [ ] rounded blur issue in blur my shell
+- [ ] Joplin and Signal start minimized to the tray, but only when started at boot; started any other way they open normally.
+- [ ] Mailspring doesn't get Adwaita as its default theme, but it should.
+- [ ] Setup/bootstrapping/config GUIs for managing RedFox's app sets, settings, services, actions, etc.
+- [ ] Midikeep: GNOME notifications don't group.
+- [ ] Midikeep: let the user set where the session archive goes, in a config Pianola also reads (Pianola side is in its `docs/BACKLOG.md`).
 
 
 ## Running Matt fixes
 - [ ] Post-GNOME Builder install fix to reset file associations (GNOME builder steals just about any type of code file, python, json, sh, etc.)
 - [x] Text Editor should not open previous session by default
+- From the Joplin note "RedfoxOS Manual Steps" (done by hand on Matt's machine; automate):
+    - [ ] Install T3
+    - [ ] Install Claude Code
+    - [ ] GitHub CLI (`configure-git` uses `gh`; make sure it's installed)
+    - [ ] Insync folders as Nautilus bookmarks (named with both the local user and the Google account email); maybe also symlinked into Wine prefixes and/or home
+    - [ ] Profile picture
 
 ## Running Dewy fixes
 - [x] System Dropbox
