@@ -214,7 +214,7 @@ Move RedFox's own tooling into GUI Flatpak apps, like Thirties and Pianola alrea
     - [x] Terminal banner (MOTD): RedFox welcome, links and tips; Bazzite's tips removed.
     - [x] Fedora logo files (installer, initial setup, About dialogs) regenerated from the RedFox art.
     - [ ] Bazzite Portal and Bazzite Announcements stay as they are: their content is Bazzite's. RedFox Welcome replaces the Portal later.
-    - [ ] `ujust rollback-helper` only knows Bazzite images; needs a RedFox version.
+    - [x] Bazzite's rollback helper (`bazzite-rollback-helper`, `bruh`) only knows Bazzite images. *(`redfox-rollback-helper` / `ujust rollback-helper` on `feat/redfox-rollback-helper`: lists builds of latest/unstable by commit and date, rolls back, rebases with a warning when switching NVIDIA flavour. Tested in the VM.)*
     - [x] Create/Add assets: Neofetch/Fastfetch Logo, Splash Screen, System Info Logo. *(Made from the existing art by `assets/branding/make-images.py` on `feat/branding`.)*
     - [ ] **New artwork from Matt** (listed in `docs/branding.md`): the fox as an SVG; a simple single-colour fox mark for 16 px and symbolic icons (ArcMenu's start button, Logo Menu); the wordmark as a vector, or its font.
 
