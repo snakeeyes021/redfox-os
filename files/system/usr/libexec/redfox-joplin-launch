@@ -1,0 +1,57 @@
+#!/usr/bin/python3
+"""Start Joplin (Flatpak), in the tray or normally.
+
+Joplin has no command-line flag for starting minimized; it reads its
+"Start application minimised in the tray icon" setting once at startup and
+writes its in-memory copy back whenever it saves settings. So each way of
+starting it sets the value it wants right before Joplin reads it:
+
+    redfox-joplin-launch --tray   login autostart: start hidden in the tray
+    redfox-joplin-launch [ARGS]   app grid / dock: open the window as usual
+"""
+
+import json
+import os
+import sys
+
+APP_ID = "net.cozic.joplin_desktop"
+# The Flatpak is given ~/.config/joplin-desktop and keeps its profile there;
+# fall back to the sandbox's own config folder if that's where one is.
+PROFILES = [
+    os.path.expanduser("~/.config/joplin-desktop"),
+    os.path.expanduser(f"~/.var/app/{APP_ID}/config/joplin-desktop"),
+]
+PROFILE = next((p for p in PROFILES if os.path.isdir(p)), PROFILES[0])
+SETTINGS = os.path.join(PROFILE, "settings.json")
+
+
+def set_start_minimized(minimized):
+    try:
+        with open(SETTINGS, encoding="utf-8") as f:
+            settings = json.load(f)
+    except FileNotFoundError:
+        settings = {"$schema": "https://joplinapp.org/schema/settings.json"}
+    except (OSError, ValueError):
+        return  # leave a file we can't read alone; Joplin will handle it
+    changed = settings.get("startMinimized", False) != minimized
+    # Joplin only hides in the tray if the tray icon is on, which on Linux
+    # it isn't by default.
+    if minimized and settings.get("showTrayIcon") is not True:
+        settings["showTrayIcon"] = True
+        changed = True
+    if not changed:
+        return
+    settings["startMinimized"] = minimized
+    os.makedirs(os.path.dirname(SETTINGS), exist_ok=True)
+    tmp = f"{SETTINGS}.redfox-tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(settings, f, indent="\t")
+        f.write("\n")
+    os.replace(tmp, SETTINGS)
+
+
+args = sys.argv[1:]
+tray = "--tray" in args
+args = [a for a in args if a != "--tray"]
+set_start_minimized(tray)
+os.execvp("flatpak", ["flatpak", "run", APP_ID, *args])
