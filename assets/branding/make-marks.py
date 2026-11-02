@@ -158,9 +158,13 @@ def swirl_svg(fill):
     c = Canvas(100, 100, SCALE)
     draw_swirl(c, (0, 0, 0))
     paths = "".join(item.replace('fill="#000000"', f'fill="{fill}"') for item in c.svg)
-    # Square, so it sits centred wherever a square icon is expected.
-    return (f'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="1 0 98 98">'
-            f'{paths}</svg>\n')
+    # A square frame fitted tightly round the drawing and centred on it, so the
+    # mark fills its icon like other icons do and sits in the middle of it.
+    x0, y0, x1, y1 = (v / SCALE for v in c.im.getchannel("A").getbbox())
+    side = max(x1 - x0, y1 - y0) + 2
+    left, top = (x0 + x1 - side) / 2, (y0 + y1 - side) / 2
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" '
+            f'viewBox="{left:.2f} {top:.2f} {side:.2f} {side:.2f}">{paths}</svg>\n')
 
 
 def save_text(text, relpath):
