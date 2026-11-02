@@ -39,8 +39,9 @@ MANAGED_EXTENSIONS = [DASH_TO_DOCK, DASH_TO_PANEL, ARCMENU, SMOOTH_OVERVIEW]
 DTD = "org.gnome.shell.extensions.dash-to-dock"
 DTP = "org.gnome.shell.extensions.dash-to-panel"
 ARC = "org.gnome.shell.extensions.arcmenu"
-# ArcMenu's start button shows RedFox's symbolic mark, when the image has it.
-ARC_BUTTON = ({"menu-button-icon": "redfox-logo-symbolic"}
+# ArcMenu's start button shows RedFox's symbolic mark, when the image has it,
+# a little larger than ArcMenu's 20 px default so the ears and swirl read.
+ARC_BUTTON = ({"menu-button-icon": "redfox-logo-symbolic", "menu-button-icon-size": 28}
               if os.path.exists("/usr/share/icons/hicolor/scalable/apps/redfox-logo-symbolic.svg") else {})
 RFL = "org.gnome.shell.extensions.redfox-layouts"
 BMS = "org.gnome.shell.extensions.blur-my-shell"
