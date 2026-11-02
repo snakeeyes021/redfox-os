@@ -181,6 +181,7 @@ Move RedFox's own tooling into GUI Flatpak apps, like Thirties and Pianola alrea
 ## 🧪 Testing
 - [ ] **VM testbed:** `tests/vm/` (on `feat/layout-modes`) builds a Bazzite VM, `redfox-test`, and documents the three ways to test a feature branch: a hotfix overlay, a local `bluebuild build` plus rebase, or CI's `pr-*` images.
 - [ ] **Rebase from elsewhere now and then:** we normally rebase from Bazzite. Occasionally test rebasing from Bluefin (and other uBlue images) to make sure our setup holds up. Not pressing.
+    - [x] Bluefin → RedFox, 2026-11-01: works; details in `tests/vm/README.md` (on `feat/layout-modes`). It takes about 45 min, since the images share no layers. It found that the `docker` group never reaches a rebased machine (Bazzite too), so `docker.socket` fails; fixed on `fix/docker-group-after-rebase`. Bluefin-only extensions (Search Light, Logo Menu) disappear without a message, and some packages drop a version until the next update.
 
 ## 🔐 User Config, Secrets & the ujust Audit
 - [ ] **One secrets/config note per user:** the user keeps a single note in their secrets manager (Bitwarden or similar) that is their `~/.config/redfox/config.yaml`. It holds the settings that belong to the user rather than the OS, plus every secret or sensitive value, and RedFox sets everything else up from it automatically. Only a few integrations read it so far (NordVPN, per-machine hostname and quirks); audit which still need wiring.
@@ -201,8 +202,21 @@ Move RedFox's own tooling into GUI Flatpak apps, like Thirties and Pianola alrea
 - [ ] **Wallpapers**
     - [ ] Import all Bluefin / Bluefin DX wallpapers.
     - [ ] **Collection:** Gather Pawel Czerwinski Light/Dark pairs.
-- [ ] **RedFoxOS Branding**
-    - [ ] Create/Add assets: Neofetch/Fastfetch Logo, Splash Screen, System Info Logo.
+- [ ] **RedFoxOS Branding:** the OS calls itself RedFoxOS, not Bazzite, everywhere a person sees it. Machine-readable IDs that tooling reads stay Bazzite's; the trade-offs are in `docs/branding.md`. *(In progress on `feat/branding`.)*
+    - [ ] `os-release`: NAME/PRETTY_NAME "RedFoxOS", LOGO, URLs, DEFAULT_HOSTNAME `redfox`, BOOTLOADER_NAME, IMAGE_ID. `ID=bazzite` is kept.
+    - [ ] `image-info.json`: image name, vendor and ref are RedFox's (for the MOTD and Bazzite's scripts).
+    - [ ] Settings → About: name and logo (light and dark variants).
+    - [ ] GRUB entries: "RedFoxOS (ostree:N)".
+    - [ ] Login screen (GDM) logo: larger, light lettering for the dark background.
+    - [ ] Boot splash (Plymouth): RedFox watermark, larger and legible. It never showed before, because the initramfs kept Bazzite's copy; the build now rebuilds it.
+    - [ ] Fastfetch: RedFox fox in RedFox red, and the real booted image ref.
+    - [ ] Starship: a RedFox default config with a 🦊 OS symbol (Starship itself is the separate Starship item).
+    - [ ] Terminal banner (MOTD): RedFox welcome, links and tips; Bazzite's tips removed.
+    - [ ] Fedora logo files (installer, initial setup, About dialogs) regenerated from the RedFox art.
+    - [ ] Bazzite Portal and Bazzite Announcements stay as they are: their content is Bazzite's. RedFox Welcome replaces the Portal later.
+    - [ ] `ujust rollback-helper` only knows Bazzite images; needs a RedFox version.
+    - [x] Create/Add assets: Neofetch/Fastfetch Logo, Splash Screen, System Info Logo. *(Made from the existing art by `assets/branding/make-images.py` on `feat/branding`.)*
+    - [ ] **New artwork from Matt** (listed in `docs/branding.md`): the fox as an SVG; a simple single-colour fox mark for 16 px and symbolic icons (ArcMenu's start button, Logo Menu); the wordmark as a vector, or its font.
 
 ## Fixups/New (Items that arrive after a fix is already implemented)
 - [x] Screenshot (add Windows super + shift + s shortcut for selection screenshot; move fullscreen screenshot to printscreen)
