@@ -85,8 +85,8 @@ def panel_elements(*elements):
     return [{"element": e, "visible": v, "position": p} for e, v, p in elements]
 
 
-# Windows 10: start button and pinned/running apps from the left, tray and
-# clock on the right.
+# Windows 10: start button and pinned/running apps from the left; on the
+# right the tray, the status icons, then the clock, as Windows has them.
 WINDOWS_CLASSIC_ELEMENTS = panel_elements(
     ("showAppsButton", False, "stackedTL"),
     ("activitiesButton", False, "stackedTL"),
@@ -94,8 +94,8 @@ WINDOWS_CLASSIC_ELEMENTS = panel_elements(
     ("taskbar", True, "stackedTL"),
     ("centerBox", True, "stackedBR"),
     ("rightBox", True, "stackedBR"),
-    ("dateMenu", True, "stackedBR"),
     ("systemMenu", True, "stackedBR"),
+    ("dateMenu", True, "stackedBR"),
     ("desktopButton", True, "stackedBR"),
 )
 
@@ -107,8 +107,8 @@ WINDOWS_ELEMENTS = panel_elements(
     ("taskbar", True, "centerMonitor"),
     ("centerBox", True, "stackedBR"),
     ("rightBox", True, "stackedBR"),
-    ("dateMenu", True, "stackedBR"),
     ("systemMenu", True, "stackedBR"),
+    ("dateMenu", True, "stackedBR"),
     ("desktopButton", True, "stackedBR"),
 )
 
