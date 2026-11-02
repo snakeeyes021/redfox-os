@@ -26,5 +26,15 @@
       <default>1600</default>
       <summary>Smallest primary monitor width (logical pixels) that gets the dock</summary>
     </key>
+    <key name="tiling-button-by-start" type="b">
+      <default>false</default>
+      <summary>Put the tiling button next to the start button</summary>
+      <description>Move Tiling Shell's panel button from the system tray to just after ArcMenu's start button, at app-icon size, as the Windows layouts want.</description>
+    </key>
+    <key name="tiling-button-size" type="i">
+      <range min="16" max="64"/>
+      <default>24</default>
+      <summary>Size of the tiling button's icon next to the start button, in pixels</summary>
+    </key>
   </schema>
 </schemalist>

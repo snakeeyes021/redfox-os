@@ -12,6 +12,7 @@ import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 const DASH_TO_DOCK = 'dash-to-dock@micxgx.gmail.com';
+const TILING_SHELL = 'tilingshell@ferrarodomenico.com';
 
 // Dash to Dock already leaves a few pixels between the dock and the screen
 // edge. Floating replaces that with `gap` pixels on the screen-facing sides
@@ -36,7 +37,15 @@ export default class RedFoxLayoutsExtension extends Extension {
             'changed::floating-dock-gap', () => this._syncFloatingDock(),
             'changed::auto-dock', () => this._queueAutoDock(),
             'changed::auto-dock-min-width', () => this._queueAutoDock(),
+            'changed::tiling-button-by-start', () => this._queueTilingButton(),
+            'changed::tiling-button-size', () => this._queueTilingButton(),
             this);
+
+        // ArcMenu, Tiling Shell and Dash to Panel each rebuild their panel
+        // buttons when they are turned on or off, so place the tiling button
+        // again after any of them changes.
+        Main.extensionManager.connectObject(
+            'extension-state-changed', () => this._queueTilingButton(), this);
 
         // A theme change (user-theme, high contrast) builds a new St.Theme
         // and drops stylesheets loaded at runtime, so load ours into the new
@@ -53,10 +62,13 @@ export default class RedFoxLayoutsExtension extends Extension {
 
         this._syncFloatingDock();
         if (Main.layoutManager._startingUp) {
-            Main.layoutManager.connectObject('startup-complete',
-                () => this._queueAutoDock(), this);
+            Main.layoutManager.connectObject('startup-complete', () => {
+                this._queueAutoDock();
+                this._queueTilingButton();
+            }, this);
         } else {
             this._queueAutoDock();
+            this._queueTilingButton();
         }
     }
 
@@ -64,6 +76,7 @@ export default class RedFoxLayoutsExtension extends Extension {
         if (!this._settings)
             return;
         Main.layoutManager.disconnectObject(this);
+        Main.extensionManager.disconnectObject(this);
         St.ThemeContext.get_for_stage(global.stage).disconnectObject(this);
         this._settings.disconnectObject(this);
         this._settings = null;
@@ -71,6 +84,11 @@ export default class RedFoxLayoutsExtension extends Extension {
             GLib.source_remove(this._autoDockId);
             this._autoDockId = 0;
         }
+        if (this._tilingButtonId) {
+            GLib.source_remove(this._tilingButtonId);
+            this._tilingButtonId = 0;
+        }
+        this._restoreTilingButton();
         this._unloadStylesheet();
     }
 
@@ -128,5 +146,79 @@ export default class RedFoxLayoutsExtension extends Extension {
             Main.extensionManager.enableExtension(DASH_TO_DOCK);
         else if (!wantDock && enabled)
             Main.extensionManager.disableExtension(DASH_TO_DOCK);
+    }
+
+    _queueTilingButton() {
+        if (this._tilingButtonId)
+            GLib.source_remove(this._tilingButtonId);
+        this._tilingButtonId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
+            this._tilingButtonId = 0;
+            this._syncTilingButton();
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    // In the Windows layouts, Tiling Shell's button sits just after the
+    // start button, at app-icon size, instead of among the tray icons.
+    _syncTilingButton() {
+        if (!this._settings.get_boolean('tiling-button-by-start')) {
+            this._restoreTilingButton();
+            return;
+        }
+
+        const tiling = Main.panel.statusArea[TILING_SHELL];
+        const start = Main.panel.statusArea['ArcMenu'];
+        const startBox = start?.container?.get_parent();
+        if (!tiling?.container || !startBox) {
+            this._restoreTilingButton();
+            return;
+        }
+
+        if (this._tiling !== tiling) {
+            this._restoreTilingButton();
+            this._tiling = tiling;
+            const icon = tiling.get_first_child();
+            this._tilingIcon = icon instanceof St.Icon ? icon : null;
+            this._tilingIconSize = this._tilingIcon?.icon_size ?? -1;
+            tiling.connectObject('destroy', () => {
+                this._tiling = null;
+                this._tilingIcon = null;
+            }, this);
+        }
+
+        const container = tiling.container;
+        if (container.get_parent() !== startBox) {
+            container.get_parent()?.remove_child(container);
+            startBox.insert_child_above(container, start.container);
+        } else if (container.get_previous_sibling() !== start.container) {
+            startBox.set_child_above_sibling(container, start.container);
+        }
+        if (this._tilingIcon)
+            this._tilingIcon.icon_size = this._settings.get_int('tiling-button-size');
+    }
+
+    // Back among the tray icons: in the top bar's right box, just before the
+    // system indicators, which is where Tiling Shell's own placement ends up.
+    _restoreTilingButton() {
+        const tiling = this._tiling;
+        if (!tiling)
+            return;
+        tiling.disconnectObject(this);
+        if (this._tilingIcon)
+            this._tilingIcon.icon_size = this._tilingIconSize;
+        const container = tiling.container;
+        const box = Main.panel._rightBox;
+        if (container && box && container.get_parent() !== box) {
+            container.get_parent()?.remove_child(container);
+            const before = ['a11y', 'keyboard', 'quickSettings']
+                .map(name => Main.panel.statusArea[name]?.container)
+                .find(c => c?.get_parent() === box);
+            if (before)
+                box.insert_child_below(container, before);
+            else
+                box.add_child(container);
+        }
+        this._tiling = null;
+        this._tilingIcon = null;
     }
 }

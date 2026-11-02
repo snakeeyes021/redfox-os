@@ -55,7 +55,7 @@ WM = "org.gnome.desktop.wm.preferences"
 # and ArcMenu settings, like ArcMenu's pinned apps, are left alone.
 RESET_SCHEMAS = [DTD]
 RESET_KEYS = {
-    RFL: ["floating-dock", "floating-dock-gap", "auto-dock"],
+    RFL: ["floating-dock", "floating-dock-gap", "auto-dock", "tiling-button-by-start"],
     # The first RedFox dock preset set a rounded blur pipeline. Blur my Shell
     # now rounds the dock's blur to match the dock by itself.
     BMS: ["pipelines"],
@@ -132,8 +132,15 @@ def dash_to_panel(elements, **extra):
             "show-favorites": True,
             "dot-style-focused": "METRO",
             "dot-style-unfocused": "DOTS",
+            # Dash to Panel paints a solid black bar by default. With its own
+            # background at 40% black, Blur my Shell's blur shows through and
+            # the taskbar matches RedFox's top bar.
+            "trans-use-custom-opacity": True,
+            "trans-panel-opacity": 0.4,
             **extra,
         },
+        # Tiling Shell's button goes just after the start button.
+        RFL: {"tiling-button-by-start": True},
     }
 
 
