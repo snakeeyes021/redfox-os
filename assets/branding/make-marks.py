@@ -26,7 +26,9 @@ SYSTEM = ROOT / "files" / "system"
 
 RED, DEEP, WHITE, INK = (178, 34, 52), (122, 16, 34), (244, 236, 236), (60, 10, 20)
 SCALE = 12            # canvas units -> pixels when rasterising
-TERMINAL_COLUMNS = 42
+# 38 columns gives 22 rows, so the fox (plus fastfetch's top padding) fits a
+# default 80x24 terminal; a taller logo scrolls and fastfetch draws over it.
+TERMINAL_COLUMNS = 38
 
 
 # --- The terminal fox -------------------------------------------------------
@@ -77,9 +79,9 @@ def draw_fox(c, face=True):
 # Pixel features for the terminal: (centre in canvas units, mirrored, pixel offsets).
 # Narrow slits whose outer corners lift, like the drawing's eyes, and a solid nose,
 # all one dark colour (blending them in made the fox look startled).
-EYE = [(-2, -1), (-1, 0), (0, 0), (1, 0)]
-NOSE = [(-1, 0), (0, 0), (-1, 1), (0, 1)]
-TERMINAL_FEATURES = [((72, 21), False, EYE), ((87.5, 21), True, EYE), ((85, 42), False, NOSE)]
+EYE = [(-1, -1), (0, 0), (1, 0)]
+NOSE = [(-1, 0), (0, 0)]
+TERMINAL_FEATURES = [((72.5, 21), False, EYE), ((87, 21), True, EYE), ((85, 44.5), False, NOSE)]
 
 
 def nearest(p):

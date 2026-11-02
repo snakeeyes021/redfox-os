@@ -5,8 +5,8 @@
         // assets/branding/make-marks.py. Raw, so fastfetch needs its size.
         "type": "file-raw",
         "source": "/usr/share/ublue-os/bazzite/logo.txt",
-        "width": 42,
-        "height": 24,
+        "width": 38,
+        "height": 22,
         "padding": {
             "top": 1
         }
