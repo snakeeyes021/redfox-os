@@ -1,0 +1,23 @@
+#!/usr/bin/bash
+# Open the system monitor: what Ctrl+Shift+Esc, Ctrl+Alt+Del on the keypad
+# and Logo Menu's "System Monitor" run (Bazzite points them at Mission Center).
+#
+# RedFox's monitor is Resources. A machine set up before the switch may only
+# have Mission Center, which is left in place, so that opens instead. With
+# neither installed, Resources is installed first.
+
+set -euo pipefail
+
+RESOURCES=net.nokyan.Resources
+MISSION_CENTER=io.missioncenter.MissionCenter
+
+installed() { flatpak info "$1" &> /dev/null; }
+
+if installed "$RESOURCES"; then
+    exec flatpak run "$RESOURCES" "$@"
+elif installed "$MISSION_CENTER"; then
+    exec flatpak run "$MISSION_CENTER" "$@"
+fi
+
+flatpak install --system -y --noninteractive flathub "$RESOURCES"
+exec flatpak run "$RESOURCES" "$@"
