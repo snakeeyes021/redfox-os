@@ -40,9 +40,9 @@
 - [x] **Dropbox:** Install official Dropbox client (flatpak)
     - [x] Remove maestral after dropbox is tested and experience is satisfactory (if maestral is not removed, improve maestral uninstall script to remove leftovers)
 - [x] **Implement** System-level GNOME Boxes + Virt-Manager
-- [ ] **Tailscale:** add to system defaults.
-- [ ] **Remove Winboat** from the defaults (reverses the Winboat item above).
-- [ ] **VS Code:** install the Antigravity extension.
+- [ ] **Tailscale:** add to system defaults. *(On `feat/small-roadmap-items`: Bazzite already ships it; the branch turns `tailscaled` on.)*
+- [ ] **Remove Winboat** from the defaults (reverses the Winboat item above). *(On `feat/small-roadmap-items`: out of `install-compatibility`; `install-winboat` stays opt-in.)*
+- [ ] **VS Code:** install the Antigravity extension. *(On `feat/small-roadmap-items`: `Google.google-antigravity`.)*
 - [ ] **Implement** Starship terminal prompt by default with light-theme terminal (steal from Bluefin)
     - [ ] **Implement** ujust "configure" recipes for starship bluefin (system default, "reset"), starship bazzite (deviation), starship off (deviation)
 
@@ -161,11 +161,14 @@
 - [ ] `bootstrap-normie`: Runs `install-normie`, `theme-normie`, `layout-normie`, `configure-normie`.
 
 ## 🪟 Layout Modes
+*Built on `feat/layout-modes` and tested live in the VM; waiting for Matt's check before merging. `redfox-layout list/get/set` switches between gnome, ubuntu, macos, windows-classic, windows and redfox without a logout, and the `preset-dock-*` recipes call it. Windows layouts use Dash to Panel + ArcMenu. The restart had two causes: the gap hack copied Dash to Dock into `~/.local`, which GNOME only picks up at login; and smooth-overview broke when GNOME called enable() or disable() twice in a row ("too much recursion"), leaving the overview broken until the shell restarted.*
 - [ ] **More layouts, built from scratch:** today only the Ubuntu-style layout (and Dewy's variant) is finished. Build the rest of the presets above (`preset-dock-win-classic`, `preset-dock-win-new`, `preset-dock-macos`, the `_preset-dock-redfox` hybrid proof of concept) plus any others we want. Zorin's layouts are Zorin Pro (paid): don't consult or look at their implementation.
 - [ ] **Switching layouts works live:** moving between presets shouldn't need a logout or restart. Some switches depend on smooth-overview, and something there may need a restart (possibly because the extension is built from source at image build time: `files/scripts/install-smooth-overview.sh`). Find out and fix it.
-- [ ] **smooth-overview, hardened:** review it against GNOME Shell extension best practice (it was thrown together quickly), make sure it's solid on the current GNOME, install it the proper way for a system extension, and consider publishing it on extensions.gnome.org.
+- [ ] **smooth-overview, hardened:** *(Done on smooth-overview's local `harden` branch, not pushed yet: InjectionManager, safe to enable/disable twice, only the overview's and top bar's own lookups change, keeps the clock centred. Publishing on extensions.gnome.org needs Matt's account.)* review it against GNOME Shell extension best practice (it was thrown together quickly), make sure it's solid on the current GNOME, install it the proper way for a system extension, and consider publishing it on extensions.gnome.org.
 
 ## 🧩 RedFox Apps (Flatpak GUIs)
+*Design proposal for Matt to review: [`docs/redfox-apps-design.md`](redfox-apps-design.md).*
+
 Move RedFox's own tooling into GUI Flatpak apps, like Thirties and Pianola already are (`tech.redfoxlabs.*`), building them where they don't exist yet:
 - [ ] **Welcome:** first-run app.
 - [ ] **Config:** a front end to `redfox-config` / `config.yaml` and RedFox's settings, services and actions (see the setup-GUIs item in Fixups).
@@ -173,15 +176,16 @@ Move RedFox's own tooling into GUI Flatpak apps, like Thirties and Pianola alrea
 - [ ] **RedFox Manual:** a very short help guide, only for where RedFox differs from mainline Linux (it's immutable) or from other immutable distros (the conveniences and tools we chose). For example: "I want to install a Flatpak / a CLI tool, what do I do?", "My collaborators and I need identical dev setups with a specific Node version", "I need a Python environment; what are my options?" (uv, and whatever else we provide).
 
 ## 🧰 Editors
-- [ ] **Dewy and Sloppy extensions by default:** install `RedFoxLabs.dewy` and `RedFoxLabs.sloppy` (on both the VS Code Marketplace and Open VSX) in VS Code and every fork we ship or set up (Cursor, Antigravity, etc.): add to `setup-vscode` / `setup-cursor`.
+- [ ] **Dewy and Sloppy extensions by default:** *(On `feat/small-roadmap-items`, in the `90-vscode.sh` login hook; Cursor's marketplace returns 403 for both, so it falls back to the Open VSX `.vsix`.)* install `RedFoxLabs.dewy` and `RedFoxLabs.sloppy` (on both the VS Code Marketplace and Open VSX) in VS Code and every fork we ship or set up (Cursor, Antigravity, etc.): add to `setup-vscode` / `setup-cursor`.
 
 ## 🧪 Testing
+- [ ] **VM testbed:** `tests/vm/` (on `feat/layout-modes`) builds a Bazzite VM, `redfox-test`, and documents the three ways to test a feature branch: a hotfix overlay, a local `bluebuild build` plus rebase, or CI's `pr-*` images.
 - [ ] **Rebase from elsewhere now and then:** we normally rebase from Bazzite. Occasionally test rebasing from Bluefin (and other uBlue images) to make sure our setup holds up. Not pressing.
 
 ## 🔐 User Config, Secrets & the ujust Audit
 - [ ] **One secrets/config note per user:** the user keeps a single note in their secrets manager (Bitwarden or similar) that is their `~/.config/redfox/config.yaml`. It holds the settings that belong to the user rather than the OS, plus every secret or sensitive value, and RedFox sets everything else up from it automatically. Only a few integrations read it so far (NordVPN, per-machine hostname and quirks); audit which still need wiring.
 - [ ] **API keys for agents and tools:** keys (Gemini, Anthropic, OpenAI, etc.) come from the config, and RedFox puts each where its tool expects it (keyring or environment) instead of hand-editing `.bashrc`. A Gemini API key is still in the hp machine's `.bashrc`. Agent harness sign-ins (Claude Code, agy, T3, `gh`) stay a one-time prompt on first run unless the user goes the API-key route.
-- [ ] **Agent CLI themes:** terminal agents (Claude Code, agy, etc.) need a dark theme in the terminal but a light one inside VS Code. Pick defaults that follow where they're running.
+- [ ] **Agent CLI themes:** *(Claude Code part on `feat/small-roadmap-items`: its `auto` theme follows the terminal, set at login when no theme is chosen. agy still to do: it has a `colorScheme` setting and `--settings`, but no auto mode found yet.)* Terminal agents (Claude Code, agy, etc.) need a dark theme in the terminal but a light one inside VS Code. Pick defaults that follow where they're running.
 - [ ] **Audit the ujust recipes:** for each one, decide whether it belongs in the OS or is one user's quirk that should move into that user's config. Some stay baked in on purpose: `bootstrap-matt` and `bootstrap-dewy` are a nice touch, since RedFox is two brothers.
 
 ## 🛠️ Ujust Idempotency Fixes
@@ -218,8 +222,8 @@ Move RedFox's own tooling into GUI Flatpak apps, like Thirties and Pianola alrea
 - [ ] Bake Ollama
 - [ ] implement 6 openclaw recipes (installs for openclaw, openclaw orchestrator, openclaw worker, and uninstalls for openclaw, orchestrator, and worker) -- see standalone to-do doc
 - [ ] rounded blur issue in blur my shell
-- [ ] Joplin and Signal start minimized to the tray, but only when started at boot; started any other way they open normally.
-- [ ] Mailspring doesn't get Adwaita as its default theme, but it should.
+- [ ] Joplin and Signal start minimized to the tray, but only when started at boot; started any other way they open normally. *(On `feat/small-roadmap-items`: `ujust configure-autostart-tray`, run by `configure-matt`.)*
+- [ ] Mailspring doesn't get Adwaita as its default theme, but it should. *(Mailspring has no Adwaita theme built in. The best match, drakkar1969/mailspring-libadwaita-theme, has no license, so it can be downloaded per user but not shipped. Needs Matt's call.)*
 - [ ] Setup/bootstrapping/config GUIs for managing RedFox's app sets, settings, services, actions, etc.
 - [ ] Midikeep: GNOME notifications don't group.
 - [ ] Midikeep: let the user set where the session archive goes, in a config Pianola also reads (Pianola side is in its `docs/BACKLOG.md`).
