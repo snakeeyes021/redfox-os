@@ -217,6 +217,8 @@ Move RedFox's own tooling into GUI Flatpak apps, like Thirties and Pianola alrea
     - [x] Bazzite's rollback helper (`bazzite-rollback-helper`, `bruh`) only knows Bazzite images. *(`redfox-rollback-helper` / `ujust rollback-helper` on `feat/redfox-rollback-helper`: lists builds of latest/unstable by commit and date, rolls back, rebases with a warning when switching NVIDIA flavour. Tested in the VM.)*
     - [x] Create/Add assets: Neofetch/Fastfetch Logo, Splash Screen, System Info Logo. *(Made from the existing art by `assets/branding/make-images.py` on `feat/branding`.)*
     - [ ] **New artwork from Matt** (listed in `docs/branding.md`): the fox as an SVG; a simple single-colour fox mark for 16 px and symbolic icons (ArcMenu's start button, Logo Menu); the wordmark as a vector, or its font.
+    - [ ] **Fox-face mark:** a simple, flat fox face for small sizes, used for the fastfetch logo (bigger than today's), ArcMenu's start button and the Logo Menu (white, symbolic), and 16–32 px icons. *(Two drafts are waiting for Matt to pick one: `~/Pictures/redfox-fox-face/`.)*
+    - [ ] **Commission a human artist** (e.g. on Fiverr) to paint the watercolour fox properly, and probably to redraw the face mark and the wordmark as vectors at the same time. Until then the current fox stays.
 
 ## Fixups/New (Items that arrive after a fix is already implemented)
 - [x] Screenshot (add Windows super + shift + s shortcut for selection screenshot; move fullscreen screenshot to printscreen)
