@@ -202,17 +202,17 @@ Move RedFox's own tooling into GUI Flatpak apps, like Thirties and Pianola alrea
 - [ ] **Wallpapers**
     - [ ] Import all Bluefin / Bluefin DX wallpapers.
     - [ ] **Collection:** Gather Pawel Czerwinski Light/Dark pairs.
-- [ ] **RedFoxOS Branding:** the OS calls itself RedFoxOS, not Bazzite, everywhere a person sees it. Machine-readable IDs that tooling reads stay Bazzite's; the trade-offs are in `docs/branding.md`. *(In progress on `feat/branding`.)*
-    - [ ] `os-release`: NAME/PRETTY_NAME "RedFoxOS", LOGO, URLs, DEFAULT_HOSTNAME `redfox`, BOOTLOADER_NAME, IMAGE_ID. `ID=bazzite` is kept.
-    - [ ] `image-info.json`: image name, vendor and ref are RedFox's (for the MOTD and Bazzite's scripts).
-    - [ ] Settings → About: name and logo (light and dark variants).
-    - [ ] GRUB entries: "RedFoxOS (ostree:N)".
-    - [ ] Login screen (GDM) logo: larger, light lettering for the dark background.
-    - [ ] Boot splash (Plymouth): RedFox watermark, larger and legible. It never showed before, because the initramfs kept Bazzite's copy; the build now rebuilds it.
-    - [ ] Fastfetch: RedFox fox in RedFox red, and the real booted image ref.
-    - [ ] Starship: a RedFox default config with a 🦊 OS symbol (Starship itself is the separate Starship item).
-    - [ ] Terminal banner (MOTD): RedFox welcome, links and tips; Bazzite's tips removed.
-    - [ ] Fedora logo files (installer, initial setup, About dialogs) regenerated from the RedFox art.
+- [ ] **RedFoxOS Branding:** the OS calls itself RedFoxOS, not Bazzite, everywhere a person sees it. Machine-readable IDs that tooling reads stay Bazzite's; the trade-offs are in `docs/branding.md`. *(Built and tested in the VM on `feat/branding`, including update, rollback and rebase; waiting for Matt's OK to merge. Ticked items are done on that branch.)*
+    - [x] `os-release`: NAME/PRETTY_NAME "RedFoxOS", LOGO, URLs, DEFAULT_HOSTNAME `redfox`, BOOTLOADER_NAME, IMAGE_ID. `ID=bazzite` is kept.
+    - [x] `image-info.json`: image name, vendor and ref are RedFox's (for the MOTD and Bazzite's scripts).
+    - [x] Settings → About: name and logo (light and dark variants).
+    - [x] GRUB entries: "RedFoxOS (ostree:N)".
+    - [x] Login screen (GDM) logo: larger, light lettering for the dark background.
+    - [x] Boot splash (Plymouth): RedFox watermark, larger and legible. It never showed before, because the initramfs kept Bazzite's copy; the build now rebuilds it.
+    - [x] Fastfetch: RedFox fox in RedFox red, and the real booted image ref.
+    - [x] Starship: a RedFox default config with a 🦊 OS symbol (Starship itself is the separate Starship item).
+    - [x] Terminal banner (MOTD): RedFox welcome, links and tips; Bazzite's tips removed.
+    - [x] Fedora logo files (installer, initial setup, About dialogs) regenerated from the RedFox art.
     - [ ] Bazzite Portal and Bazzite Announcements stay as they are: their content is Bazzite's. RedFox Welcome replaces the Portal later.
     - [ ] `ujust rollback-helper` only knows Bazzite images; needs a RedFox version.
     - [x] Create/Add assets: Neofetch/Fastfetch Logo, Splash Screen, System Info Logo. *(Made from the existing art by `assets/branding/make-images.py` on `feat/branding`.)*
