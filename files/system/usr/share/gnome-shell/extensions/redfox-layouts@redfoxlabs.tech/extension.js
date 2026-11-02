@@ -148,22 +148,26 @@ export default class RedFoxLayoutsExtension extends Extension {
             Main.extensionManager.disableExtension(DASH_TO_DOCK);
     }
 
-    _queueTilingButton() {
+    // ArcMenu and Tiling Shell can take a few seconds after being turned on
+    // to add their buttons, so keep looking for a while if one is missing.
+    _queueTilingButton(tries = 20) {
         if (this._tilingButtonId)
             GLib.source_remove(this._tilingButtonId);
         this._tilingButtonId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
             this._tilingButtonId = 0;
-            this._syncTilingButton();
+            if (!this._syncTilingButton() && tries > 1)
+                this._queueTilingButton(tries - 1);
             return GLib.SOURCE_REMOVE;
         });
     }
 
     // In the Windows layouts, Tiling Shell's button sits just after the
     // start button, at app-icon size, instead of among the tray icons.
+    // Returns false if a button it needs isn't there (yet).
     _syncTilingButton() {
         if (!this._settings.get_boolean('tiling-button-by-start')) {
             this._restoreTilingButton();
-            return;
+            return true;
         }
 
         const tiling = Main.panel.statusArea[TILING_SHELL];
@@ -171,7 +175,7 @@ export default class RedFoxLayoutsExtension extends Extension {
         const startBox = start?.container?.get_parent();
         if (!tiling?.container || !startBox) {
             this._restoreTilingButton();
-            return;
+            return false;
         }
 
         if (this._tiling !== tiling) {
@@ -195,6 +199,7 @@ export default class RedFoxLayoutsExtension extends Extension {
         }
         if (this._tilingIcon)
             this._tilingIcon.icon_size = this._settings.get_int('tiling-button-size');
+        return true;
     }
 
     // Back among the tray icons: in the top bar's right box, just before the
