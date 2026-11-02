@@ -46,6 +46,7 @@ ARC_BUTTON = ({"menu-button-icon": "redfox-logo-symbolic", "menu-button-icon-siz
 RFL = "org.gnome.shell.extensions.redfox-layouts"
 BMS = "org.gnome.shell.extensions.blur-my-shell"
 BMS_DOCK = "org.gnome.shell.extensions.blur-my-shell.dash-to-dock"
+BMS_PANEL = "org.gnome.shell.extensions.blur-my-shell.panel"
 WM = "org.gnome.desktop.wm.preferences"
 
 # Before a layout is applied, Dash to Dock is reset in full, as the old
@@ -72,6 +73,7 @@ SCHEMA_OWNERS = {
     RFL: HELPER,
     BMS: BLUR_MY_SHELL,
     BMS_DOCK: BLUR_MY_SHELL,
+    BMS_PANEL: BLUR_MY_SHELL,
 }
 
 # How long to let GNOME Shell finish turning extensions on or off.
@@ -157,6 +159,9 @@ LAYOUTS = {
         "extensions": [DASH_TO_DOCK],
         "settings": {
             WM: {"button-layout": BUTTONS_RIGHT},
+            # Blur my Shell clears the top bar in the overview but keeps the
+            # dock's blur, so the two would differ in colour where they meet.
+            BMS_PANEL: {"unblur-in-overview": False},
         },
     },
     "macos": {
