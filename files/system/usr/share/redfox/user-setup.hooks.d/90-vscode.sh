@@ -5,6 +5,20 @@
 
 set -euo pipefail
 
+# Install an extension straight from Open VSX as a .vsix. For forks whose
+# own marketplace doesn't carry it (Cursor's mirror returns 403 for some
+# Open VSX extensions).
+install_from_openvsx() {
+    local editor="$1" ext_id="$2" url vsix
+    url="$(curl -fsSL "https://open-vsx.org/api/${ext_id%%.*}/${ext_id#*.}" |
+        python3 -c 'import json, sys; print(json.load(sys.stdin)["files"]["download"])' 2>/dev/null)" || return 1
+    vsix="$(mktemp --suffix=.vsix)"
+    curl -fsSL -o "$vsix" "$url" && "$editor" --install-extension "$vsix" --force > /dev/null 2>&1
+    local status=$?
+    rm -f "$vsix"
+    return $status
+}
+
 # --- VS CODE SETUP ---
 
 if command -v code &> /dev/null; then
@@ -25,6 +39,9 @@ if command -v code &> /dev/null; then
         "ms-vscode-remote.remote-containers"
         "ms-vscode-remote.remote-ssh"
         "ms-azuretools.vscode-containers"
+        "Google.google-antigravity"
+        "RedFoxLabs.dewy"
+        "RedFoxLabs.sloppy"
     )
 
     for ext_id in "${VSCODE_EXTENSIONS[@]}"; do
@@ -57,13 +74,17 @@ if command -v cursor &> /dev/null; then
         "ms-vscode-remote.remote-containers"
         "ms-vscode-remote.remote-ssh"
         "ms-azuretools.vscode-containers"
+        "RedFoxLabs.dewy"
+        "RedFoxLabs.sloppy"
     )
 
     for ext_id in "${CURSOR_EXTENSIONS[@]}"; do
         # Check if extension exists in ~/.cursor/extensions/
         if ! compgen -G "$HOME/.cursor/extensions/${ext_id,,}*" > /dev/null; then
              echo "Installing Cursor extension: $ext_id"
-             cursor --install-extension "$ext_id" --force > /dev/null 2>&1 || echo "Failed to install $ext_id"
+             cursor --install-extension "$ext_id" --force > /dev/null 2>&1 ||
+                 install_from_openvsx cursor "$ext_id" ||
+                 echo "Failed to install $ext_id"
         fi
     done
 fi
@@ -91,13 +112,17 @@ if [ -x "/usr/lib/antigravity-ide/bin/antigravity-ide" ]; then
         "ms-vscode-remote.remote-containers"
         "ms-vscode-remote.remote-ssh"
         "ms-azuretools.vscode-containers"
+        "RedFoxLabs.dewy"
+        "RedFoxLabs.sloppy"
     )
 
     for ext_id in "${ANTIGRAVITY_EXTENSIONS[@]}"; do
         # Check if extension exists in ~/.antigravity-ide/extensions/
         if ! compgen -G "$HOME/.antigravity-ide/extensions/${ext_id,,}*" > /dev/null; then
              echo "Installing Antigravity IDE extension: $ext_id"
-             "$ANTIGRAVITY_BIN" --install-extension "$ext_id" --force > /dev/null 2>&1 || echo "Failed to install $ext_id"
+             "$ANTIGRAVITY_BIN" --install-extension "$ext_id" --force > /dev/null 2>&1 ||
+                 install_from_openvsx "$ANTIGRAVITY_BIN" "$ext_id" ||
+                 echo "Failed to install $ext_id"
         fi
     done
 fi
