@@ -264,7 +264,7 @@ update-gui:
 update-appimages:
     /usr/bin/update-appimages
 
-# Install Winboat (Example: GitHub Source)
+# Install Winboat (opt-in; not part of any bundle)
 install-winboat:
     /usr/bin/install-appimage \
       "WinBoat" \
@@ -774,7 +774,7 @@ install-video:
         io.github.wartybix.Constrict
 
 # Install Compatibility Tools
-install-compatibility: install-winboat
+install-compatibility:
     flatpak install -y flathub \
         com.usebottles.bottles
 
