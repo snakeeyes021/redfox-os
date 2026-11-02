@@ -15,18 +15,64 @@ from pathlib import Path
 from datetime import datetime, timezone, timedelta
 
 
-def get_default_paths():
-    xdg_data = os.environ.get("XDG_DATA_HOME")
-    if xdg_data:
-        data_dir = Path(xdg_data) / "midikeep"
-    else:
-        data_dir = Path.home() / ".local" / "share" / "midikeep"
+def expand_path(value) -> Path:
+    """Expand ~ and $VARS in a path from the config or the environment."""
+    return Path(os.path.expanduser(os.path.expandvars(str(value).strip())))
 
+
+def default_config_path() -> Path:
+    """$MIDIKEEP_CONFIG, else $XDG_CONFIG_HOME/midikeep/config.yaml, else
+    ~/.config/midikeep/config.yaml (the file midikeep-daemon and Pianola use)."""
+    env_config = os.environ.get("MIDIKEEP_CONFIG")
+    if env_config:
+        return expand_path(env_config)
     xdg_config = os.environ.get("XDG_CONFIG_HOME")
     if xdg_config:
-        config_dir = Path(xdg_config) / "midikeep"
+        return Path(xdg_config) / "midikeep" / "config.yaml"
+    return Path.home() / ".config" / "midikeep" / "config.yaml"
+
+
+def read_configured_data_dir(config_path: Path) -> str | None:
+    """data_dir from config.yaml, or None if the file or key is missing."""
+    try:
+        text = config_path.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    try:
+        import yaml
+        data = yaml.safe_load(text)
+        value = data.get("data_dir") if isinstance(data, dict) else None
+        return str(value) if value is not None else None
+    except ImportError:
+        pass
+    except Exception:
+        return None
+    # Without PyYAML: read the top-level "data_dir: value" line.
+    for line in text.splitlines():
+        if line.startswith("data_dir:"):
+            value = line.split(":", 1)[1].strip()
+            quote = None
+            for i, ch in enumerate(value):  # drop an unquoted " # comment"
+                if ch in "\"'" and quote in (None, ch):
+                    quote = None if quote else ch
+                elif ch == "#" and quote is None and (i == 0 or value[i - 1].isspace()):
+                    value = value[:i].rstrip()
+                    break
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+                value = value[1:-1]
+            return value or None
+    return None
+
+
+def get_default_paths():
+    config_path = default_config_path()
+    configured = read_configured_data_dir(config_path)
+    if configured and configured.strip():
+        data_dir = expand_path(configured)
+    elif os.environ.get("XDG_DATA_HOME"):
+        data_dir = Path(os.environ["XDG_DATA_HOME"]) / "midikeep"
     else:
-        config_dir = Path.home() / ".config" / "midikeep"
+        data_dir = Path.home() / ".local" / "share" / "midikeep"
 
     return {
         "data_dir": data_dir,
@@ -34,7 +80,7 @@ def get_default_paths():
         "journal_dir": data_dir / "journal",
         "db_path": data_dir / "index.db",
         "pid_file": data_dir / "midikeep.pid",
-        "config_path": config_dir / "config.yaml",
+        "config_path": config_path,
     }
 
 

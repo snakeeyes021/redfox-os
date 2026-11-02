@@ -593,5 +593,64 @@ class TestCliCommands(unittest.TestCase):
         self.assertTrue(marker_file.exists())
         self.assertEqual(marker_file.read_text("utf-8"), "Awesome guitar solo")
 
+class TestDataDirConfig(unittest.TestCase):
+    """data_dir in the shared config.yaml (also read by Pianola)."""
+
+    def setUp(self):
+        self.temp_dir = tempfile.mkdtemp()
+        self.root = Path(self.temp_dir)
+        self.config_path = self.root / "config.yaml"
+        patcher = unittest.mock.patch.dict(os.environ, {
+            "MIDIKEEP_CONFIG": str(self.config_path),
+            "XDG_DATA_HOME": str(self.root / "xdg-data"),
+            "ARCHIVE_ROOT": str(self.root / "archives"),
+        })
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def tearDown(self):
+        shutil.rmtree(self.temp_dir)
+
+    def test_default_when_unset(self):
+        self.assertEqual(daemon.resolve_data_dir({}), self.root / "xdg-data" / "midikeep")
+        self.assertEqual(daemon.resolve_data_dir({"data_dir": "  "}), self.root / "xdg-data" / "midikeep")
+
+    def test_config_value_is_expanded(self):
+        self.assertEqual(daemon.resolve_data_dir({"data_dir": "$ARCHIVE_ROOT/keep"}),
+                         self.root / "archives" / "keep")
+        self.assertEqual(daemon.resolve_data_dir({"data_dir": "~/keep"}), Path.home() / "keep")
+
+    def test_explicit_flag_wins(self):
+        flag = self.root / "flag"
+        self.assertEqual(daemon.resolve_data_dir({"data_dir": "/elsewhere"}, flag), flag)
+
+    def test_midikeep_config_env_is_honoured(self):
+        self.assertEqual(daemon.default_config_path(), self.config_path)
+        self.assertEqual(midikeep_cli.default_config_path(), self.config_path)
+
+    def test_daemon_uses_configured_archive(self):
+        self.config_path.write_text('data_dir: "$ARCHIVE_ROOT/piano"\n', encoding="utf-8")
+        d = daemon.MidikeepDaemon()
+        self.assertEqual(d.data_dir, self.root / "archives" / "piano")
+        self.assertEqual(d.db_path, self.root / "archives" / "piano" / "index.db")
+
+    def test_new_config_gets_default_data_dir(self):
+        cfg = daemon.load_config(self.config_path)
+        self.assertTrue(self.config_path.exists())
+        self.assertEqual(daemon.resolve_data_dir(cfg), self.root / "xdg-data" / "midikeep")
+
+    def test_cli_reads_configured_archive(self):
+        self.config_path.write_text(
+            "silence_threshold_seconds: 300\ndata_dir: '$ARCHIVE_ROOT/piano'  # moved\n",
+            encoding="utf-8")
+        paths = midikeep_cli.get_default_paths()
+        self.assertEqual(paths["data_dir"], self.root / "archives" / "piano")
+        self.assertEqual(paths["pid_file"], self.root / "archives" / "piano" / "midikeep.pid")
+
+    def test_cli_falls_back_without_config(self):
+        paths = midikeep_cli.get_default_paths()
+        self.assertEqual(paths["data_dir"], self.root / "xdg-data" / "midikeep")
+
+
 if __name__ == "__main__":
     unittest.main()
