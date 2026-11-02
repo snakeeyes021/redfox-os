@@ -1,7 +1,7 @@
 {
   "uuid": "redfox-layouts@redfoxlabs.tech",
   "name": "RedFox Layouts",
-  "description": "Shell-side helpers for RedFox OS desktop layouts (see redfox-layout): a floating Dash to Dock, and switching between the dock and the GNOME dash by screen size.",
+  "description": "Shell-side helpers for RedFoxOS desktop layouts (see redfox-layout): a floating Dash to Dock, switching between the dock and the GNOME dash by screen size, and the tiling button by the start button.",
   "url": "https://github.com/snakeeyes021/redfox-os",
   "settings-schema": "org.gnome.shell.extensions.redfox-layouts",
   "shell-version": [
