@@ -34,47 +34,20 @@ TERMINAL_COLUMNS = 34
 
 # --- The terminal fox -------------------------------------------------------
 
-# Tails come in three kinds, so the fan isn't nine copies of one shape. (Small
-# tight curls read as blobs with a hole at terminal size, so there are none.)
-#   bushy: full and soft, tapering to a point; some with a white tip
-#   swirl: slimmer, ending in a wide open spiral
-#   hook:  medium, ending in a loose half-curl
-TAILS = [  # (control 1, control 2, end, curl side, kind, colour)
-    ((46, 66), (54, 26), (40, 6), -1, "swirl", RED),
-    ((50, 72), (52, 48), (60, 30), 1, "bushy", DEEP),
-    ((30, 64), (48, 32), (20, 14), -1, "wave", RED),
-    ((40, 76), (26, 52), (26, 36), -1, "bushy", DEEP),
-    ((28, 70), (26, 40), (6, 36), -1, "wave", DEEP),
-    ((38, 80), (12, 72), (2, 62), 1, "bushy-white", RED),
-    ((30, 98), (22, 70), (4, 82), 1, "wave", DEEP),
-    ((44, 96), (22, 112), (8, 104), 1, "bushy", RED),
-    ((52, 112), (34, 98), (24, 112), 1, "wave", DEEP),
-]
-
-
-def tail(c, start, c1, c2, end, side, kind, col):
-    path = bez(start, c1, c2, end)
-    if kind.startswith("bushy"):
-        # full, with a soft rounded end rather than a point
-        c.poly(stroke(path, 4, 7, wmid=15, ease=1.0), col)
-        c.ellipse(end[0], end[1], 3.5, 3.5, col)
-        if kind.endswith("white"):  # the end white, like a fox's tail tip
-            n = len(path)
-            c.poly(stroke(path[int(n * 0.78):], 10, 7, ease=1.0), WHITE)
-            c.ellipse(end[0], end[1], 3.5, 3.5, WHITE)
-    elif kind == "swirl":
-        c.poly(stroke(curl(path, 8, turns=1.1, side=side, shrink=0.4), 4, 1.6, wmid=10, ease=0.8), col)
-    else:  # wave: an S-curve that tapers to a fine flick
-        c.poly(stroke(path, 4, 0.5, wmid=11, ease=1.2), col)
+def tail(c, start, c1, c2, end, side, col, w=13, r0=4.5):
+    c.poly(stroke(curl(bez(start, c1, c2, end), r0, turns=0.95, side=side), 4, 1.4, wmid=w, ease=0.7), col)
 
 
 def draw_fox(c, face=True):
-    """Sitting, turned toward the viewer, nine tails fanned behind (after the
+    """Sitting, turned toward the viewer, nine tails curling at the tips (after the
     painting). face=False leaves out the eyes and nose, which the terminal version
     places pixel by pixel so they stay crisp."""
     base = (54, 90)
-    for c1, c2, end, side, kind, col in TAILS:
-        tail(c, base, c1, c2, end, side, kind, col)
+    tails = [((46, 66), (54, 26), (42, 6), -1), ((48, 66), (48, 40), (54, 30), 1), ((42, 66), (34, 28), (22, 14), -1),
+             ((40, 76), (26, 54), (26, 40), -1), ((40, 72), (18, 44), (8, 32), -1), ((38, 80), (8, 70), (3, 54), -1),
+             ((40, 88), (6, 96), (4, 78), 1), ((44, 96), (20, 112), (12, 100), 1), ((48, 100), (34, 114), (28, 106), 1)]
+    for k, (c1, c2, end, side) in enumerate(tails):
+        tail(c, base, c1, c2, end, side, RED if k % 2 == 0 else DEEP)
     body = chain(bez((66, 30), (60, 44), (54, 60), (52, 82)), bez((52, 82), (50, 96), (56, 102), (64, 102)),
                  bez((64, 102), (74, 102), (84, 102), (92, 102)), bez((92, 102), (90, 80), (94, 56), (88, 40)),
                  bez((88, 40), (84, 34), (74, 30), (66, 30)))

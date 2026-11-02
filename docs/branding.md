@@ -45,7 +45,7 @@ Bazzite's `bazzite-rollback-helper` (also run by `bruh`) only knows Bazzite's im
 
 Two marks are drawn in code by `assets/branding/make-marks.py` (with `brush.py`), because the painting can't be shrunk that far:
 
-- **The terminal fox** (`assets/branding/terminal-fox.png`): a simplified version of the painted fox, sitting and turned toward the viewer, with nine tails of three kinds: bushy (two with white tips), open swirls, and S-shaped flicks. The terminal version places the eyes and nose pixel by pixel so they stay crisp. It needs a terminal with 24-bit colour (Ptyxis and other modern terminals); a bare text console shows it in approximate colours.
+- **The terminal fox** (`assets/branding/terminal-fox.png`): a simplified version of the painted fox, sitting and turned toward the viewer, with nine tails curling at the tips. The terminal version places the eyes and nose pixel by pixel so they stay crisp. It needs a terminal with 24-bit colour (Ptyxis and other modern terminals); a bare text console shows it in approximate colours.
 - **The swirl** (`assets/branding/swirl.png`): the symbolic mark for small, one-colour places. Fox heads drawn as geometric faces are common in logos; the swirling tails are what's RedFox's own.
 
 Everything else is made from the existing art by `assets/branding/make-images.py`: the nine-tailed fox (`assets/red_fox_labs_logo_2_semi-transparent.png`, white-filled so it reads on light and dark) and the "RedFoxOS" wordmark (`assets/branding/wordmark-source.png`, cut from `updatelogo.png`). For dark backgrounds the lettering is recoloured light; no new marks are drawn. Rerun the script after changing the source art.

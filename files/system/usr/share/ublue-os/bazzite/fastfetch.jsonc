@@ -7,8 +7,10 @@
         "source": "/usr/share/ublue-os/bazzite/logo.txt",
         "width": 34,
         "height": 20,
+        // Starts a few lines down: fastfetch's info is taller than the fox, so in a
+        // short window the first lines scroll away, and this keeps the fox whole.
         "padding": {
-            "top": 1
+            "top": 3
         }
     },
     "display": {
