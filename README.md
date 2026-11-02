@@ -73,6 +73,19 @@ systemctl reboot
 > 2.  **Reboot:** Restart your system to boot into RedFoxOS.
 > 3.  **Rebase to signed:** Once rebooted, run the original signed command listed above. This ensures your system is properly verified for all future updates.
 
+## Rolling Back and Switching Builds
+
+Every update keeps the previous system. To go back to it, pick it in the boot menu, or run:
+
+```bash
+ujust rollback-helper            # a menu
+ujust rollback-helper rollback   # boot the previous system next time
+ujust rollback-helper list       # recent builds of your channel (latest or unstable)
+ujust rollback-helper rebase 20261101   # a dated stable build; also: a commit, latest, unstable
+```
+
+A dated or commit build doesn't update by itself; `ujust rollback-helper rebase latest` (or `unstable`) follows updates again.
+
 ## Verification
 
 These images are signed with [Sigstore](https://www.sigstore.dev/)'s [cosign](https://github.com/sigstore/cosign). You can verify the signature by downloading the `cosign.pub` file from this repo and running:
