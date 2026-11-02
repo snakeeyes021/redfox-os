@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.redfox-layouts" path="/org/gnome/shell/extensions/redfox-layouts/">
+    <key name="layout" type="s">
+      <default>'gnome'</default>
+      <summary>Current layout</summary>
+      <description>The layout last applied with redfox-layout. Informational; changing it does nothing by itself.</description>
+    </key>
+    <key name="floating-dock" type="b">
+      <default>false</default>
+      <summary>Float the dock</summary>
+      <description>Detach Dash to Dock from the screen edge by floating-dock-gap pixels.</description>
+    </key>
+    <key name="floating-dock-gap" type="i">
+      <range min="0" max="64"/>
+      <default>8</default>
+      <summary>Gap between the floating dock and the screen edge, in pixels</summary>
+    </key>
+    <key name="auto-dock" type="b">
+      <default>false</default>
+      <summary>Switch between the dock and the GNOME dash by screen size</summary>
+      <description>Turn Dash to Dock on when the primary monitor is at least auto-dock-min-width logical pixels wide, and off (leaving GNOME's own dash in the overview) on smaller screens.</description>
+    </key>
+    <key name="auto-dock-min-width" type="i">
+      <range min="0" max="10000"/>
+      <default>1600</default>
+      <summary>Smallest primary monitor width (logical pixels) that gets the dock</summary>
+    </key>
+  </schema>
+</schemalist>

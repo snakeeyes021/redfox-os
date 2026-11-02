@@ -1,0 +1,404 @@
+#!/usr/bin/python3
+"""redfox-layout: switch the desktop layout live, without logging out.
+
+A layout is a set of GNOME Shell extensions plus their settings. Applying
+one turns off the extensions it doesn't use, resets every setting the
+layouts manage back to the RedFox defaults, writes the layout's settings,
+then turns on the extensions it uses. GNOME Shell picks all of that up as
+it happens.
+
+    redfox-layout list
+    redfox-layout get
+    redfox-layout set <layout>
+"""
+
+import argparse
+import json
+import os
+import shutil
+import sys
+import time
+
+import gi
+
+gi.require_version("Gio", "2.0")
+gi.require_version("GLib", "2.0")
+from gi.repository import Gio, GLib  # noqa: E402
+
+DASH_TO_DOCK = "dash-to-dock@micxgx.gmail.com"
+DASH_TO_PANEL = "dash-to-panel@jderose9.github.com"
+ARCMENU = "arcmenu@arcmenu.com"
+SMOOTH_OVERVIEW = "smooth-overview@redfoxlabs.tech"
+HELPER = "redfox-layouts@redfoxlabs.tech"
+BLUR_MY_SHELL = "blur-my-shell@aunetx"
+
+# Extensions a layout may turn on. Applying a layout turns off the ones it
+# doesn't list. The helper is always on; it does nothing unless asked to.
+MANAGED_EXTENSIONS = [DASH_TO_DOCK, DASH_TO_PANEL, ARCMENU, SMOOTH_OVERVIEW]
+
+DTD = "org.gnome.shell.extensions.dash-to-dock"
+DTP = "org.gnome.shell.extensions.dash-to-panel"
+ARC = "org.gnome.shell.extensions.arcmenu"
+RFL = "org.gnome.shell.extensions.redfox-layouts"
+BMS = "org.gnome.shell.extensions.blur-my-shell"
+BMS_DOCK = "org.gnome.shell.extensions.blur-my-shell.dash-to-dock"
+WM = "org.gnome.desktop.wm.preferences"
+
+# Before a layout is applied, Dash to Dock is reset in full, as the old
+# preset-dock-* recipes did, and so are the keys below plus every key any
+# layout sets. Resetting returns to the image's defaults (for Dash to Dock,
+# the RedFox dconf defaults in /etc/dconf/db/redfox.d). Other Dash to Panel
+# and ArcMenu settings, like ArcMenu's pinned apps, are left alone.
+RESET_SCHEMAS = [DTD]
+RESET_KEYS = {
+    RFL: ["floating-dock", "floating-dock-gap", "auto-dock"],
+    # The first RedFox dock preset set a rounded blur pipeline. Blur my Shell
+    # now rounds the dock's blur to match the dock by itself.
+    BMS: ["pipelines"],
+    BMS_DOCK: ["pipeline"],
+    WM: ["button-layout"],
+}
+
+# Which extension owns a schema that isn't installed system-wide, so it can
+# be found in that extension's own schemas/ folder.
+SCHEMA_OWNERS = {
+    DTD: DASH_TO_DOCK,
+    DTP: DASH_TO_PANEL,
+    ARC: ARCMENU,
+    RFL: HELPER,
+    BMS: BLUR_MY_SHELL,
+    BMS_DOCK: BLUR_MY_SHELL,
+}
+
+# How long to let GNOME Shell finish turning extensions on or off.
+SETTLE_SECONDS = 0.5
+
+BUTTONS_RIGHT = ":minimize,maximize,close"
+BUTTONS_MAC = "close,minimize,maximize:"
+
+def panel_elements(*elements):
+    """Dash to Panel element order: (name, visible, position) tuples."""
+    return [{"element": e, "visible": v, "position": p} for e, v, p in elements]
+
+
+# Windows 10: start button and pinned/running apps from the left, tray and
+# clock on the right.
+WINDOWS_CLASSIC_ELEMENTS = panel_elements(
+    ("showAppsButton", False, "stackedTL"),
+    ("activitiesButton", False, "stackedTL"),
+    ("leftBox", True, "stackedTL"),
+    ("taskbar", True, "stackedTL"),
+    ("centerBox", True, "stackedBR"),
+    ("rightBox", True, "stackedBR"),
+    ("dateMenu", True, "stackedBR"),
+    ("systemMenu", True, "stackedBR"),
+    ("desktopButton", True, "stackedBR"),
+)
+
+# Windows 11: start button and apps centred together.
+WINDOWS_ELEMENTS = panel_elements(
+    ("showAppsButton", False, "stackedTL"),
+    ("activitiesButton", False, "stackedTL"),
+    ("leftBox", True, "centerMonitor"),
+    ("taskbar", True, "centerMonitor"),
+    ("centerBox", True, "stackedBR"),
+    ("rightBox", True, "stackedBR"),
+    ("dateMenu", True, "stackedBR"),
+    ("systemMenu", True, "stackedBR"),
+    ("desktopButton", True, "stackedBR"),
+)
+
+# Dash to Panel keeps some settings per monitor, keyed by monitor id with
+# the monitor index as a fallback; it converts index keys to ids itself.
+PER_MONITOR = range(8)
+
+
+def per_monitor(value):
+    return json.dumps({str(i): value for i in PER_MONITOR})
+
+
+def dash_to_panel(elements, **extra):
+    return {
+        DTP: {
+            "panel-positions": per_monitor("BOTTOM"),
+            "panel-sizes": per_monitor(44),
+            "panel-element-positions": per_monitor(elements),
+            "stockgs-keep-top-panel": False,
+            "hide-overview-on-startup": True,
+            "show-favorites": True,
+            "dot-style-focused": "METRO",
+            "dot-style-unfocused": "DOTS",
+            **extra,
+        },
+    }
+
+
+LAYOUTS = {
+    "gnome": {
+        "title": "GNOME",
+        "description": "Plain GNOME: the top bar, with the dash in the overview.",
+        "extensions": [],
+        "settings": {},
+    },
+    "ubuntu": {
+        "title": "Ubuntu",
+        "description": "A full-height dock on the left, always visible.",
+        "extensions": [DASH_TO_DOCK],
+        "settings": {
+            WM: {"button-layout": BUTTONS_RIGHT},
+        },
+    },
+    "macos": {
+        "title": "macOS",
+        "description": "A floating dock along the bottom, window buttons on the left.",
+        "extensions": [DASH_TO_DOCK, SMOOTH_OVERVIEW],
+        "settings": {
+            DTD: {
+                "dock-position": "BOTTOM",
+                "extend-height": False,
+                "dock-fixed": True,
+                "show-apps-at-top": True,
+                "dash-max-icon-size": 48,
+                "running-indicator-style": "DOTS",
+            },
+            RFL: {"floating-dock": True},
+            WM: {"button-layout": BUTTONS_MAC},
+        },
+    },
+    "windows-classic": {
+        "title": "Windows (classic)",
+        "description": "One taskbar along the bottom: start menu and apps on the left, clock on the right.",
+        "extensions": [DASH_TO_PANEL, ARCMENU],
+        "settings": {
+            **dash_to_panel(WINDOWS_CLASSIC_ELEMENTS),
+            ARC: {"menu-layout": "windows"},
+            WM: {"button-layout": BUTTONS_RIGHT},
+        },
+    },
+    "windows": {
+        "title": "Windows",
+        "description": "One taskbar along the bottom with the start menu and apps centred.",
+        "extensions": [DASH_TO_PANEL, ARCMENU],
+        "settings": {
+            **dash_to_panel(WINDOWS_ELEMENTS),
+            ARC: {"menu-layout": "11"},
+            WM: {"button-layout": BUTTONS_RIGHT},
+        },
+    },
+    "redfox": {
+        "title": "RedFox",
+        "description": "A floating dock on the left on big screens; the GNOME dash on small ones.",
+        "extensions": [SMOOTH_OVERVIEW],
+        # Dash to Dock is turned on and off by the helper extension.
+        "auto_dock": True,
+        "settings": {
+            DTD: {
+                "extend-height": False,
+                "disable-overview-on-startup": False,
+            },
+            RFL: {"floating-dock": True, "auto-dock": True},
+        },
+    },
+}
+
+
+def die(message):
+    print(f"redfox-layout: {message}", file=sys.stderr)
+    sys.exit(1)
+
+
+def extension_dirs(uuid):
+    data_dirs = [GLib.get_user_data_dir(), *GLib.get_system_data_dirs()]
+    return [os.path.join(d, "gnome-shell", "extensions", uuid) for d in data_dirs]
+
+
+def open_settings(schema_id):
+    """Gio.Settings for schema_id, or None if it isn't installed anywhere."""
+    default = Gio.SettingsSchemaSource.get_default()
+    schema = default.lookup(schema_id, True) if default else None
+    owner = SCHEMA_OWNERS.get(schema_id)
+    if schema is None and owner:
+        for path in extension_dirs(owner):
+            schemas = os.path.join(path, "schemas")
+            if os.path.exists(os.path.join(schemas, "gschemas.compiled")):
+                source = Gio.SettingsSchemaSource.new_from_directory(schemas, default, False)
+                schema = source.lookup(schema_id, False)
+                if schema:
+                    break
+    if schema is None:
+        return None
+    return Gio.Settings.new_full(schema, None, None)
+
+
+def to_variant(settings, key, value):
+    if isinstance(value, GLib.Variant):
+        return value
+    value_type = settings.props.settings_schema.get_key(key).get_value_type()
+    return GLib.Variant(value_type.dup_string(), value)
+
+
+class Writer:
+    """Batches writes per schema so each schema changes in one go."""
+
+    def __init__(self):
+        self._open = {}
+        self.missing = set()
+
+    def get(self, schema_id):
+        if schema_id not in self._open:
+            settings = open_settings(schema_id)
+            if settings is None:
+                self.missing.add(schema_id)
+            else:
+                settings.delay()
+            self._open[schema_id] = settings
+        return self._open[schema_id]
+
+    def reset_all(self, schema_id):
+        settings = self.get(schema_id)
+        if settings:
+            for key in settings.props.settings_schema.list_keys():
+                settings.reset(key)
+
+    def reset(self, schema_id, keys):
+        settings = self.get(schema_id)
+        if settings:
+            for key in keys:
+                settings.reset(key)
+
+    def set(self, schema_id, values):
+        settings = self.get(schema_id)
+        if settings:
+            for key, value in values.items():
+                settings.set_value(key, to_variant(settings, key, value))
+
+    def apply(self):
+        for settings in self._open.values():
+            if settings:
+                settings.apply()
+        Gio.Settings.sync()
+
+
+def set_extensions(turn_on, turn_off):
+    """Edit the enabled/disabled lists the way `gnome-extensions` does.
+
+    GNOME Shell handles each change to these keys asynchronously, and
+    overlapping changes can make it enable or disable an extension twice.
+    So write only the keys whose value really changes, and give the shell a
+    moment to finish before anything else changes them. Returns whether
+    anything was written."""
+    shell = Gio.Settings.new("org.gnome.shell")
+    old_enabled = list(shell.get_strv("enabled-extensions"))
+    old_disabled = list(shell.get_strv("disabled-extensions"))
+    enabled = [e for e in old_enabled if e not in turn_off]
+    enabled += [e for e in turn_on if e not in enabled]
+    # Like the Extensions app, only drop newly enabled ones from the disabled
+    # list; turning one off doesn't need it there unless it is on by default.
+    disabled = [e for e in old_disabled if e not in turn_on]
+    defaults = shell.get_default_value("enabled-extensions").unpack()
+    disabled += [e for e in turn_off if e in defaults and e not in disabled]
+
+    changed = False
+    if enabled != old_enabled:
+        shell.set_strv("enabled-extensions", enabled)
+        changed = True
+    if disabled != old_disabled:
+        shell.set_strv("disabled-extensions", disabled)
+        changed = True
+    if shell.get_boolean("disable-user-extensions"):
+        shell.set_boolean("disable-user-extensions", False)
+        changed = True
+    Gio.Settings.sync()
+    if changed:
+        time.sleep(SETTLE_SECONDS)
+    return changed
+
+
+def managed_keys():
+    keys = {schema_id: set(k) for schema_id, k in RESET_KEYS.items()}
+    for layout in LAYOUTS.values():
+        for schema_id, values in layout["settings"].items():
+            keys.setdefault(schema_id, set()).update(values)
+    return {s: sorted(k) for s, k in keys.items() if s not in RESET_SCHEMAS}
+
+
+def remove_old_dock_copy():
+    """The first RedFox dock preset floated the dock by copying Dash to Dock
+    into ~/.local with an edited stylesheet. That copy hides the image's
+    (newer) Dash to Dock, so remove it; the helper extension floats the dock
+    now. The shell keeps running the copy until the next login."""
+    path = os.path.join(GLib.get_user_data_dir(), "gnome-shell", "extensions", DASH_TO_DOCK)
+    stylesheet = os.path.join(path, "stylesheet.css")
+    try:
+        with open(stylesheet, encoding="utf-8") as f:
+            if "REDFOX OS CUSTOM OVERRIDES" not in f.read():
+                return
+    except OSError:
+        return
+    shutil.rmtree(path)
+    print("redfox-layout: removed the old copy of Dash to Dock from ~/.local. "
+          "Log out and back in once to switch to the system Dash to Dock.")
+
+
+def apply_layout(name):
+    remove_old_dock_copy()
+    layout = LAYOUTS[name]
+    wanted = [HELPER, *layout["extensions"]]
+
+    # 1. Turn off what this layout doesn't use, so an old dock or panel
+    #    isn't rebuilt for every setting changed below.
+    keep = set(wanted)
+    if layout.get("auto_dock"):
+        keep.add(DASH_TO_DOCK)
+    set_extensions([], [e for e in MANAGED_EXTENSIONS if e not in keep])
+
+    # 2. Reset everything the layouts manage, then write this layout's
+    #    settings, one batch per schema.
+    writer = Writer()
+    for schema_id in RESET_SCHEMAS:
+        writer.reset_all(schema_id)
+    for schema_id, keys in managed_keys().items():
+        writer.reset(schema_id, keys)
+    for schema_id, values in layout["settings"].items():
+        writer.set(schema_id, values)
+    writer.set(RFL, {"layout": name})
+    writer.apply()
+
+    # 3. Turn on what it uses.
+    set_extensions(wanted, [])
+
+    needed = {s for s in layout["settings"]} | {RFL}
+    for schema_id in sorted(writer.missing & needed):
+        print(f"redfox-layout: warning: {schema_id} isn't installed; its settings were skipped",
+              file=sys.stderr)
+
+
+def current_layout():
+    settings = open_settings(RFL)
+    return settings.get_string("layout") if settings else "unknown"
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog="redfox-layout",
+        description="Switch the desktop layout live, without logging out.")
+    sub = parser.add_subparsers(dest="command", required=True)
+    sub.add_parser("list", help="list the layouts")
+    sub.add_parser("get", help="print the current layout")
+    set_parser = sub.add_parser("set", help="apply a layout")
+    set_parser.add_argument("layout", choices=LAYOUTS)
+    args = parser.parse_args()
+
+    if args.command == "list":
+        current = current_layout()
+        for name, layout in LAYOUTS.items():
+            mark = "*" if name == current else " "
+            print(f"{mark} {name:16} {layout['description']}")
+    elif args.command == "get":
+        print(current_layout())
+    elif args.command == "set":
+        apply_layout(args.layout)
+
+
+if __name__ == "__main__":
+    main()
