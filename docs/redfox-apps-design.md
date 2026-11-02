@@ -1,18 +1,33 @@
-# RedFox Apps: design proposal
+# RedFox Apps: design
 
-Status: proposal for Matt to review. Nothing here is built yet.
+Status: design. Matt has decided the shape (below); nothing is built yet.
 
 This covers the "🧩 RedFox Apps (Flatpak GUIs)" section of the roadmap: **Welcome**, **Config**, **Software installer** and the **RedFox Manual**. The goal is to give RedFox's own tooling (today mostly `ujust` recipes and `redfox-*` scripts) a GUI, the way Thirties and Pianola are GUI apps.
 
-## Decisions to make first
+## Decided
 
-These shape everything below. My recommendation is first in each list.
+1. **Two apps.** One app to *learn* RedFox and one to *change* it:
+   - an **info app**: *Welcome* (first run) plus the *Manual*;
+   - a **config app**: *Software* plus *Settings*.
 
-1. **One app or four.** I recommend **one app, `tech.redfoxlabs.RedFox`, with four launchers**: *Welcome*, *RedFox Settings*, *RedFox Software*, *RedFox Manual*. The four overlap heavily. Welcome is a short tour through pieces of the other three, and Settings and Software both need the same "run this on the host" layer. One codebase means one Flatpak, one release and one place to fix things, and Flatpak allows extra launchers named `tech.redfoxlabs.RedFox.Manual.desktop` and so on. The alternative is four separate apps like Thirties and Pianola, which is cleaner per app but quadruples the packaging and release work for code that's mostly shared.
-2. **Flatpak, or part of the image.** These apps change the *host*: they run `ujust`, `redfox-layout`, `flatpak install`, `rpm-ostree` and `gsettings` for the shell. A Flatpak can only do that through `flatpak-spawn --host`, which needs `--talk-name=org.freedesktop.Flatpak`. That permission is effectively full access to the host, so the sandbox buys little. The options:
-   - **Flatpak with host access** (recommended, matches the roadmap). It updates on its own schedule, not the image's, and is built and released like Thirties and Pianola. Flathub wouldn't take it with that permission, but it isn't meant for Flathub.
-   - **Part of the image** (Python + GTK in `/usr`, like `redfox-config`). There's no sandbox to work around, and it always matches the image's scripts. But every fix waits for an image build, and it can't be used on other distros (not a goal anyway).
-3. **How it's installed.** Short term, use the existing `update-redfox-apps` fleet (GitHub release bundles, per user). Welcome must be there at first login, so in the longer term publish a small **RedFox Flatpak remote** (a signed OSTree repo on GitHub Pages or similar). The image would add it in `default-flatpaks` and install the app system-wide, and the Thirties and Pianola updates would come through it too.
+   Each pair shares most of its code: Welcome is a tour that ends in the Manual, and Software and Settings both need the same "run this on the host" layer. Welcome's setup steps (layout, config, software) call the same host commands Workshop does, through a small shared library, so both apps need host access; the Manual on its own wouldn't.
+2. **Flatpak, released the way Thirties and Pianola are.** Each app lives in its own repo and publishes a `.flatpak` bundle on its GitHub releases. This repo's `update-redfox-apps` lists the apps and installs and updates them per user, with an `install-*` recipe each. A RedFox Flatpak remote (a signed OSTree repo) can come later, when there are enough apps to justify it.
+
+   Both apps change the *host*, the config app far more: it runs `ujust`, `redfox-layout`, `flatpak install`, `rpm-ostree` and `gsettings` for the shell. It does that through `flatpak-spawn --host`, which needs `--talk-name=org.freedesktop.Flatpak`. That permission is effectively full access to the host, so the sandbox buys little. It also means Flathub wouldn't take them, but they aren't meant for Flathub.
+
+## Proposed names
+
+| | Recommended | Alternatives |
+| --- | --- | --- |
+| Info app (Welcome + Manual) | **RedFox Guide**, `tech.redfoxlabs.Guide` | RedFox Field Guide; RedFox Den |
+| Config app (Software + Settings) | **RedFox Workshop**, `tech.redfoxlabs.Workshop` | RedFox Control; RedFox Burrow |
+
+"Guide" says what it is: it greets you, then it's the manual. "Workshop" is where you fit out the machine, apps and settings both, and it doesn't clash with GNOME's own *Settings* or *Software* apps in the app grid or search. Avoid "Toolbox" (Fedora's `toolbox` command) and "Tweaks" (GNOME Tweaks). Each app gets a second launcher for its other half, so the app grid shows *RedFox Guide*, *RedFox Manual*, *RedFox Workshop* and *RedFox Software*. Both launchers of an app open the same window on a different page.
+
+## Still open
+
+- **Welcome and Bazzite Portal.** Bazzite's own first-run app also starts at login. Working assumption: Welcome **runs after Portal** (once Portal's window has closed), and doesn't turn it off.
+- **Welcome at first login.** Per-user bundles from GitHub need the network, and nothing installs them before the user first logs in. So the image needs a small first-login step: an autostart entry that runs `update-redfox-apps tech.redfoxlabs.Guide` and then opens Welcome. If it's offline, it tries again at the next login. A Flatpak remote installed system-wide in the image would remove this step, which is one reason to revisit the remote later.
 
 ## Principle: the GUI is a front end, the CLIs stay the source of truth
 
@@ -31,32 +46,38 @@ That keeps `ujust bootstrap-matt` and friends working unchanged and keeps the GU
 
 The same stack as Thirties and Pianola: Python, GTK 4 and libadwaita, Meson, the `org.gnome.Platform` 50 runtime, and `tech.redfoxlabs.*` IDs. It follows the GNOME HIG, and Blueprint can be used for UI files if it helps.
 
-## The four parts
+## The info app (RedFox Guide)
 
 ### Welcome (first run)
 
-Opens once per user at first login (an autostart entry that checks a marker in `~/.local/state/redfox/`). It can be reopened from the app grid. Steps:
+Opens once per user at first login (the first-login step under "Still open", which checks a marker in `~/.local/state/redfox/`). It can be reopened from the app grid. Steps:
 
 1. **Hello.** One screen on what RedFox is, with a link to the Manual.
 2. **Pick a layout.** Cards for GNOME, Ubuntu, macOS, Windows, Windows classic and RedFox, each with a screenshot. Picking one applies it live (`redfox-layout set`), so the user sees the real thing behind the window and can change their mind.
 3. **Who's this for.** Matt, Dewy, or "someone else" (and later "plain Fedora"). This picks the defaults for the next steps, mirroring the `bootstrap-*` organisms without running them blind.
 4. **Your config.** Import `config.yaml` (paste, file or URL, as `redfox-config setup` does) or skip. Depends on the secrets/config discussion.
-5. **Software.** The Software page, pre-ticked for the profile chosen in step 3.
+5. **Software.** Opens Workshop's Software page, pre-ticked for the profile chosen in step 3 (or offers to install Workshop first).
 6. **Done.** It summarises what was applied (the bootstrap recap, as a list), offers to reboot if anything needs it, and links to the Manual.
 
-Bazzite's own first-run app (Bazzite Portal) also starts at login. Welcome should turn that off for the user and link to it from the last page, rather than both opening.
+Bazzite's own first-run app (Bazzite Portal) also starts at login. For now Welcome waits until Portal's window has closed and leaves Portal on (see "Still open").
 
-### RedFox Settings (Config)
+### Manual
 
-An `Adw.PreferencesWindow`-style app with these pages:
+A very short guide, only where RedFox differs from ordinary Linux (it's immutable) or from other immutable distros (the tools RedFox chose). It's a searchable list of short pages; commands sit in monospace boxes with a copy button. A first set of pages:
 
-- **Layout.** The same cards as Welcome, plus the floating-dock gap and the RedFox layout's "dock on screens at least N pixels wide" setting.
-- **Desktop.** Window buttons (`set-window-controls-*`), app grid sorting, tiling presets, square corners, sound theme, XWayland scaling. These are today's "UI/UX atoms", each a switch or a combo row that calls its recipe.
-- **Services.** Tailscale, NordVPN, weekly ClamAV scans, swap: on/off and status.
-- **This machine.** Hostname and hardware quirks, read from the `machines:` section of the config.
-- **Config file.** View, import, export, or open `config.yaml` in an editor, with secrets masked. How secrets are stored and edited is the open secrets/config question, so this page waits for that.
+- How RedFox works: the image, updates, rolling back, `unstable` versus stable.
+- Installing apps: Bazaar/Flathub first, then Homebrew for CLI tools, then distrobox, and layering with `rpm-ostree` only as a last resort.
+- "My collaborators and I need identical dev setups with a specific Node version": dev containers (VS Code + Podman/Docker) or distrobox.
+- "I need a Python environment": uv (and pixi for conda-style projects), both preinstalled.
+- `ujust`: what it is and the recipes worth knowing.
+- Layouts: switching, and what each one is.
+- Getting help: logs, and where to report a problem.
 
-### RedFox Software
+The pages are Markdown files in this repo (`docs/manual/`), so they can be reviewed like code. The app bundles them at build time, and the same files can be published on the RedFox website.
+
+## The config app (RedFox Workshop)
+
+### Software
 
 A checklist of software grouped into the existing packs (Productivity, Daily, Creative, Music, Dev, Comms, Compatibility, …). Each row shows the app's icon, name and one line of text, and whether it's installed. Ticking and pressing **Apply** installs or removes; a whole pack can be ticked at once.
 
@@ -78,31 +99,24 @@ packs:
 
 `redfox-software` reads the file and the `install-*` recipes become one-liners (`redfox-software install productivity`), so the terminal and the GUI always install the same things. Flatpak installs show per-app progress from `flatpak install --noninteractive`.
 
-### RedFox Manual
+### Settings
 
-A very short guide, only where RedFox differs from ordinary Linux (it's immutable) or from other immutable distros (the tools RedFox chose). It's a searchable list of short pages; commands sit in monospace boxes with a copy button. A first set of pages:
+An `Adw.PreferencesWindow`-style app with these pages:
 
-- How RedFox works: the image, updates, rolling back, `unstable` versus stable.
-- Installing apps: Bazaar/Flathub first, then Homebrew for CLI tools, then distrobox, and layering with `rpm-ostree` only as a last resort.
-- "My collaborators and I need identical dev setups with a specific Node version": dev containers (VS Code + Podman/Docker) or distrobox.
-- "I need a Python environment": uv (and pixi for conda-style projects), both preinstalled.
-- `ujust`: what it is and the recipes worth knowing.
-- Layouts: switching, and what each one is.
-- Getting help: logs, and where to report a problem.
-
-The pages are Markdown files in this repo (`docs/manual/`), so they can be reviewed like code. The app bundles them at build time, and the same files can be published on the RedFox website.
+- **Layout.** The same cards as Welcome, plus the floating-dock gap and the RedFox layout's "dock on screens at least N pixels wide" setting.
+- **Desktop.** Window buttons (`set-window-controls-*`), app grid sorting, tiling presets, square corners, sound theme, XWayland scaling. These are today's "UI/UX atoms", each a switch or a combo row that calls its recipe.
+- **Services.** Tailscale, NordVPN, weekly ClamAV scans, swap: on/off and status.
+- **This machine.** Hostname and hardware quirks, read from the `machines:` section of the config.
+- **Config file.** View, import, export, or open `config.yaml` in an editor, with secrets masked. How secrets are stored and edited is the open secrets/config question, so this page waits for that.
 
 ## Suggested order
 
-1. **Manual.** Mostly writing; useful on its own, and it shakes out the app skeleton and the release pipeline.
-2. **Software.** The catalog refactor helps the `ujust` side too.
-3. **Settings.** Start with the Layout page (the CLI exists), then Desktop and Services. Leave Config file until the secrets design is settled.
-4. **Welcome.** Built mostly from the pages above.
+1. **Guide: the Manual.** Mostly writing; useful on its own, and it shakes out the app skeleton and the release pipeline.
+2. **Workshop: Software.** The catalog refactor helps the `ujust` side too.
+3. **Workshop: Settings.** Start with the Layout page (the CLI exists), then Desktop and Services. Leave Config file until the secrets design is settled.
+4. **Guide: Welcome.** Built mostly from the pages above, plus the first-login step.
 
 ## Open questions for Matt
 
-- One app with four launchers, or four apps?
-- Flatpak with host access, or part of the image?
-- Is a RedFox Flatpak remote worth setting up now, or later?
-- Should Welcome replace Bazzite Portal at first login, or run after it?
-- App name: "RedFox" (with launchers named "RedFox Settings", "RedFox Software", and so on), or something else?
+- The two names: RedFox Guide and RedFox Workshop, or one of the alternatives?
+- Welcome and Bazzite Portal: keep "run after Portal", or turn Portal off for RedFox users?

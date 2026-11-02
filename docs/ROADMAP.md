@@ -167,7 +167,7 @@
 - [ ] **smooth-overview, hardened:** *(Done on smooth-overview's local `harden` branch, not pushed yet: InjectionManager, safe to enable/disable twice, only the overview's and top bar's own lookups change, keeps the clock centred. Publishing on extensions.gnome.org needs Matt's account.)* review it against GNOME Shell extension best practice (it was thrown together quickly), make sure it's solid on the current GNOME, install it the proper way for a system extension, and consider publishing it on extensions.gnome.org.
 
 ## 🧩 RedFox Apps (Flatpak GUIs)
-*Design proposal for Matt to review: [`docs/redfox-apps-design.md`](redfox-apps-design.md).*
+*Design: [`docs/redfox-apps-design.md`](redfox-apps-design.md). Matt decided on two Flatpak apps, released like Thirties and Pianola: an info app (Welcome + Manual) and a config app (Software + Settings). Names proposed there: RedFox Guide and RedFox Workshop.*
 
 Move RedFox's own tooling into GUI Flatpak apps, like Thirties and Pianola already are (`tech.redfoxlabs.*`), building them where they don't exist yet:
 - [ ] **Welcome:** first-run app.
@@ -213,7 +213,7 @@ Move RedFox's own tooling into GUI Flatpak apps, like Thirties and Pianola alrea
     - [x] Starship: a RedFox default config with a 🦊 OS symbol (Starship itself is the separate Starship item).
     - [x] Terminal banner (MOTD): RedFox welcome, links and tips; Bazzite's tips removed.
     - [x] Fedora logo files (installer, initial setup, About dialogs) regenerated from the RedFox art.
-    - [ ] Bazzite Portal and Bazzite Announcements stay as they are: their content is Bazzite's. RedFox Welcome replaces the Portal later.
+    - [ ] Bazzite Portal and Bazzite Announcements stay as they are: their content is Bazzite's. RedFox's Welcome runs after the Portal for now (whether to replace it is still open).
     - [x] Bazzite's rollback helper (`bazzite-rollback-helper`, `bruh`) only knows Bazzite images. *(`redfox-rollback-helper` / `ujust rollback-helper` on `feat/redfox-rollback-helper`: lists builds of latest/unstable by commit and date, rolls back, rebases with a warning when switching NVIDIA flavour. Tested in the VM.)*
     - [x] Create/Add assets: Neofetch/Fastfetch Logo, Splash Screen, System Info Logo. *(Made from the existing art by `assets/branding/make-images.py` on `feat/branding`.)*
     - [ ] **New artwork from Matt** (listed in `docs/branding.md`): the fox as an SVG; a simple single-colour fox mark for 16 px and symbolic icons (ArcMenu's start button, Logo Menu); the wordmark as a vector, or its font.
