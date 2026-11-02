@@ -1,0 +1,165 @@
+#!/usr/bin/env bash
+# Drive the RedFox test VM made by create-vm.sh. See tests/vm/README.md.
+#
+#   tests/vm/vm ssh [command...]   run a command in the VM (or open a shell)
+#   tests/vm/vm user [command...]  run a command in the VM's GNOME session
+#   tests/vm/vm shot [file.png]    screenshot the VM's display
+#   tests/vm/vm push               copy this checkout's shell bits into the
+#                                  VM's /usr (a hotfix overlay, replaced by
+#                                  the next update or rebase) and reboot
+#   tests/vm/vm restart-session    reboot the VM, which logs back in
+#   tests/vm/vm serve-image [tag]  push a locally built image to a registry
+#                                  on this machine that the VM can pull from
+#   tests/vm/vm rebase-local [tag] rebase the VM onto that image and reboot
+set -euo pipefail
+
+NAME="${VM_NAME:-redfox-test}"
+VM_USER="${VM_USER:-tester}"
+SSH_PORT="${VM_SSH_PORT:-2223}"
+KEY="${HOME}/.ssh/redfox-test"
+REPO="$(cd "$(dirname "$0")/../.." && pwd)"
+SMOOTH_OVERVIEW_DIR="${SMOOTH_OVERVIEW_DIR:-${HOME}/dev/smooth-overview}"
+REGISTRY_PORT="${REGISTRY_PORT:-5000}"
+export LIBVIRT_DEFAULT_URI=qemu:///session
+
+SSH=(ssh -i "${KEY}" -p "${SSH_PORT}" -o StrictHostKeyChecking=no
+     -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR "${VM_USER}@127.0.0.1")
+
+vm_ssh() { "${SSH[@]}" "$@"; }
+
+# Run in the user's session: same D-Bus and runtime dir as the desktop.
+vm_user() {
+    vm_ssh "export XDG_RUNTIME_DIR=/run/user/\$(id -u) DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/\$(id -u)/bus; \
+        eval \"\$(systemctl --user show-environment 2>/dev/null | grep -E '^(DISPLAY|WAYLAND_DISPLAY|XAUTHORITY|XDG_SESSION_TYPE|XDG_CURRENT_DESKTOP|XDG_SESSION_DESKTOP|DESKTOP_SESSION|XDG_DATA_DIRS|GNOME_SETUP_DISPLAY)=' | sed 's/^/export /')\"; $*"
+}
+
+# Extensions the image installs from extensions.gnome.org that the base
+# image may lack, so `push` can provide them before an image build has.
+ego_extensions() {
+    grep -E '^\s+- [0-9]+' "${REPO}/recipes/_common-modules.yml" | awk '{print $2}'
+}
+
+push() {
+    local stage
+    stage="$(mktemp -d)"
+    trap 'rm -rf "${stage}"' RETURN
+    mkdir -p "${stage}/usr"
+    cp -a "${REPO}/files/system/usr/." "${stage}/usr/"
+    if [ -d "${SMOOTH_OVERVIEW_DIR}" ]; then
+        local uuid dest
+        uuid="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["uuid"])' "${SMOOTH_OVERVIEW_DIR}/metadata.json")"
+        dest="${stage}/usr/share/gnome-shell/extensions/${uuid}"
+        mkdir -p "${dest}"
+        (cd "${SMOOTH_OVERVIEW_DIR}" && find . -path ./.git -prune -o -type f -print0 |
+            xargs -0 cp --parents -t "${dest}")
+    fi
+    local shell_version
+    shell_version="$(vm_ssh gnome-shell --version | awk '{print int($3)}')"
+    for pk in $(ego_extensions); do
+        local info uuid
+        info="$(curl -fsS "https://extensions.gnome.org/extension-info/?pk=${pk}&shell_version=${shell_version}")" || continue
+        uuid="$(jq -r .uuid <<<"${info}")"
+        if vm_ssh test -d "/usr/share/gnome-shell/extensions/${uuid}"; then
+            continue
+        fi
+        echo "Fetching ${uuid} from extensions.gnome.org"
+        mkdir -p "${stage}/usr/share/gnome-shell/extensions/${uuid}"
+        curl -fsSL "https://extensions.gnome.org$(jq -r .download_url <<<"${info}")" -o "${stage}/ext.zip"
+        unzip -q -o "${stage}/ext.zip" -d "${stage}/usr/share/gnome-shell/extensions/${uuid}"
+        rm -f "${stage}/ext.zip"
+        # The image's gnome-extensions module puts schemas in the global dir.
+        if [ -d "${stage}/usr/share/gnome-shell/extensions/${uuid}/schemas" ]; then
+            mkdir -p "${stage}/usr/share/glib-2.0/schemas"
+            cp "${stage}/usr/share/gnome-shell/extensions/${uuid}/schemas/"*.xml "${stage}/usr/share/glib-2.0/schemas/"
+        fi
+    done
+    find "${stage}" -name '.gitkeep' -delete
+
+    # A hotfix overlay keeps /usr writable and survives reboots, until the
+    # next rpm-ostree deployment (an update or rebase) replaces it.
+    if ! vm_ssh 'sudo test -w /usr'; then
+        vm_ssh 'sudo ostree admin unlock --hotfix >/dev/null'
+    fi
+    # Replace (not merge) the extensions being pushed, so deleted files go.
+    local ext
+    for ext in "${stage}"/usr/share/gnome-shell/extensions/*/; do
+        vm_ssh "sudo rm -rf '/usr/share/gnome-shell/extensions/$(basename "${ext}")'"
+    done
+    tar -C "${stage}" -cf - usr | vm_ssh 'sudo tar -C / --no-same-owner -xf - && sudo glib-compile-schemas /usr/share/glib-2.0/schemas 2>/dev/null'
+    # The image compiles the system dconf defaults at build time.
+    if [ -d "${REPO}/files/system/etc/dconf/db/redfox.d" ]; then
+        tar -C "${REPO}/files/system" -cf - etc/dconf/db/redfox.d | vm_ssh 'sudo tar -C / --no-same-owner -xf - && (grep -q "^system-db:redfox" /etc/dconf/profile/user 2>/dev/null || printf "user-db:user\nsystem-db:redfox\n" | sudo tee /etc/dconf/profile/user >/dev/null) && sudo dconf update'
+    fi
+    echo "Pushed. Restarting the GNOME session so the shell rescans extensions."
+    restart_session
+}
+
+# GDM only logs in automatically once per boot (restarting it leaves the
+# greeter up), so restarting the session means rebooting the VM.
+restart_session() {
+    vm_ssh 'sudo systemd-run --quiet --on-active=1 systemctl reboot' || true
+    sleep 15
+    for _ in $(seq 90); do
+        if vm_ssh "pgrep -u ${VM_USER} -x gnome-shell" >/dev/null 2>&1; then
+            sleep 8
+            echo "Session is back."
+            return 0
+        fi
+        sleep 2
+    done
+    echo "The session didn't come back within three minutes." >&2
+    return 1
+}
+
+serve_image() {
+    local tag="${1:-localhost/redfox-os:latest}"
+    local engine="${ENGINE:-$(docker image inspect "${tag}" >/dev/null 2>&1 && echo docker || echo podman)}"
+    if ! podman container exists redfox-registry 2>/dev/null; then
+        podman run -d --name redfox-registry -p "127.0.0.1:${REGISTRY_PORT}:5000" docker.io/library/registry:2 >/dev/null
+    fi
+    podman start redfox-registry >/dev/null
+    local target="localhost:${REGISTRY_PORT}/redfox-os:test"
+    # Both engines treat a registry on localhost as allowed without TLS.
+    if [ "${engine}" = docker ]; then
+        docker tag "${tag}" "${target}"
+        docker push -q "${target}"
+    else
+        podman push --tls-verify=false "${tag}" "${target}"
+    fi
+    echo "Serving ${tag} on 127.0.0.1:${REGISTRY_PORT} as redfox-os:test"
+}
+
+# passt maps the guest's default gateway to this machine's loopback, which
+# is where serve-image's registry listens.
+host_from_vm() {
+    vm_ssh "ip -4 route show default | awk '{print \$3; exit}'"
+}
+
+rebase_local() {
+    local host ref
+    host="$(host_from_vm):${REGISTRY_PORT}"
+    ref="${host}/redfox-os:test"
+    vm_ssh "printf '[[registry]]\nlocation = \"${host}\"\ninsecure = true\n' | sudo tee /etc/containers/registries.conf.d/50-redfox-test.conf >/dev/null"
+    vm_ssh "sudo rpm-ostree rebase ostree-unverified-registry:${ref}"
+    vm_ssh 'sudo systemctl reboot' || true
+    echo "Rebooting into ${ref}."
+}
+
+shot() {
+    local out="${1:-/tmp/${NAME}.png}"
+    virsh screenshot "${NAME}" "${out}" >/dev/null
+    echo "${out}"
+}
+
+cmd="${1:-}"
+shift || true
+case "${cmd}" in
+    ssh) vm_ssh "$@" ;;
+    user) vm_user "$@" ;;
+    shot) shot "$@" ;;
+    push) push ;;
+    restart-session) restart_session ;;
+    serve-image) serve_image "$@" ;;
+    rebase-local) rebase_local ;;
+    *) sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+esac

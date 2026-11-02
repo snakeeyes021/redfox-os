@@ -4,3 +4,4 @@ cosign.private
 
 __pycache__/
 *.pyc
+/.bluebuild-scripts_*
