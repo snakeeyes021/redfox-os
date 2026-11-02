@@ -39,7 +39,7 @@ To restore, shut the VM off and copy the baseline back over `redfox-test.qcow2`.
 
 Images only build in CI for `unstable` and `main`, so a branch can be tested in three ways. Use the cheapest that covers the change.
 
-1. **Quick loop: `vm push`.** For shell extensions, scripts in `/usr/bin`, ujust recipes, schemas and the RedFox dconf defaults. It unlocks the VM's `/usr` as a hotfix overlay (`ostree admin unlock --hotfix`), copies the files in and reboots, which takes about a minute. The overlay lasts until the next rebase or update. It does not run the recipe's dnf/flatpak/script modules, so it can't test package changes.
+1. **Quick loop: `vm push`.** For shell extensions, scripts in `/usr/bin`, ujust recipes, schemas and the RedFox dconf defaults. It unlocks the VM's `/usr` as a hotfix overlay (`ostree admin unlock --hotfix`), copies the files in and reboots, which takes about a minute. The overlay lasts until the next rebase or update. It does not run the recipe's dnf/flatpak/script modules, so it can't test package changes. Unlocking also keeps a clean copy of the current system as the rollback entry, which pushes out the previous image. So test rollbacks between images *before* pushing an overlay.
 
 2. **Full image, built here.** For recipe changes (packages, modules, build scripts), and as the last check before merging into `unstable`:
 
