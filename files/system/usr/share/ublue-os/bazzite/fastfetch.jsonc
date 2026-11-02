@@ -1,11 +1,14 @@
 {
     "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
     "logo": {
-        "type": "file",
+        // The nine-tailed fox in truecolour half blocks, made by
+        // assets/branding/make-marks.py. Raw, so fastfetch needs its size.
+        "type": "file-raw",
         "source": "/usr/share/ublue-os/bazzite/logo.txt",
-        "color": {
-            "1": "38;2;178;34;52",
-            "2": "38;2;240;234;234"
+        "width": 42,
+        "height": 24,
+        "padding": {
+            "top": 1
         }
     },
     "display": {

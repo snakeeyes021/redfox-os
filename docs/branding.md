@@ -15,7 +15,8 @@ The name is **RedFoxOS** (as in the README and the wordmark); the short name is 
 | Login screen (GDM) | `/usr/share/pixmaps/fedora-gdm-logo.png` | Light lettering, since GDM's background is dark. |
 | Boot splash (Plymouth) | `/usr/share/plymouth/themes/spinner/watermark.png`, and `branding.sh` rebuilds the initramfs | The initramfs carries its own copy of the theme. Before this, RedFox's watermark was in `/usr` but the boot screen still showed Bazzite's. |
 | Terminal banner (MOTD) | `/usr/share/ublue-os/motd/template.md`, `tips/20-redfox.md` | Bazzite's tips (gaming, Bazzite docs links) are removed at build. |
-| fastfetch | `/usr/share/ublue-os/bazzite/fastfetch.jsonc`, `logo.txt`, `/usr/libexec/bazzite-fetch-image` | RedFox fox in RedFox red; the image line shows the image actually booted, e.g. `ghcr.io/snakeeyes021/redfox-os:unstable`. Keys still follow the GNOME accent colour. |
+| fastfetch | `/usr/share/ublue-os/bazzite/fastfetch.jsonc`, `logo.txt`, `/usr/libexec/bazzite-fetch-image` | A sitting nine-tailed fox in RedFox reds, drawn for the terminal (truecolour half blocks, 42×24; see Artwork). The image line shows the image actually booted, e.g. `ghcr.io/snakeeyes021/redfox-os:unstable`. Keys still follow the GNOME accent colour. |
+| Symbolic icon | `/usr/share/icons/hicolor/scalable/apps/redfox-logo-symbolic.svg` | The swirl: three swirling tails with fox ears, one colour. ArcMenu's start button in the Windows layouts, and anything that asks for `redfox-logo-symbolic`. |
 | Starship | `/usr/share/redfox/starship.toml`, used when you have no `~/.config/starship.toml` | Turns on the `os` module with a 🦊. Starship isn't installed by default yet (see the roadmap). |
 | Fedora's logo files (`fedora-logo*.png`, `fedora_whitelogo*`, `system-logo-white.png`) | `files/system/usr/share/pixmaps` | Shown by the installer, initial setup and some About dialogs. |
 
@@ -42,13 +43,18 @@ Bazzite's `bazzite-rollback-helper` (also run by `bruh`) only knows Bazzite's im
 
 ## Artwork
 
-All images are made from the existing art by `assets/branding/make-images.py`: the nine-tailed fox (`assets/red_fox_labs_logo_2_semi-transparent.png`, white-filled so it reads on light and dark) and the "RedFoxOS" wordmark (`assets/branding/wordmark-source.png`, cut from `updatelogo.png`). For dark backgrounds the lettering is recoloured light; no new marks are drawn. Rerun the script after changing the source art.
+Two marks are drawn in code by `assets/branding/make-marks.py` (with `brush.py`), because the painting can't be shrunk that far:
+
+- **The terminal fox** (`assets/branding/terminal-fox.png`): a simplified version of the painted fox, sitting and turned toward the viewer, with nine tails curling at the tips. The terminal version places the eyes and nose pixel by pixel so they stay crisp. It needs a terminal with 24-bit colour (Ptyxis and other modern terminals); a bare text console shows it in approximate colours.
+- **The swirl** (`assets/branding/swirl.png`): the symbolic mark for small, one-colour places. Fox heads drawn as geometric faces are common in logos; the swirling tails are what's RedFox's own.
+
+Everything else is made from the existing art by `assets/branding/make-images.py`: the nine-tailed fox (`assets/red_fox_labs_logo_2_semi-transparent.png`, white-filled so it reads on light and dark) and the "RedFoxOS" wordmark (`assets/branding/wordmark-source.png`, cut from `updatelogo.png`). For dark backgrounds the lettering is recoloured light; no new marks are drawn. Rerun the script after changing the source art.
 
 ### Wanted from Matt (new artwork)
 
-These need art that doesn't exist yet. Nothing has been invented in its place.
+These need art that doesn't exist yet. The plan is to commission a human artist to paint the watercolour fox properly; the same job should redraw the terminal fox and the swirl, and set the wordmark as a vector.
 
 1. **The fox as a vector (SVG).** Every RedFox icon is currently scaled from a ~960 px painting, so it's soft on HiDPI and smudgy at 16–32 px (app grid, window list, About at 2×).
-2. **A simple single-colour fox mark (SVG)**, legible at 16 px and as a symbolic icon. It would go on ArcMenu's start button in the Windows layouts, the Logo Menu, and 16–32 px icons. The painterly fox doesn't survive at those sizes.
+2. **A finished version of the swirl (SVG)**, legible at 16 px and as a symbolic icon. The drawn stand-in is on ArcMenu's start button; it could also go on the Logo Menu and replace the painted fox in 16–32 px icons, where the painting doesn't survive.
 3. **The wordmark as a vector**, or the name of its font, so the lettering can be set at any size and colour. The largest copy today is about 700×170 px.
 4. *(Optional)* **A light-on-dark version of the full lockup** drawn on purpose, if the recoloured lettering isn't right.
