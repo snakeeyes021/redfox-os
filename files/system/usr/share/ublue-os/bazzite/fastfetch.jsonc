@@ -13,6 +13,8 @@
     },
     "display": {
         "separator": "  ",
+        // Cut long lines at the window edge; wrapped lines draw over the logo.
+        "disableLinewrap": true,
         "color": {
             "keys": "red"
         },
