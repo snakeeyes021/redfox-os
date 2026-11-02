@@ -140,7 +140,21 @@ rebase_local() {
     host="$(host_from_vm):${REGISTRY_PORT}"
     ref="${host}/redfox-os:test"
     vm_ssh "printf '[[registry]]\nlocation = \"${host}\"\ninsecure = true\n' | sudo tee /etc/containers/registries.conf.d/50-redfox-test.conf >/dev/null"
-    vm_ssh "sudo rpm-ostree rebase ostree-unverified-registry:${ref}"
+    # Run the rebase as its own unit and follow its log: rebasing from an
+    # image with no layers in common (Bluefin, say) takes the better part of
+    # an hour, and an rpm-ostree client whose SSH connection drops stalls.
+    vm_ssh "sudo systemctl reset-failed redfox-rebase.service 2>/dev/null; \
+        sudo systemd-run --unit=redfox-rebase --quiet sh -c \
+        'rpm-ostree rebase ostree-unverified-registry:${ref} > /var/tmp/redfox-rebase.log 2>&1; echo exit=\$? >> /var/tmp/redfox-rebase.log'"
+    until vm_ssh 'grep -q "^exit=" /var/tmp/redfox-rebase.log' 2>/dev/null; do
+        vm_ssh 'tail -c 200 /var/tmp/redfox-rebase.log | tr "\r" "\n" | grep -a . | tail -n1' 2>/dev/null || true
+        sleep 30
+    done
+    if ! vm_ssh 'grep -q "^exit=0" /var/tmp/redfox-rebase.log'; then
+        vm_ssh 'tail -n 20 /var/tmp/redfox-rebase.log' >&2
+        echo "The rebase failed; see /var/tmp/redfox-rebase.log in the VM." >&2
+        return 1
+    fi
     vm_ssh 'sudo systemctl reboot' || true
     echo "Rebooting into ${ref}."
 }

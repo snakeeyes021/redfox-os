@@ -60,3 +60,28 @@ Images only build in CI for `unstable` and `main`, so a branch can be tested in 
    It's slower to iterate on than a local build, but it also covers the two NVIDIA images.
 
 Before a branch is merged into `unstable`, it has had at least option 2 or 3 in the VM.
+
+## Rebasing from other images
+
+`create-vm.sh` takes `VM_NAME`, `VM_IMAGE`, `VM_SSH_PORT`, `VM_MEMORY_MB` and `VM_VCPUS`, so a VM can start from another uBlue image. `tests/vm/vm` reads `VM_NAME` and `VM_SSH_PORT` too:
+
+```bash
+VM_NAME=redfox-bluefin VM_IMAGE=ghcr.io/ublue-os/bluefin:stable VM_SSH_PORT=2224 VM_MEMORY_MB=6144 \
+    tests/vm/create-vm.sh
+VM_NAME=redfox-bluefin VM_SSH_PORT=2224 tests/vm/vm rebase-local
+```
+
+### Bluefin → RedFox (tested 2026-11-01)
+
+Bluefin stable (F44, GNOME 50.6), rebased onto a local build of `feat/layout-modes`:
+
+- **The rebase works**, and RedFox boots and logs in normally. It takes much longer than from Bazzite: the two share no layers, so the whole image (about 9 GB) is fetched. That was about 45 minutes in the VM, against 3 minutes from Bazzite. `vm rebase-local` runs the rebase as a detached unit for this reason. Over plain SSH, the rpm-ostree client stalled when the connection dropped.
+- **Some packages go down a version** when Bluefin's build is newer than RedFox's Bazzite base (Tailscale, util-linux, WebKitGTK, …). They come back with the next RedFox update; a rollback returns to Bluefin as it was.
+- **Docker didn't start:** `docker.socket` failed with "Failed to resolve group 'docker'". This isn't Bluefin-specific; it's the same for any rebase, from Bazzite too. Fixed on `fix/docker-group-after-rebase`.
+- **Extensions:** RedFox's default extension list replaces Bluefin's, unless the user had changed theirs. Bluefin's dock and its Logo Menu go away until a layout turns a dock on (`ujust preset-dock-ubuntu` and so on). Search Light and Gradia's integration aren't in RedFox at all, so anyone who had them enabled loses them without a message.
+- **Flatpaks:** apps from Flathub stay. Apps from Fedora's own Flatpak remote are removed by BlueBuild's default-flatpaks module, which then installs RedFox's default apps from Flathub. (This test VM had Fedora-remote apps only because it was installed from the Silverblue ISO; a Bluefin ISO install uses Flathub.)
+- **Settings:** the dconf profile becomes RedFox's (`redfox` first), and Bluefin's `distro` defaults are replaced by Bazzite's, so no Bluefin defaults leak through.
+- **Left over in `/etc`** (all harmless): tuned's active profile, the installer's firewalld zone, CUPS state.
+- `os-release` still says Bazzite. That's the branding work, not the rebase.
+
+The disks are kept: `redfox-bluefin.qcow2` (rebased) and `redfox-bluefin-baseline.qcow2` (Bluefin before the rebase).
