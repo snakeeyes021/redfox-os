@@ -22,7 +22,7 @@ The name is **RedFoxOS** (as in the README and the wordmark); the short name is 
 ### Left as Bazzite on purpose
 
 - **Bazzite Portal** (the first-run app, `yafti`) and **Bazzite Announcements**. Their content is Bazzite's own (Bazzite docs, Discord, Bazzite actions and news), so renaming them would mislead. The RedFox Welcome app is meant to replace the Portal (see `docs/redfox-apps-design.md`).
-- **`ujust` recipe names and the Bazzite rollback helper** (`ujust rollback-helper`). See below.
+- **`ujust` recipe names.**
 
 ## Identifiers tooling reads (kept)
 
@@ -36,9 +36,9 @@ The name is **RedFoxOS** (as in the README and the wordmark); the short name is 
 
 `image-name` (now `redfox-os`, `redfox-os-nvidia` or `redfox-os-nvidia-legacy`), `image-vendor` (`snakeeyes021`) and `image-ref` (`ghcr.io/snakeeyes021/<image>`). Bazzite's scripts only check `image-name` for the substrings `nvidia`, `deck` and `dx`, which RedFox's names contain or lack exactly as the Bazzite images they're built on do. Changing it makes Bazzite's hardware setup and Flatpak manager run once more after the update that brings this change (both are safe to repeat). The MOTD shows `image-ref`.
 
-### Not changed, and still says Bazzite
+### Rollback helper
 
-- **`ujust rollback-helper` / `bazzite-rollback-helper`** only knows Bazzite's images (`ghcr.io/ublue-os/bazzite-*` with `stable`/`testing` tags). Its `list` and `rebase` would offer Bazzite images. Plain `rpm-ostree rollback`, the boot menu, and `rpm-ostree rebase ostree-image-signed:docker://ghcr.io/snakeeyes021/redfox-os:<tag>` all work. A RedFox version of the helper is a separate job.
+Bazzite's `bazzite-rollback-helper` (also run by `bruh`) only knows Bazzite's images (`ghcr.io/ublue-os/bazzite-*`), so its `list` and `rebase` offered Bazzite. `feat/redfox-rollback-helper` adds `redfox-rollback-helper` (`ujust rollback-helper`) for RedFox's images and points `bazzite-rollback-helper` at it.
 
 ## Artwork
 
