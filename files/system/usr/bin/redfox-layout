@@ -39,6 +39,9 @@ MANAGED_EXTENSIONS = [DASH_TO_DOCK, DASH_TO_PANEL, ARCMENU, SMOOTH_OVERVIEW]
 DTD = "org.gnome.shell.extensions.dash-to-dock"
 DTP = "org.gnome.shell.extensions.dash-to-panel"
 ARC = "org.gnome.shell.extensions.arcmenu"
+# ArcMenu's start button shows RedFox's symbolic mark, when the image has it.
+ARC_BUTTON = ({"menu-button-icon": "redfox-logo-symbolic"}
+              if os.path.exists("/usr/share/icons/hicolor/scalable/apps/redfox-logo-symbolic.svg") else {})
 RFL = "org.gnome.shell.extensions.redfox-layouts"
 BMS = "org.gnome.shell.extensions.blur-my-shell"
 BMS_DOCK = "org.gnome.shell.extensions.blur-my-shell.dash-to-dock"
@@ -171,7 +174,7 @@ LAYOUTS = {
         "extensions": [DASH_TO_PANEL, ARCMENU],
         "settings": {
             **dash_to_panel(WINDOWS_CLASSIC_ELEMENTS),
-            ARC: {"menu-layout": "windows"},
+            ARC: {"menu-layout": "windows", **ARC_BUTTON},
             WM: {"button-layout": BUTTONS_RIGHT},
         },
     },
@@ -181,7 +184,7 @@ LAYOUTS = {
         "extensions": [DASH_TO_PANEL, ARCMENU],
         "settings": {
             **dash_to_panel(WINDOWS_ELEMENTS),
-            ARC: {"menu-layout": "11"},
+            ARC: {"menu-layout": "11", **ARC_BUTTON},
             WM: {"button-layout": BUTTONS_RIGHT},
         },
     },
