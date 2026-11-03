@@ -98,7 +98,7 @@ packs:
 
 Pages in the style of GNOME Settings:
 
-- **Layout.** The layout picker: six cards with the RedFox layout names and previews (proposed in [`docs/layout-names.md`](layout-names.md), drawn by `assets/layouts/make-previews.py`; both on `feat/layout-modes`). Picking one applies it live (`redfox-layout set`), so the user sees the real thing behind the window. Below the cards: the floating-dock gap, and the RedFox layout's "dock on screens at least N pixels wide".
+- **Layout.** The layout picker: six cards, three across, in this order: **RedFox**, **GNOME** and **Ubuntu** on top, then **Cal**, **Wash** and **Nostalgia** ([`docs/layout-names.md`](layout-names.md); previews drawn by `assets/layouts/make-previews.py`, both on `feat/layout-modes`). Each picture has a very light border, so they line up by eye; a card lifts with a drop shadow on hover. `assets/layouts/picker.html` is a mock-up of the look. Picking one applies it live (`redfox-layout set`), so the user sees the real thing behind the window. Below the cards: the floating-dock gap, and the RedFox layout's "dock on screens at least N pixels wide".
 - **Desktop.** Window buttons (`set-window-controls-*`), app grid sorting, tiling presets, square corners, sound theme, XWayland scaling. These are today's "UI/UX atoms", each a switch or a combo row that calls its recipe.
 - **Services.** Tailscale, NordVPN, weekly ClamAV scans and swap, each with on/off and status.
 - **This machine.** Hostname and hardware quirks, read from the `machines:` section of the config.

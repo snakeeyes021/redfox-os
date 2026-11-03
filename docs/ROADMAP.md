@@ -100,9 +100,9 @@
         - [ ] Don't disable overview on startup (in dash to dock) -- it's a nice touch starting up to the overview
         - [ ] Clock and Overview search should probably remain centered even if the usable workspace size changes
     - [x] `preset-dock-ubuntu` (Deviation): Configure Dash to Dock (Left side). Turn on Dash to Dock.
-    - [ ] `preset-dock-win-classic` (Deviation): Configure Dash to Dock (Bottom, Taskbar style, icons on left). Turn on Dash to Dock.
-    - [ ] `preset-dock-win-new` (Deviation): Configure Dash to Dock (Bottom, Taskbar style, icons on centered). Turn on Dash to Dock.
-    - [ ] `preset-dock-macos` (Deviation): Configure Dash to Dock (Bottom, Floating). Turn on Dash to Dock.
+    - [ ] `preset-dock-nostalgia` (Deviation): one taskbar along the bottom, start menu and apps on the left (Dash to Panel + ArcMenu). *(On `feat/layout-modes`.)*
+    - [ ] `preset-dock-wash` (Deviation): one taskbar along the bottom, start menu and apps centred (Dash to Panel + ArcMenu). *(On `feat/layout-modes`.)*
+    - [ ] `preset-dock-cal` (Deviation): a floating dock along the bottom (Dash to Dock). *(On `feat/layout-modes`.)*
     - [x] `configure-xway-scale-off` (Reset): Disable `xwayland-native-scaling` (reverts factor to default).
     - [x] `configure-xway-scale-on` (Deviation): Enable `xwayland-native-scaling` (forces factor to 0.0).
 - [ ] **Hardware Atoms (Must include Host Checks):**
@@ -162,9 +162,9 @@
 - [ ] `bootstrap-normie`: Runs `install-normie`, `theme-normie`, `layout-normie`, `configure-normie`.
 
 ## 🪟 Layout Modes
-*Built on `feat/layout-modes` and tested live in the VM; waiting for Matt's check before merging. `redfox-layout list/get/set` switches between gnome, ubuntu, macos, windows-classic, windows and redfox without a logout, and the `preset-dock-*` recipes call it. Windows layouts use Dash to Panel + ArcMenu. The restart had two causes: the gap hack copied Dash to Dock into `~/.local`, which GNOME only picks up at login; and smooth-overview broke when GNOME called enable() or disable() twice in a row ("too much recursion"), leaving the overview broken until the shell restarted.*
-- [ ] **Layout names without other systems' names** (no Windows, macOS or Ubuntu where people see them). *(Proposal with SVG previews in [`docs/layout-names.md`](layout-names.md) on `feat/layout-modes`; waiting for Matt to pick.)*
-- [ ] **More layouts, built from scratch:** today only the Ubuntu-style layout (and Dewy's variant) is finished. Build the rest of the presets above (`preset-dock-win-classic`, `preset-dock-win-new`, `preset-dock-macos`, the `_preset-dock-redfox` hybrid proof of concept) plus any others we want. Zorin's layouts are Zorin Pro (paid): don't consult or look at their implementation.
+*Built on `feat/layout-modes` and tested live in the VM; waiting for Matt's check before merging. `redfox-layout list/get/set` switches between redfox, gnome, ubuntu, cal, wash and nostalgia without a logout, and the `preset-dock-*` recipes call it. Wash and Nostalgia use Dash to Panel + ArcMenu. The restart had two causes: the gap hack copied Dash to Dock into `~/.local`, which GNOME only picks up at login; and smooth-overview broke when GNOME called enable() or disable() twice in a row ("too much recursion"), leaving the overview broken until the shell restarted.*
+- [ ] **Layout names without other systems' names.** *(Matt chose them on 2026-11-03: RedFox, GNOME and Ubuntu, then Cal, Wash and Nostalgia for the three modelled on other systems, in that order. Applied on `feat/layout-modes`, recipes and `redfox-layout` ids included, with bordered SVG previews: [`docs/layout-names.md`](layout-names.md).)*
+- [ ] **More layouts, built from scratch:** today only the Ubuntu-style layout (and Dewy's variant) is finished. Build the rest of the presets above (`preset-dock-nostalgia`, `preset-dock-wash`, `preset-dock-cal`, the `_preset-dock-redfox` hybrid proof of concept) plus any others we want. Zorin's layouts are Zorin Pro (paid): don't consult or look at their implementation.
 - [ ] **Switching layouts works live:** moving between presets shouldn't need a logout or restart. Some switches depend on smooth-overview, and something there may need a restart (possibly because the extension is built from source at image build time: `files/scripts/install-smooth-overview.sh`). Find out and fix it.
 - [ ] **smooth-overview, hardened:** *(Done on smooth-overview's local `harden` branch, not pushed yet: InjectionManager, safe to enable/disable twice, only the overview's and top bar's own lookups change, keeps the clock centred. Publishing on extensions.gnome.org needs Matt's account.)* review it against GNOME Shell extension best practice (it was thrown together quickly), make sure it's solid on the current GNOME, install it the proper way for a system extension, and consider publishing it on extensions.gnome.org.
 

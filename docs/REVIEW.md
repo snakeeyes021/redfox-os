@@ -89,21 +89,26 @@ Any order works for 2–5 and for 8–9.
 
 - **What it does:**
   - Six desktop layouts that switch live with `redfox-layout set <id>` or the `preset-dock-*` recipes, with no logout.
-  - The Windows layouts have:
+  - Matt's names and order: RedFox, GNOME, Ubuntu, then Cal, Wash and Nostalgia. They're applied to the `redfox-layout` ids and the `preset-dock-*` recipes too (`preset-dock-cal`, `preset-dock-wash`, `preset-dock-nostalgia`), with no aliases for the old names.
+  - Wash and Nostalgia have:
     - a blurred taskbar;
     - the swirl start button and the tiling button side by side;
     - the clock after the status icons.
   - The Ubuntu layout's top bar and dock now match in the overview.
+  - SVG previews for RedFox Hub's layout picker, with a light border round each picture, and `assets/layouts/picker.html`, a mock-up of the picker with a hover lift.
   - The VM testbed in `tests/vm/`.
-  - Proposed RedFox names for the layouts, with previews (not applied yet).
 - **Compare:** https://github.com/snakeeyes021/redfox-os/compare/unstable...feat/layout-modes
-- **Commits:** 14.
+- **Commits:** 16.
 - **Look at:**
   - `files/system/usr/bin/redfox-layout`
   - `files/system/usr/share/gnome-shell/extensions/redfox-layouts@redfoxlabs.tech/extension.js`
   - `docs/layout-names.md`
   - `tests/vm/README.md`
-- **Screenshots:** `windows-v3.png`, `windows-classic-v3.png`, `macos.png`, `ubuntu-v2-desktop.png`, `ubuntu-v2-overview.png`, `redfox-desktop.png`, `layout-names-proposal.png`.
+- **Screenshots:**
+  - `layout-names-v2.png`, and the picker mock-up at `layout-picker/` (hover a card);
+  - `layout-redfox.png`, `layout-ubuntu.png`, `layout-ubuntu-overview.png`, `layout-cal.png`, `layout-wash.png`, `layout-nostalgia.png`.
+
+  The desktop shots were taken before the rename; the layouts themselves didn't change.
 - **Needs:** smooth-overview `harden`.
 
 ## 7. `feat/redfox-rollback-helper`
@@ -144,6 +149,5 @@ Any order works for 2–5 and for 8–9.
 
 ## Also waiting for Matt (not branches)
 
-- Layout names: pick from `docs/layout-names.md`.
 - RedFox Hub (`docs/redfox-apps-design.md`): Welcome's words and pages, and whether to rebuild GNOME Tour's pattern or fork it.
 - Not building a GNOME front end for Mailspring (`docs/mailspring-gnome-frontend.md`): agree or not.
