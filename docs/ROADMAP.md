@@ -257,7 +257,7 @@ Move RedFox's own tooling into one GUI Flatpak app, like Thirties and Pianola al
 - [ ] Mailspring doesn't get Adwaita as its default theme, but it should. *(Matt chose to write our own. On `feat/mailspring-adwaita`: RedFox Adwaita Light and Dark, written from scratch, used by Mailspring's Automatic theme so it follows GNOME's light/dark setting and accent colour. A GNOME front end over Mailspring's sync engine was looked at and isn't recommended: [`docs/mailspring-gnome-frontend.md`](mailspring-gnome-frontend.md).)*
 - [ ] Setup/bootstrapping/config GUIs for managing RedFox's app sets, settings, services, actions, etc.
 - [ ] Midikeep: GNOME notifications don't group.
-- [ ] Midikeep: let the user set where the session archive goes, in a config Pianola also reads (Pianola side is in its `docs/BACKLOG.md`).
+- [x] Midikeep: let the user set where the session archive goes, in a config Pianola also reads: `data_dir` in `~/.config/midikeep/config.yaml` (see `docs/midikeep.md`); Pianola side in snakeeyes021/pianola#3.
 
 
 ## Running Matt fixes
