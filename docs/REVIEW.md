@@ -108,7 +108,7 @@ Any order works for 2–5 and for 8–9.
   - `layout-names-v2.png`, and the picker mock-up at `layout-picker/` (hover a card);
   - `layout-redfox.png`, `layout-ubuntu.png`, `layout-ubuntu-overview.png`, `layout-cal.png`, `layout-wash.png`, `layout-nostalgia.png`.
 
-  The desktop shots were taken before the rename; the layouts themselves didn't change.
+  VM-tested after the rename (2026-11-03): all six `preset-dock-*` recipes switch live, the old recipe names and ids are gone, and there are no shell errors.
 - **Needs:** smooth-overview `harden`.
 
 ## 7. `feat/redfox-rollback-helper`
