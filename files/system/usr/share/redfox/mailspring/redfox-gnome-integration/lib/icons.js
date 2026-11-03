@@ -51,6 +51,8 @@ const ICONS = [
   'view-reveal-symbolic',
   'weather-clear-night-symbolic',
   'window-close-symbolic',
+  'window-maximize-symbolic',
+  'window-minimize-symbolic',
   'window-new-symbolic',
 ];
 

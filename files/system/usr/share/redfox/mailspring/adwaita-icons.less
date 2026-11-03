@@ -148,3 +148,23 @@ html .btn.btn-emphasis img.content-mask,
 html .btn.btn-action img.content-mask {
   background-color: #ffffff !important;
 }
+
+// Window buttons: Adwaita's own glyphs, 16 px, centred in the 24 px circles
+// adwaita.less draws, in place of its CSS-drawn fallback shapes.
+.adw-window-glyph(@button, @icon) {
+  html.adw-icon-@{icon} body.platform-linux .toolbar-window-controls button.@{button}::before {
+    .adw-mask(@icon, @adw-text);
+    width: 16px;
+    height: 16px;
+    margin: -8px 0 0 -8px;
+    border: 0;
+    border-radius: 0;
+    transform: none;
+  }
+  html.adw-icon-@{icon} body.platform-linux .toolbar-window-controls button.@{button}::after {
+    display: none;
+  }
+}
+.adw-window-glyph(minimize, window-minimize-symbolic);
+.adw-window-glyph(maximize, window-maximize-symbolic);
+.adw-window-glyph(close, window-close-symbolic);

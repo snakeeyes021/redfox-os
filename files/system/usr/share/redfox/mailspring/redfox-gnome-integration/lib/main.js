@@ -11,7 +11,7 @@ const RedFoxReplyButtons = require('./reply-buttons');
 const icons = require('./icons');
 
 const STYLE_ID = 'redfox-gnome-window-buttons';
-const BUTTON = 26; // a 20 px circle plus its margins, as the RedFox Adwaita theme draws them
+const BUTTON = 37; // a 24 px circle plus its margins, libadwaita's spacing, as the RedFox Adwaita theme draws them
 const PORTAL = ['--session', '--dest', 'org.freedesktop.portal.Desktop', '--object-path', '/org/freedesktop/portal/desktop'];
 const KNOWN = ['minimize', 'maximize', 'close'];
 
@@ -32,7 +32,7 @@ function css({ side, order }) {
   const sel = 'body.platform-linux.redfox-gnome .toolbar-window-controls';
   const rules = [];
   if (side === 'right') {
-    rules.push(`${sel} { position: fixed; top: 13px; right: 6px; left: auto; display: flex; z-index: 10; margin: 0; order: 0; width: auto; min-width: 0; }`);
+    rules.push(`${sel} { position: fixed; top: 11px; right: 5px; left: auto; display: flex; z-index: 10; margin: 0; order: 0; width: auto; min-width: 0; }`);
     rules.push(`body.platform-linux.redfox-gnome .sheet-toolbar-container > [role='toolbar']:last-child { padding-right: ${order.length * BUTTON + 10}px; }`);
   } else {
     rules.push(`${sel} { position: static; display: flex; align-self: center; margin: 0 0 0 6px; order: -1000; width: auto; min-width: 0; }`);

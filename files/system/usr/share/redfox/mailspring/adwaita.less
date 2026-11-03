@@ -31,8 +31,10 @@ body.platform-linux .sheet-toolbar {
 // Window buttons: libadwaita's grey circles with a dark glyph, instead of
 // Mailspring's coloured gumdrops.
 // Mailspring's own rules set the gumdrop images per button class, so these
-// use button.close and so on to outrank them. Three 20 px circles fit the
-// 72 px strip Mailspring gives the buttons.
+// use button.close and so on to outrank them. libadwaita's sizes: 24 px
+// circles, 37 px apart. The glyphs are Adwaita's window-*-symbolic icons
+// (adwaita-icons.less); the shapes drawn here are only the fallback for when
+// those can't be found.
 body.platform-linux .toolbar-window-controls button,
 body.platform-linux .toolbar-window-controls button.close,
 body.platform-linux .toolbar-window-controls button.minimize,
@@ -40,9 +42,9 @@ body.platform-linux .toolbar-window-controls button.maximize,
 body.platform-linux .toolbar-window-controls.alt-true button.maximize,
 body.platform-linux.is-blurred .toolbar-window-controls button {
   position: relative;
-  width: 20px;
-  height: 20px;
-  margin: 0 2px;
+  width: 24px;
+  height: 24px;
+  margin: 0 6.5px;
   border-radius: 50%;
   background: @adw-button-bg;
   background-image: none;
@@ -84,12 +86,12 @@ body.platform-linux.is-blurred .toolbar-window-controls button {
     display: none;
   }
   &.maximize::before {
-    width: 6px;
-    height: 6px;
-    margin: -4px 0 0 -4px;
+    width: 8px;
+    height: 8px;
+    margin: -5.5px 0 0 -5.5px;
     background: transparent;
     border: 1.5px solid @adw-text;
-    border-radius: 1px;
+    border-radius: 0;
   }
   &.maximize::after {
     display: none;
@@ -101,8 +103,8 @@ body.platform-linux.is-blurred .toolbar-window-controls button {
 // and keep the last column's own buttons clear of them.
 body.platform-linux .toolbar-window-controls {
   position: fixed;
-  top: 13px;
-  right: 6px;
+  top: 11px;
+  right: 5px;
   z-index: 10;
   margin: 0;
   order: 0;
@@ -575,7 +577,25 @@ textarea {
   .thread-list .list-item:not(.unread):not(.selected):not(.focused) {
     color: @text-color-subtle;
   }
-  #message-list .message-item-white-wrap {
-    box-shadow: 0 0 0 1px @adw-border;
+  // libadwaita's dark card: a step lighter than the view under it, with a
+  // faint dark outline. The reply strip is the same card continued (it
+  // overlaps the message's bottom edge), so it shares the colour and draws
+  // the outline on its sides and bottom only.
+  // (Mailspring's own rule is #message-list .message-item-wrap
+  // .message-item-white-wrap, so match that; a collapsed message in a longer
+  // thread is a shade darker, as in light mode.)
+  #message-list .message-item-wrap .message-item-white-wrap,
+  #message-list .footer-reply-area-wrap {
+    background: @adw-card-bg;
+  }
+  #message-list .message-item-wrap.collapsed .message-item-white-wrap {
+    background: darken(@adw-card-bg, 2%);
+  }
+  #message-list .message-item-wrap .message-item-white-wrap {
+    box-shadow: 0 0 0 1px rgba(0, 0, 6, 0.36), 0 1px 3px 1px rgba(0, 0, 6, 0.09);
+  }
+  #message-list .footer-reply-area-wrap {
+    box-shadow: -1px 0 0 0 rgba(0, 0, 6, 0.36), 1px 0 0 0 rgba(0, 0, 6, 0.36),
+      0 1px 0 0 rgba(0, 0, 6, 0.36), 0 2px 3px 0 rgba(0, 0, 6, 0.09);
   }
 }
