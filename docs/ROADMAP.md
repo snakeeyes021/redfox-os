@@ -177,6 +177,19 @@ Move RedFox's own tooling into one GUI Flatpak app, like Thirties and Pianola al
 - [ ] **Apps:** a checklist of software and bundles (the `install-*` packs); tick and it installs them.
 - [ ] **Manual:** a very short help guide, only for where RedFoxOS differs from mainline Linux (it's immutable) or from other immutable distros (the conveniences and tools we chose). For example: "I want to install a Flatpak / a CLI tool, what do I do?", "My collaborators and I need identical dev setups with a specific Node version", "I need a Python environment; what are my options?" (uv, and whatever else we provide).
 
+## 🖍️ Screenshot markup (RedFox app)
+*Evaluation: [`docs/screenshot-markup.md`](screenshot-markup.md). Satty comes close but lacks rotate and opening from the clipboard, and its extra tools can't be hidden. Recommended: a small RedFox app (working name RedFox Markup) in the Hub family. Capture stays with GNOME's screenshot tool.*
+
+- [ ] **Quick, easy markup for screenshots** ("Gradia comes the closest, but it's got too many other things"), with exactly these features and nothing more:
+    - [ ] Open from the clipboard, a file, or GNOME's "screenshot taken" notification (a "Mark up" button added by the layout helper extension)
+    - [ ] Crop and rotate
+    - [ ] Pen and highlighter, with colour and size
+    - [ ] Arrow and rectangle
+    - [ ] Text box
+    - [ ] Blur or pixelate (to redact)
+    - [ ] Undo and redo
+    - [ ] Copy to clipboard (the main way out) and save
+
 ## 🧰 Editors
 - [ ] **Dewy and Sloppy extensions by default:** *(On `feat/small-roadmap-items`, in the `90-vscode.sh` login hook; Cursor's marketplace returns 403 for both, so it falls back to the Open VSX `.vsix`.)* install `RedFoxLabs.dewy` and `RedFoxLabs.sloppy` (on both the VS Code Marketplace and Open VSX) in VS Code and every fork we ship or set up (Cursor, Antigravity, etc.): add to `setup-vscode` / `setup-cursor`.
 
