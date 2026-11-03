@@ -48,7 +48,6 @@ const ICONS = [
   'system-search-symbolic',
   'user-bookmarks-symbolic',
   'user-trash-symbolic',
-  'view-more-symbolic',
   'view-reveal-symbolic',
   'weather-clear-night-symbolic',
   'window-close-symbolic',

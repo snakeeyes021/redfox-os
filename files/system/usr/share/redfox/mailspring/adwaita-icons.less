@@ -26,7 +26,9 @@
 // ("toolbar/toolbar-reply" matches toolbar-reply.png, @1x and @2x). RetinaImg
 // halves @2x images with zoom; undo that so every icon is 16 px. The bitmap
 // itself is moved out of the box, as RetinaImg does for its own masks, and the
-// dark theme's inverting filter is dropped.
+// dark theme's inverting filter is dropped. Mailspring sets its icons
+// "vertical-align: middle", which with Adwaita Sans's tall ascent sits them
+// 1 to 1.5 px low in a line; 0.36em above the baseline is the line's centre.
 .adw-img(@file, @icon, @color: @adw-text) {
   html.adw-icon-@{icon} img[src*='/@{file}@'],
   html.adw-icon-@{icon} img[src*='/@{file}.'] {
@@ -34,6 +36,7 @@
     zoom: 1 !important;
     width: 16px !important;
     height: 16px !important;
+    vertical-align: calc(0.36em - 8px) !important;
     object-position: 10000px !important;
     filter: none !important;
   }
@@ -94,6 +97,10 @@ html.adw-icon-sidebar-show-right-symbolic .btn-toolbar.mode-toggle.mode-false im
 .adw-img('source-list/snoozed', alarm-symbolic);
 .adw-img('source-list/reminders', appointment-soon-symbolic);
 .adw-img('sidebar/account-switcher-dropdown', pan-down-symbolic);
+// Mailspring flips its own arrow upside down; Adwaita's already points down.
+html.adw-icon-pan-down-symbolic .account-switcher img[src*='/account-switcher-dropdown'] {
+  transform: none !important;
+}
 
 // The open message
 .adw-img('message-list/print', document-print-symbolic);
@@ -106,7 +113,6 @@ html.adw-icon-sidebar-show-right-symbolic .btn-toolbar.mode-toggle.mode-false im
 .adw-img('reply-dropdown/ic-dropdown-forward', mail-forward-symbolic);
 .adw-img('reply-dropdown/ic-message-button-reply', mail-reply-sender-symbolic);
 .adw-img('thread-list/icon-thread-disclosure', pan-down-symbolic);
-.adw-img('message-list/message-actions-ellipsis', view-more-symbolic);
 // "Write a reply…" is placeholder text, so its icon is dimmed with it.
 .adw-img('message-list/reply-footer', mail-reply-sender-symbolic, @adw-dim);
 .adw-img('message-list/reply-all-footer', mail-reply-all-symbolic, @adw-dim);
