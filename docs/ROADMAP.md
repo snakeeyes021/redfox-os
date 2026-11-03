@@ -36,12 +36,11 @@
     - [ ] **Behavior:** Pinning to dock must not remove from grid.
 
 ## 📦 Default Software
-- [x] **Winboat:** Determine installation (DNF/Flatpak) and add to system defaults.
 - [x] **Dropbox:** Install official Dropbox client (flatpak)
     - [x] Remove maestral after dropbox is tested and experience is satisfactory (if maestral is not removed, improve maestral uninstall script to remove leftovers)
 - [x] **Implement** System-level GNOME Boxes + Virt-Manager
 - [x] **Tailscale:** add to system defaults. *(Already there: Bazzite ships Tailscale, off until you run `ujust tailscale enable`. Nothing to change.)*
-- [ ] **Remove Winboat** from the defaults (reverses the Winboat item above). *(On `feat/small-roadmap-items`: out of `install-compatibility`; `install-winboat` stays opt-in.)*
+- [ ] **No Winboat at all.** *(Matt, 2026-11-03: "we don't want winboat at all. No ujust." On `fix/remove-winboat`: the `install-winboat` and `uninstall-winboat` recipes are gone, and so is FreeRDP, which was in the image only for Winboat.)*
 - [ ] **Replace Mission Center** (slow to start, frozen at first, heavy on memory) with a better system monitor. *(On `feat/system-monitor`: Resources, `net.nokyan.Resources`, for new setups and the Dewy dock; Ctrl+Shift+Esc, Ctrl+Alt+Del on the keypad and Logo Menu's button open it through `redfox-system-monitor`, which falls back to Mission Center where that's all there is. Existing installs keep Mission Center.)*
 - [ ] **VS Code:** install the Antigravity extension. *(On `feat/small-roadmap-items`: `Google.google-antigravity`.)*
 - [ ] **Implement** Starship terminal prompt by default with light-theme terminal (steal from Bluefin)
@@ -239,9 +238,6 @@ Move RedFox's own tooling into one GUI Flatpak app, like Thirties and Pianola al
 ## Fixups/New (Items that arrive after a fix is already implemented)
 - [x] Screenshot (add Windows super + shift + s shortcut for selection screenshot; move fullscreen screenshot to printscreen)
 - [x] Check that Boxes is installing as system package and is cross-compatible with VMM
-- [x] Confirm that Winboat is best as app-image (RPM is published on github releases page, so we could be doing this as a system package; the issue is that the appimage setup is not frictionless).
-    - [x] Test appimage to confirm is working. If not, try RPM. Proceed based on findings
-    - [x] Winboat requires FreeRDP
 - [x] Change names for everything (Completed: Renamed to RedFoxOS)
 - [x] Add sound theme change -- ujust (set default sound theme to normal fedora default, "reset". set sound to bazzite, "deviation")
     - [x] Set system default override to 'freedesktop' (Fedora default).

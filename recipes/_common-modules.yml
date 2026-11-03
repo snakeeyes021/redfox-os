@@ -46,7 +46,6 @@ modules:
         - python3-ramalama
         - gnome-boxes
         - virt-manager
-        - freerdp
         - python3-gpg # Not sure these are needed anymore (was for system Dropbox)
         - libappindicator # Not sure these are needed anymore (was for system Dropbox)
         - tilix
