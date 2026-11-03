@@ -2,7 +2,7 @@
 
 Status: proposal for Matt to pick from. Nothing is renamed yet.
 
-RedFox's six desktop layouts shouldn't carry other systems' names (Windows, macOS, Ubuntu) anywhere a person sees them. Below is a proposed name for each, with a small preview for the layout picker in the future config app. The previews are SVGs drawn by [`assets/layouts/make-previews.py`](../assets/layouts/make-previews.py); rerun it after changing a layout.
+RedFox's six desktop layouts shouldn't carry other systems' names (Windows, macOS, Ubuntu) anywhere a person sees them. Below is a proposed name for each, with a small preview for the layout picker in RedFox Hub (Settings › Layout). The previews are SVGs drawn by [`assets/layouts/make-previews.py`](../assets/layouts/make-previews.py); rerun it after changing a layout.
 
 The internal ids (`redfox-layout set ubuntu` and so on) stay as they are, so scripts and saved settings keep working. Only the names people read change.
 
