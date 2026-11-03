@@ -90,7 +90,7 @@ Any order works for 2–5 and for 8–9.
   - `brand-grub.png`, `brand-gdm.png`, `brand-plymouth.png`, `brand-motd.png`
   - `brand-fastfetch-fox-v3.png`, `brand-start-button-v3.png`
 
-## 6. `feat/layout-modes`
+## 6. `feat/layout-modes` (merged)
 
 - **What it does:**
   - Six desktop layouts that switch live with `redfox-layout set <id>` or the `preset-dock-*` recipes, with no logout.
@@ -102,6 +102,7 @@ Any order works for 2–5 and for 8–9.
   - The Ubuntu layout's top bar and dock now match in the overview.
   - SVG previews for RedFox Hub's layout picker, with a light border round each picture, and `assets/layouts/picker.html`, a mock-up of the picker with a hover lift.
   - The VM testbed in `tests/vm/`.
+- **Merged** 2026-11-03 (ed79263). It builds smooth-overview from its `main`, which has `harden`.
 - **Compare:** https://github.com/snakeeyes021/redfox-os/compare/unstable...feat/layout-modes
 - **Commits:** 17.
 - **Look at:**
@@ -117,15 +118,16 @@ Any order works for 2–5 and for 8–9.
 - **Ubuntu dock line, fixed:** the thin line between the dock and the top bar (and down the dock's sides) was a 1 px border from Blur my Shell's dark dock style (`.dark-dash` in its `stylesheet.css`). The helper extension's new `stylesheet.css` removes it on full-height docks only; floating docks keep it as their outline. Checked on the desktop, in the overview, on hover and after switching layouts. Shots: `ubuntu-dock-corner-before-after.png`.
 - **Needs:** smooth-overview `harden`.
 
-## 7. `feat/redfox-rollback-helper`
+## 7. `feat/redfox-rollback-helper` (merged)
 
 - **What it does:** `redfox-rollback-helper` lists RedFoxOS builds by commit and date, and rolls back or moves to one. `ujust rollback-helper` (and `bruh`) open it.
+- **Merged** 2026-11-03 (8da831c).
 - **Compare:** https://github.com/snakeeyes021/redfox-os/compare/unstable...feat/redfox-rollback-helper
 - **Commits:** 1.
 - **Look at:** `files/system/usr/bin/redfox-rollback-helper`.
 - **Merge after:** `feat/small-roadmap-items`.
 
-## 8. `feat/system-monitor`
+## 8. `feat/system-monitor` (merged)
 
 - **What it does:**
   - New installs get Resources instead of Mission Center, and Dewy's dock pins it.
@@ -133,17 +135,19 @@ Any order works for 2–5 and for 8–9.
   - Existing installs keep Mission Center.
   - The measurements behind the choice are in `docs/system-monitor.md`.
 - **Decided:** Matt said yes to Resources (2026-11-03).
+- **Merged** 2026-11-03 (49c6e6f).
 - **Compare:** https://github.com/snakeeyes021/redfox-os/compare/unstable...feat/system-monitor
 - **Commits:** 2.
 - **Look at:** `docs/system-monitor.md`, `files/system/usr/bin/redfox-system-monitor`, the `redfox.d` dconf additions, `recipes/_common-modules.yml`.
 - **Screenshot:** `system-monitor-resources.png`.
 
-## 9. `feat/mailspring-adwaita`
+## 9. `feat/mailspring-adwaita` (on hold)
 
 - **What it does:**
   - RedFox's own Adwaita themes for Mailspring, light and dark, written from scratch.
   - A login hook installs them and makes them Mailspring's automatic themes, so Mailspring follows GNOME's light/dark setting and accent colour.
   - A themed light or dark choice you've already made in Mailspring is kept.
+- **On hold:** Matt says it "doesn't look very adwaita". A side-by-side comparison with a real libadwaita app is being prepared.
 - **Compare:** https://github.com/snakeeyes021/redfox-os/compare/unstable...feat/mailspring-adwaita
 - **Commits:** 2.
 - **Look at:**
@@ -153,11 +157,12 @@ Any order works for 2–5 and for 8–9.
 - **Screenshots:** `mailspring-adwaita-light.png`, `mailspring-adwaita-dark.png`.
 
 
-## 10. `fix/remove-winboat` (follow-up to 4)
+## 10. `fix/remove-winboat` (follow-up to 4, merged)
 
 - **What it does:**
   - Removes Winboat completely, as Matt asked ("we don't want winboat at all. No ujust."): the `install-winboat` and `uninstall-winboat` recipes, the roadmap items, and FreeRDP, which was in the image only for Winboat.
   - Makes Signal's and Joplin's tray entries safe after an uninstall. `configure-autostart-tray` already skipped apps that weren't installed, but an app removed later left its login entry, and Joplin's app-grid override, behind. Each entry now has `TryExec` pointing at the Flatpak's launcher, so GNOME skips it once the app is gone.
+- **Merged** 2026-11-03 (112c05f), FreeRDP included, as Matt approved.
 - **Compare:** https://github.com/snakeeyes021/redfox-os/compare/unstable...fix/remove-winboat
 - **Commits:** 1.
 - **Look at:** the `configure-autostart-tray` recipe in `60-custom.just`, `recipes/_common-modules.yml`.
@@ -165,7 +170,6 @@ Any order works for 2–5 and for 8–9.
   - The entries get `TryExec`, and both login services are generated.
   - An entry whose app is missing gets no login service and is hidden from the app grid.
   - Joplin's own entry still loads.
-- **Check:** whether to keep FreeRDP for other remote-desktop uses. It's one line to put back.
 
 
 ## 11. `feat/redfox-os-identity` (follow-up to 5, in progress)
@@ -175,6 +179,19 @@ Any order works for 2–5 and for 8–9.
   - Bazzite's scripts, services and ujust recipes read `image-info.json` (image name and base image), not `ID`.
   - The `ID` readers are cosmetic (`lsb_release`, the shell prompt) or no-ops (`grub2-mkconfig`'s EFI-path check).
   - topgrade falls back to `ID_LIKE`, so it keeps running `rpm-ostree upgrade`.
+
+
+## 12. `chore/wallpaper-credits` (merged)
+
+- **What it does:** credits both default wallpapers to Paweł Czerwiński (Unsplash License).
+  - The light one is the top 16:9 crop of "Pastel ink clouds in water".
+  - The dark one is "Pink and blue abstract painting".
+  - Both were matched pixel for pixel against his Unsplash photos.
+  - Adds `docs/wallpaper-credits.md` with links, the licence's limits, and three candidate light/dark pairs; a `CREDITS` file next to the images; and `<author>`/`<license>` in the GNOME wallpaper entry, as Fedora's wallpapers have. Rewords the roadmap item for collecting more pairs.
+- **Merged** 2026-11-03, approved by Matt.
+- **Compare:** https://github.com/snakeeyes021/redfox-os/compare/unstable...chore/wallpaper-credits
+- **Commits:** 1.
+- **Look at:** `docs/wallpaper-credits.md`.
 
 ---
 

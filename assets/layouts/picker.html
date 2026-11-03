@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RedFox layouts</title>
+<style>
+  body { margin: 0; padding: 32px; background: #fafafb; color: #323233;
+         font-family: "Adwaita Sans", Cantarell, "Noto Sans", sans-serif; }
+  h1 { font-size: 20px; font-weight: 700; margin: 0 0 24px; }
+  .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 260px)); gap: 28px 24px; }
+  @media (max-width: 760px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } body { padding: 16px; } }
+  .card { cursor: pointer; border-radius: 12px; padding: 6px; }
+  .card img { display: block; width: 100%; height: auto; border-radius: 6px;
+              transition: transform 160ms ease, box-shadow 160ms ease; }
+  .card:hover img, .card:focus img { transform: translateY(-3px) scale(1.03);
+              box-shadow: 0 6px 18px rgba(0, 0, 6, 0.22); }
+  .card.selected img { outline: 3px solid #3584e4; outline-offset: 3px; }
+  .name { font-weight: 700; margin: 10px 2px 2px; }
+  .desc { font-size: 13px; color: rgba(50, 50, 51, 0.65); margin: 0 2px; }
+</style></head><body>
+<h1>Layout</h1>
+<div class="grid">
+<div class="card selected" tabindex="0"><img src="redfox.svg" alt=""><div class="name">RedFox</div><div class="desc">A floating dock on big screens; the GNOME dash on small ones.</div></div>
+<div class="card" tabindex="0"><img src="gnome.svg" alt=""><div class="name">GNOME</div><div class="desc">Plain GNOME: the top bar, with the dash in the overview.</div></div>
+<div class="card" tabindex="0"><img src="ubuntu.svg" alt=""><div class="name">Ubuntu</div><div class="desc">A full-height dock on the left, always visible.</div></div>
+<div class="card" tabindex="0"><img src="cal.svg" alt=""><div class="name">Cal</div><div class="desc">A floating dock along the bottom, window buttons on the left.</div></div>
+<div class="card" tabindex="0"><img src="wash.svg" alt=""><div class="name">Wash</div><div class="desc">One taskbar along the bottom with the start menu and apps centred.</div></div>
+<div class="card" tabindex="0"><img src="nostalgia.svg" alt=""><div class="name">Nostalgia</div><div class="desc">One taskbar along the bottom: start menu and apps on the left.</div></div>
+</div>
+<script>
+  for (const c of document.querySelectorAll('.card'))
+    c.addEventListener('click', () => {
+      document.querySelectorAll('.card').forEach(x => x.classList.remove('selected'));
+      c.classList.add('selected');
+    });
+</script>
+</body></html>

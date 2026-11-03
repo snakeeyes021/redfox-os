@@ -255,6 +255,10 @@ uninstall-thirties:
     fi
     rm -f "${XDG_DATA_HOME:-$HOME/.local/share}/redfox-apps/tech.redfoxlabs.Thirties.tag"
 
+# Roll back, or move to another RedFoxOS build (latest, unstable, a dated or commit build)
+rollback-helper *ARGS:
+    /usr/bin/redfox-rollback-helper {{ ARGS }}
+
 # Run the optional Bazzite graphical updater
 update-gui:
     #!/usr/bin/bash
@@ -264,19 +268,7 @@ update-gui:
 update-appimages:
     /usr/bin/update-appimages
 
-# Install Winboat (opt-in; not part of any bundle)
-install-winboat:
-    /usr/bin/install-appimage \
-      "WinBoat" \
-      "GithubUpdater" \
-      "https://github.com/TibixDev/winboat" \
-      "winboat-*-x86_64.AppImage"
-
-# Uninstall Winboat
-uninstall-winboat:
-    /usr/bin/uninstall-appimage "WinBoat"
-
-# Start Signal and Joplin in the tray at login. Opened any other way, they open normally.
+# Start Signal and Joplin in the tray at login, if they're installed. Opened any other way, they open normally.
 configure-autostart-tray:
     #!/usr/bin/bash
     set -euo pipefail
@@ -289,8 +281,17 @@ configure-autostart-tray:
         done
         return 0
     }
+    # The Flatpak's own launcher, used as TryExec: if the app is uninstalled
+    # later, GNOME skips these entries instead of failing or showing a broken icon.
+    launcher() {
+        for dir in "${XDG_DATA_HOME:-$HOME/.local/share}/flatpak/exports/bin" /var/lib/flatpak/exports/bin; do
+            if [ -x "$dir/$1" ]; then echo "$dir/$1"; return 0; fi
+        done
+        echo "/var/lib/flatpak/exports/bin/$1"
+    }
     if flatpak info org.signal.Signal >/dev/null 2>&1; then
         printf '%s\n' '[Desktop Entry]' 'Type=Application' 'Name=Signal' 'Icon=org.signal.Signal' \
+            "TryExec=$(launcher org.signal.Signal)" \
             'Exec=flatpak run org.signal.Signal --use-tray-icon --start-in-tray' \
             'X-Flatpak=org.signal.Signal' 'X-GNOME-Autostart-Delay=5' > "$AUTOSTART/org.signal.Signal.desktop"
         echo "Signal will start in the tray at login."
@@ -299,6 +300,7 @@ configure-autostart-tray:
     fi
     if flatpak info net.cozic.joplin_desktop >/dev/null 2>&1; then
         printf '%s\n' '[Desktop Entry]' 'Type=Application' 'Name=Joplin' 'Icon=net.cozic.joplin_desktop' \
+            "TryExec=$(launcher net.cozic.joplin_desktop)" \
             'Exec=/usr/libexec/redfox-joplin-launch --tray' \
             'X-Flatpak=net.cozic.joplin_desktop' 'X-GNOME-Autostart-Delay=5' > "$AUTOSTART/net.cozic.joplin_desktop.desktop"
         # Joplin has no tray flag, so its normal launcher goes through the same
@@ -306,7 +308,9 @@ configure-autostart-tray:
         SRC="$(exported net.cozic.joplin_desktop)"
         if [ -n "$SRC" ]; then
             mkdir -p "$APPS"
-            sed -E 's|^Exec=.*|Exec=/usr/libexec/redfox-joplin-launch %u|' "$SRC" > "$APPS/net.cozic.joplin_desktop.desktop"
+            sed -E -e '/^TryExec=/d' -e 's|^Exec=.*|Exec=/usr/libexec/redfox-joplin-launch %u|' \
+                -e "/^\[Desktop Entry\]/a TryExec=$(launcher net.cozic.joplin_desktop)" \
+                "$SRC" > "$APPS/net.cozic.joplin_desktop.desktop"
         fi
         echo "Joplin will start in the tray at login."
     else
@@ -449,101 +453,35 @@ sort-app-grid:
 default-app-grid:
     echo "TODO: Implement default-app-grid"
 
-preset-dock-ubuntu: _disable-redfox-dock-hacks
-    gsettings reset-recursively org.gnome.shell.extensions.dash-to-dock
-    gnome-extensions enable dash-to-dock@micxgx.gmail.com
+# --- LAYOUT PRESETS ---
+# Each preset applies live through `redfox-layout` (see `redfox-layout list`);
+# no logout needed. Switching presets resets the dock/panel settings first.
 
-preset-dock-gnome: _disable-redfox-dock-hacks
-    gnome-extensions disable dash-to-dock@micxgx.gmail.com
+# Layout preset: RedFox (floating dock on big screens, GNOME dash on small ones)
+preset-dock-redfox GAP="8":
+    redfox-layout set redfox
+    gsettings set org.gnome.shell.extensions.redfox-layouts floating-dock-gap {{ GAP }}
 
-# Dock preset: Windows (classic) (not implemented yet)
-preset-dock-win-classic:
-    # TODO: add back the `_disable-redfox-dock-hacks` dependency when this preset is implemented
-    echo "TODO: Implement preset-dock-win-classic"
+# Layout preset: GNOME (no dock; the dash lives in the overview)
+preset-dock-gnome:
+    redfox-layout set gnome
 
-# Dock preset: Windows (11-style) (not implemented yet)
-preset-dock-win-new:
-    # TODO: add back the `_disable-redfox-dock-hacks` dependency when this preset is implemented
-    echo "TODO: Implement preset-dock-win-new"
+# Layout preset: Ubuntu (full-height dock on the left)
+preset-dock-ubuntu:
+    redfox-layout set ubuntu
 
-# Dock preset: macOS (not implemented yet)
-preset-dock-macos:
-    # TODO: add back the `_disable-redfox-dock-hacks` dependency when this preset is implemented
-    echo "TODO: Implement preset-dock-macos"
+# Layout preset: Cal (floating dock along the bottom, window buttons on the left)
+preset-dock-cal GAP="8":
+    redfox-layout set cal
+    gsettings set org.gnome.shell.extensions.redfox-layouts floating-dock-gap {{ GAP }}
 
-# --- REDFOX DOCK PRESET RECIPE AND UTILITIES ---
+# Layout preset: Wash (one taskbar along the bottom, start menu and apps centred)
+preset-dock-wash:
+    redfox-layout set wash
 
-# Enable the Dash to Dock floating gap hack (Alpha) - Supports optional pixel argument
-_enable-dash-to-dock-gap-hack GAP="8":
-    #!/usr/bin/bash
-    EXT_ID="dash-to-dock@micxgx.gmail.com"
-    SYS_PATH="/usr/share/gnome-shell/extensions/${EXT_ID}"
-    LOCAL_PATH="${HOME}/.local/share/gnome-shell/extensions"
-    
-    echo "Applying Dash to Dock gap: {{ GAP }}px"
-    mkdir -p "${LOCAL_PATH}"
-    rm -rf "${LOCAL_PATH}/${EXT_ID}"
-    cp -r "${SYS_PATH}" "${LOCAL_PATH}/"
-    
-    cat << 'EOF' >> "${LOCAL_PATH}/${EXT_ID}/stylesheet.css"
-
-    /* --- REDFOX OS CUSTOM OVERRIDES --- */
-    /* 1. Zero out the internal margins to remove the 4px phantom gap */
-    #dashtodockContainer #dash .dash-background {
-        margin: 0px !important;
-    }
-
-    /* 2. Apply the full gap to screen edges, and 0px to the window-facing edge */
-    #dashtodockContainer.bottom #dash { margin: 0px {{ GAP }}px {{ GAP }}px {{ GAP }}px !important; }
-    #dashtodockContainer.top #dash { margin: {{ GAP }}px {{ GAP }}px 0px {{ GAP }}px !important; }
-    #dashtodockContainer.left #dash { margin: {{ GAP }}px 0px {{ GAP }}px {{ GAP }}px !important; }
-    #dashtodockContainer.right #dash { margin: {{ GAP }}px {{ GAP }}px {{ GAP }}px 0px !important; }
-    EOF
-
-# Disable the Dash to Dock floating gap hack and revert to system default
-_disable-dash-to-dock-gap-hack:
-    #!/usr/bin/bash
-    EXT_ID="dash-to-dock@micxgx.gmail.com"
-    LOCAL_PATH="${HOME}/.local/share/gnome-shell/extensions/${EXT_ID}"
-    
-    if [ -d "${LOCAL_PATH}" ]; then
-        echo "Removing local Dash to Dock override..."
-        rm -rf "${LOCAL_PATH}"
-        echo "Reverted to system default. Please log out and back in."
-    else
-        echo "No local override found. Nothing to do."
-    fi
-
-# Fully apply RedFox Dock aesthetics (Gap Hack, Smooth Overview, Blur My Shell)
-_preset-dock-redfox GAP="8": (_enable-dash-to-dock-gap-hack GAP)
-    #!/usr/bin/bash
-    echo "Deploying RedFox Dock Preset..."
-    
-    # Enable extensions
-    gnome-extensions enable dash-to-dock@micxgx.gmail.com
-    gnome-extensions enable smooth-overview@redfoxlabs.tech
-
-    # Configure Blur My Shell and Dash to Dock via dconf
-    dconf write /org/gnome/shell/extensions/dash-to-dock/extend-height false
-    dconf write /org/gnome/shell/extensions/blur-my-shell/dash-to-dock/pipeline "'pipeline_default_rounded'"
-    dconf write /org/gnome/shell/extensions/blur-my-shell/pipelines "{'pipeline_default': {'name': <'Default'>, 'effects': <[<{'type': <'native_static_gaussian_blur'>, 'id': <'effect_000000000000'>, 'params': <{'radius': <30>, 'brightness': <0.59999999999999998>}>}>]>}, 'pipeline_default_rounded': {'name': <'Default rounded'>, 'effects': <[<{'type': <'native_static_gaussian_blur'>, 'id': <'effect_000000000001'>, 'params': <{'radius': <30>, 'brightness': <0.59999999999999998>}>}>, <{'type': <'corner'>, 'id': <'effect_000000000002'>, 'params': <{'radius': <20>}>}>]>}}"
-
-    echo "RedFox aesthetics applied. Please log out to refresh the Dash to Dock CSS."
-
-# Disable all RedFox dock hacks and return to system defaults
-_disable-redfox-dock-hacks: _disable-dash-to-dock-gap-hack
-    #!/usr/bin/bash
-    echo "Reverting RedFox Dock customizations..."
-
-    # Disable Smooth Overview
-    gnome-extensions disable smooth-overview@redfoxlabs.tech
-
-    # Reset Blur My Shell and Dash to Dock settings
-    dconf write /org/gnome/shell/extensions/dash-to-dock/extend-height false
-    dconf write /org/gnome/shell/extensions/blur-my-shell/dash-to-dock/pipeline "'pipeline_default'"
-    dconf reset /org/gnome/shell/extensions/blur-my-shell/pipelines
-
-    echo "Reverted to defaults. Please log out for a full refresh."
+# Layout preset: Nostalgia (one taskbar along the bottom, start menu and apps on the left)
+preset-dock-nostalgia:
+    redfox-layout set nostalgia
 
 # Hardware Atoms
 fix-oryp9-mouse:
@@ -1090,7 +1028,7 @@ configure-normie: configure-keybindings-default configure-text-editor-reset rese
 # --- LAYOUT MOLECULES (UX/Behavior/Positioning) ---
 
 # Layout Matt
-layout-matt: sort-app-grid set-window-controls-left-gnome layout-tiling-default preset-dock-gnome
+layout-matt: sort-app-grid layout-tiling-default preset-dock-gnome set-window-controls-left-gnome
     gsettings reset-recursively org.gnome.shell.extensions.dash-to-dock
     gsettings set org.gnome.shell favorite-apps "[\
       'org.gnome.Ptyxis.desktop', \
@@ -1108,13 +1046,13 @@ layout-matt: sort-app-grid set-window-controls-left-gnome layout-tiling-default 
     # Note: Add Gemini Web App ID and Dorico 6 once stabilized.
 
 # Layout Dewy
-layout-dewy: sort-app-grid set-window-controls-right-full layout-tiling-dewy preset-dock-ubuntu
+layout-dewy: sort-app-grid layout-tiling-dewy preset-dock-ubuntu set-window-controls-right-full
     gsettings set org.gnome.shell.extensions.dash-to-dock isolate-workspaces true
     gsettings set org.gnome.shell.extensions.dash-to-dock dash-max-icon-size 40
-    gsettings set org.gnome.shell favorite-apps "['org.gnome.Nautilus.desktop', 'io.missioncenter.MissionCenter.desktop', 'org.gnome.Settings.desktop', 'org.gnome.Ptyxis.desktop', 'org.mozilla.firefox.desktop', 'com.brave.Browser.desktop', 'org.gnome.Calculator.desktop', 'org.gnome.TextEditor.desktop', 'dev.zed.Zed.desktop', 'cursor.desktop', 'com.spotify.Client.desktop', 'com.slack.Slack.desktop', 'org.signal.Signal.desktop', 'dev.vencord.Vesktop.desktop']"
+    gsettings set org.gnome.shell favorite-apps "['org.gnome.Nautilus.desktop', 'net.nokyan.Resources.desktop', 'org.gnome.Settings.desktop', 'org.gnome.Ptyxis.desktop', 'org.mozilla.firefox.desktop', 'com.brave.Browser.desktop', 'org.gnome.Calculator.desktop', 'org.gnome.TextEditor.desktop', 'dev.zed.Zed.desktop', 'cursor.desktop', 'com.spotify.Client.desktop', 'com.slack.Slack.desktop', 'org.signal.Signal.desktop', 'dev.vencord.Vesktop.desktop']"
 
 # Layout Fedora (Mostly Vanilla Fedora 43 Defaults)
-layout-fedora: default-app-grid set-window-controls-right-gnome layout-tiling-default preset-dock-gnome
+layout-fedora: default-app-grid layout-tiling-default preset-dock-gnome set-window-controls-right-gnome
     gsettings reset-recursively org.gnome.shell.extensions.dash-to-dock
     gsettings set org.gnome.shell favorite-apps "['org.mozilla.firefox.desktop', 'org.gnome.Calendar.desktop', 'org.gnome.Nautilus.desktop', 'io.github.kolunmi.Bazaar.desktop', 'org.gnome.TextEditor.desktop', 'org.gnome.Calculator.desktop']"
 

@@ -36,12 +36,11 @@
     - [ ] **Behavior:** Pinning to dock must not remove from grid.
 
 ## 📦 Default Software
-- [x] **Winboat:** Determine installation (DNF/Flatpak) and add to system defaults.
 - [x] **Dropbox:** Install official Dropbox client (flatpak)
     - [x] Remove maestral after dropbox is tested and experience is satisfactory (if maestral is not removed, improve maestral uninstall script to remove leftovers)
 - [x] **Implement** System-level GNOME Boxes + Virt-Manager
 - [x] **Tailscale:** add to system defaults. *(Already there: Bazzite ships Tailscale, off until you run `ujust tailscale enable`. Nothing to change.)*
-- [ ] **Remove Winboat** from the defaults (reverses the Winboat item above). *(On `feat/small-roadmap-items`: out of `install-compatibility`; `install-winboat` stays opt-in.)*
+- [x] **No Winboat at all.** *(Matt, 2026-11-03: "we don't want winboat at all. No ujust." Done: the `install-winboat` and `uninstall-winboat` recipes are gone, and so is FreeRDP, which was in the image only for Winboat.)*
 - [ ] **Replace Mission Center** (slow to start, frozen at first, heavy on memory) with a better system monitor. *(On `feat/system-monitor`: Resources, `net.nokyan.Resources`, for new setups and the Dewy dock; Ctrl+Shift+Esc, Ctrl+Alt+Del on the keypad and Logo Menu's button open it through `redfox-system-monitor`, which falls back to Mission Center where that's all there is. Existing installs keep Mission Center.)*
 - [ ] **VS Code:** install the Antigravity extension. *(On `feat/small-roadmap-items`: `Google.google-antigravity`.)*
 - [ ] **Implement** Starship terminal prompt by default with light-theme terminal (steal from Bluefin)
@@ -168,6 +167,16 @@
 - [ ] **Switching layouts works live:** moving between presets shouldn't need a logout or restart. Some switches depend on smooth-overview, and something there may need a restart (possibly because the extension is built from source at image build time: `files/scripts/install-smooth-overview.sh`). Find out and fix it.
 - [ ] **smooth-overview, hardened:** *(Done on smooth-overview's local `harden` branch, not pushed yet: InjectionManager, safe to enable/disable twice, only the overview's and top bar's own lookups change, keeps the clock centred. Publishing on extensions.gnome.org needs Matt's account.)* review it against GNOME Shell extension best practice (it was thrown together quickly), make sure it's solid on the current GNOME, install it the proper way for a system extension, and consider publishing it on extensions.gnome.org.
 
+## 💿 RedFoxOS ISO
+*Today the only way to get RedFoxOS is to rebase onto it. Eventually it wants an ISO. Open questions only for now, no build work: [`docs/iso.md`](iso.md).*
+
+- [ ] **RedFoxOS ISO**, once these are answered:
+    - [ ] **Builder:** how other Universal Blue-family images build ISOs (bootc-image-builder's `anaconda-iso`, BlueBuild's `generate-iso`, Titanoboa), and what fits us. The existing `build-iso.yml` (bootc-image-builder) last ran on 2026-01-01 and failed.
+    - [ ] **Hosting:** GitHub release assets cap at 2 GiB per file; ghcr, an object store such as R2, or a network installer instead; cost.
+    - [ ] **Branding the installer:** Anaconda's theming, or Bazzite's installer setup.
+    - [ ] **Secure Boot and NVIDIA variants:** enrolling Universal Blue's key; one ISO per variant or one that picks.
+    - [ ] **Testing in the VM:** boot the ISO in a fresh VM unattended, then check boot, login, update and rollback.
+
 ## 🧩 RedFox Hub (Flatpak GUI)
 *Design: [`docs/redfox-apps-design.md`](redfox-apps-design.md). Matt decided on one app, **RedFox Hub** (`tech.redfoxlabs.Hub`), a Flatpak released like Thirties and Pianola, with four sections. Building starts after Matt's branch review.*
 
@@ -218,7 +227,7 @@ Move RedFox's own tooling into one GUI Flatpak app, like Thirties and Pianola al
 ## 🎨 Branding & Aesthetics
 - [ ] **Wallpapers**
     - [ ] Import all Bluefin / Bluefin DX wallpapers.
-    - [ ] **Collection:** Gather Pawel Czerwinski Light/Dark pairs.
+    - [ ] **Collection:** Collect more Paweł Czerwiński light/dark pairs (Unsplash License, credited). *(The default pair is his and credited in [`docs/wallpaper-credits.md`](wallpaper-credits.md), which also lists candidate pairs.)*
 - [ ] **RedFoxOS Branding:** the OS calls itself RedFoxOS, not Bazzite, everywhere a person sees it. Machine-readable IDs that tooling reads stay Bazzite's; the trade-offs are in `docs/branding.md`. *(Built and tested in the VM on `feat/branding`, including update, rollback and rebase; waiting for Matt's OK to merge. Ticked items are done on that branch.)*
     - [x] `os-release`: NAME/PRETTY_NAME "RedFoxOS", LOGO, URLs, DEFAULT_HOSTNAME `redfox`, BOOTLOADER_NAME, IMAGE_ID. `ID=bazzite` is kept.
     - [x] `image-info.json`: image name, vendor and ref are RedFox's (for the MOTD and Bazzite's scripts).
@@ -240,9 +249,6 @@ Move RedFox's own tooling into one GUI Flatpak app, like Thirties and Pianola al
 ## Fixups/New (Items that arrive after a fix is already implemented)
 - [x] Screenshot (add Windows super + shift + s shortcut for selection screenshot; move fullscreen screenshot to printscreen)
 - [x] Check that Boxes is installing as system package and is cross-compatible with VMM
-- [x] Confirm that Winboat is best as app-image (RPM is published on github releases page, so we could be doing this as a system package; the issue is that the appimage setup is not frictionless).
-    - [x] Test appimage to confirm is working. If not, try RPM. Proceed based on findings
-    - [x] Winboat requires FreeRDP
 - [x] Change names for everything (Completed: Renamed to RedFoxOS)
 - [x] Add sound theme change -- ujust (set default sound theme to normal fedora default, "reset". set sound to bazzite, "deviation")
     - [x] Set system default override to 'freedesktop' (Fedora default).

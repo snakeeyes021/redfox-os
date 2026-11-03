@@ -1,0 +1,4 @@
+#!/usr/bin/bash
+# RedFoxOS: Bazzite's rollback helper only knows Bazzite's images, so this
+# name (and `bruh`, which calls it) runs the RedFoxOS helper instead.
+exec /usr/bin/redfox-rollback-helper "$@"

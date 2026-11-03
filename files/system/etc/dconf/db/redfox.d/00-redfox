@@ -56,3 +56,17 @@ span-window-right=['<Shift><Super>Right']
 span-window-left=['<Shift><Super>Left']
 span-window-up=['<Shift><Super>Up']
 span-window-down=['<Shift><Super>Down']
+
+# System monitor: Bazzite binds these (and Logo Menu's button) to Mission
+# Center. RedFox uses Resources; redfox-system-monitor falls back to Mission
+# Center on machines that only have that.
+[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1]
+command='/usr/bin/redfox-system-monitor'
+name='System Monitor'
+
+[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom2]
+command='/usr/bin/redfox-system-monitor'
+name='System Monitor'
+
+[org/gnome/shell/extensions/Logo-menu]
+menu-button-system-monitor='/usr/bin/redfox-system-monitor'
