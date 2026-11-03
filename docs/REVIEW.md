@@ -90,7 +90,7 @@ Any order works for 2–5 and for 8–9.
   - `brand-grub.png`, `brand-gdm.png`, `brand-plymouth.png`, `brand-motd.png`
   - `brand-fastfetch-fox-v3.png`, `brand-start-button-v3.png`
 
-## 6. `feat/layout-modes`
+## 6. `feat/layout-modes` (merged)
 
 - **What it does:**
   - Six desktop layouts that switch live with `redfox-layout set <id>` or the `preset-dock-*` recipes, with no logout.
@@ -102,6 +102,7 @@ Any order works for 2–5 and for 8–9.
   - The Ubuntu layout's top bar and dock now match in the overview.
   - SVG previews for RedFox Hub's layout picker, with a light border round each picture, and `assets/layouts/picker.html`, a mock-up of the picker with a hover lift.
   - The VM testbed in `tests/vm/`.
+- **Merged** 2026-11-03 (ed79263). It builds smooth-overview from its `main`, which has `harden`.
 - **Compare:** https://github.com/snakeeyes021/redfox-os/compare/unstable...feat/layout-modes
 - **Commits:** 17.
 - **Look at:**
