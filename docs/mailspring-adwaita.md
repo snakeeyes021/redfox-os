@@ -24,7 +24,7 @@ Mailspring loads JavaScript packages from its `packages` folder (no developer mo
 | Row heights, the split header layout | No | The thread list is virtualised with row heights set in code, and the column layout is Mailspring's own. |
 | Rounded window corners, native GTK menus and dialogs | No | Electron's frame and HTML widgets. |
 
-**Costs of plugins:** plugins run with Mailspring's own access, and they use Mailspring's internal APIs, which can change between releases. Each one needs re-testing when Mailspring updates. The button-layout plugin is deliberately small, under 100 lines, with no React, only styles. If it ever breaks, Mailspring keeps the theme's default (right, GNOME order).
+**Costs of plugins:** plugins run with Mailspring's own access, and they use Mailspring's internal APIs, which can change between releases. Each one needs re-testing when Mailspring updates. The plugin is kept small (see "Effort and risk" below), and if it ever breaks, Mailspring keeps the theme's defaults.
 
 **How the button layout is read:**
 - **Inside the Flatpak, through the Settings portal**, the way GTK apps do: `org.freedesktop.portal.Settings` exposes `org.gnome.desktop.wm.preferences button-layout`, and the plugin watches the portal's `SettingChanged` signal, so changes apply live.
