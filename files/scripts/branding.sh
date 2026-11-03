@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # Make the image report itself as RedFoxOS wherever a person sees it.
 #
-# Machine-readable identifiers that Bazzite's and Universal Blue's tooling
-# reads stay as they are: os-release ID (bazzite), ID_LIKE, VARIANT_ID,
-# VERSION*, CPE_NAME, and image-info.json's base-image-name, fedora-version,
-# image-tag and image-branch. See docs/branding.md for what reads what.
+# os-release says what this is: ID=redfox, built on Bazzite and Fedora
+# (ID_LIKE="bazzite fedora"). Tools that know only Fedora or Bazzite find
+# them through ID_LIKE. The identifiers Bazzite's and Universal Blue's
+# tooling reads stay as they are: VARIANT_ID, VERSION*, CPE_NAME, and
+# image-info.json's base-image-name, fedora-version, image-tag and
+# image-branch. See docs/branding.md for what reads what.
 #
 # Runs last, after every other module has installed its files.
 set -euo pipefail
@@ -23,6 +25,12 @@ set_os_release() {
         echo "${key}=\"${value}\"" >> "$OS_RELEASE"
     fi
 }
+
+# --- os-release: the identity ---
+# Plain, unquoted values, as Fedora writes them: some scripts read ID with
+# grep and cut and don't strip quotes.
+sed -i 's|^ID=.*|ID=redfox|' "$OS_RELEASE"
+set_os_release ID_LIKE "bazzite fedora"
 
 # --- os-release: the names people see ---
 # Bazzite's BUILD_ID looks like "Stable (F44.20261026)"; keep the version part.
