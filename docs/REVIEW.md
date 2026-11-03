@@ -172,14 +172,26 @@ Any order works for 2–5 and for 8–9.
   - Joplin's own entry still loads.
 
 
-## 11. `feat/redfox-os-identity` (follow-up to 5, in progress)
+## 11. `feat/redfox-os-identity` (ready for review)
 
-- **Plan:** os-release `ID=redfox` and `ID_LIKE="bazzite fedora"`. Audit every script and unit in the image that reads `ID` or `image-info.json`, and patch or retire each one. Tested in the VM from a fresh first boot and from a rebase.
-- **Findings so far, from the running image:**
-  - Bazzite's scripts, services and ujust recipes read `image-info.json` (image name and base image), not `ID`.
-  - The `ID` readers are cosmetic (`lsb_release`, the shell prompt) or no-ops (`grub2-mkconfig`'s EFI-path check).
-  - topgrade falls back to `ID_LIKE`, so it keeps running `rpm-ostree upgrade`.
+- **What it does:** os-release says `ID=redfox` with `ID_LIKE="bazzite fedora"` (`files/scripts/branding.sh`).
+- **Audit of the built image:**
+  - No systemd unit has an os-release condition.
+  - Bazzite's 16 scripts, services and ujust recipes read `image-info.json`, not `ID`.
+  - The `ID` readers (`grub2-mkconfig`, `distrobox-generate-entry`, the bash prompt, `lsb_release`) only display it, or check a path that doesn't match either way.
+  - topgrade falls back to `ID_LIKE` and keeps running `rpm-ostree upgrade`.
+  - Starship reports Fedora, which RedFox's prompt draws as the fox.
+  - Nothing needed patching.
+- **Tested in VMs:**
+  - an existing RedFoxOS install updating onto it, and rolling back to `ID=bazzite` and forward;
+  - Bazzite → RedFoxOS;
+  - Bluefin → RedFoxOS.
 
+  All three boot, run Bazzite's services, keep the docker group, and answer topgrade, `uupd` and `bootc upgrade --check`.
+- **Found:** a stale greenboot record from an earlier RedFoxOS → Bluefin rebase made RedFoxOS roll the Bluefin VM back after its first boot. A clean Bluefin machine stays on RedFoxOS. Written up in `tests/vm/README.md` with the one-line fix.
+- **For Matt:** Universal Blue's `uupd` timer still runs daily alongside topgrade. It's unaffected by the ID; retiring it is a separate choice.
+- **Compare:** https://github.com/snakeeyes021/redfox-os/compare/unstable...feat/redfox-os-identity
+- **Look at:** `files/scripts/branding.sh`, `docs/branding.md`, `tests/vm/README.md`.
 
 ## 12. `chore/wallpaper-credits` (merged)
 
