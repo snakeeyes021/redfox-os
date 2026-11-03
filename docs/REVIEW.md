@@ -172,8 +172,9 @@ Any order works for 2–5 and for 8–9.
   - Joplin's own entry still loads.
 
 
-## 11. `feat/redfox-os-identity` (ready for review)
+## 11. `feat/redfox-os-identity` (merged)
 
+- **Merged** 2026-11-03, approved by Matt. He keeps `uupd` (automatic background updates, applied on restart) alongside topgrade (update now).
 - **What it does:** os-release says `ID=redfox` with `ID_LIKE="bazzite fedora"` (`files/scripts/branding.sh`).
 - **Audit of the built image:**
   - No systemd unit has an os-release condition.
@@ -189,7 +190,6 @@ Any order works for 2–5 and for 8–9.
 
   All three boot, run Bazzite's services, keep the docker group, and answer topgrade, `uupd` and `bootc upgrade --check`.
 - **Found:** a stale greenboot record from an earlier RedFoxOS → Bluefin rebase made RedFoxOS roll the Bluefin VM back after its first boot. A clean Bluefin machine stays on RedFoxOS. Written up in `tests/vm/README.md` with the one-line fix.
-- **For Matt:** Universal Blue's `uupd` timer still runs daily alongside topgrade. It's unaffected by the ID; retiring it is a separate choice.
 - **Compare:** https://github.com/snakeeyes021/redfox-os/compare/unstable...feat/redfox-os-identity
 - **Look at:** `files/scripts/branding.sh`, `docs/branding.md`, `tests/vm/README.md`.
 
