@@ -5,5 +5,12 @@
     "commit": "3f7e997",
     "changed": "The theme as Matt reviewed it: libadwaita colours, a flat header bar, grey round window buttons, GNOME accent.",
     "gaps": "Text is DejaVu Sans (the Flatpak can't see Adwaita Sans) and small and bold. One header bar runs across all columns. Selection is a full-width accent bar, rows are dense with divider lines, and the sidebar selection is a square block."
+  },
+  {
+    "id": "v2",
+    "date": "2026-11-03",
+    "commit": "a4c4856",
+    "changed": "Adwaita Sans at last (the Flatpak couldn't see system fonts, so the login hook now copies it into the user's font folder). The selection is a neutral rounded pill instead of a full-width blue bar, the checkboxes are gone, sidebar rows are pills, and the window buttons are on the right.",
+    "gaps": "The header bar is still one white strip, not darker over the sidebar. Faint lines remain between threads. The window buttons are in close, minimise, maximise order. The message body is monospace, and the header bar is shorter than libadwaita's."
   }
 ]
