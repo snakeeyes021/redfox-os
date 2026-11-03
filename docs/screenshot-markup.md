@@ -1,6 +1,8 @@
-# Screenshot markup: Satty or a small RedFox app
+# Maniculos: screenshot markup
 
-Status: evaluation for Matt, 2026-11-03. Nothing is built.
+Status: decided by Matt on 2026-11-03. RedFox builds its own app, **Maniculos** (`tech.redfoxlabs.Maniculos`), in Python and libadwaita. Until it ships, **Gradia** (`be.alexandervanhee.gradia`, on Flathub) is the stop-gap; Satty isn't used. Building starts on its own feature branch once the current nine-branch review batch is merged.
+
+The name comes from the *manicule* (☞), the little pointing hand medieval readers drew in the margins to mark what mattered. It's free on Flathub, GitHub and the web.
 
 Matt wants quick, easy markup for screenshots. Gradia comes closest, but it does too much. Capturing stays with GNOME's own screenshot tool. The app should do this, and nothing more:
 
@@ -91,12 +93,22 @@ The "Mark up" notification button comes from the layout helper extension.
   - The same stack and release path as the other RedFox apps.
 - **Against:** it's new code. Roughly **2–4 weeks** for one developer to get a polished first version, mostly the drawing and text editing.
 
-## Recommendation
+## Decision
 
-**Route C: a small RedFox app**, plus the "Mark up" button in the layout helper.
+**Route C: our own app, Maniculos**, with exactly the eight features above, plus the "Mark up" button that the layout helper extension adds to GNOME's screenshot notification. It's in the RedFox Hub family: Python, GTK 4 and libadwaita, released the same way.
 
-Matt asked for this list "and nothing more". Satty can't be trimmed to that without a fork. It also lacks two of the eight features and doesn't look like a GNOME app, and the notification integration has to be RedFox's work whichever route we take.
+- **App ID:** `tech.redfoxlabs.Maniculos`.
+- **Until it ships:** Gradia from Flathub. It does more than Matt wants, but it's a maintained GNOME app. Satty isn't used, not even as a stop-gap.
+- **When:** after the current review batch is merged into `unstable`, on its own feature branch.
 
-If Matt wants something usable before then, route A's Satty Flatpak (installed per user from its GitHub release) is a reasonable stop-gap, with screenshots opened by file. Sending rotate and GTK clipboard support to Satty upstream is a nice extra but not needed for RedFox's plan.
+Why not Satty: Matt asked for this list "and nothing more". Satty can't be trimmed to that without a fork. It also lacks rotate and opening from the clipboard, and it doesn't look like a GNOME app. The notification integration is RedFox's work whichever route we take.
 
-Working name: **RedFox Markup** (`tech.redfoxlabs.Markup`), Matt's to change.
+## Icon idea
+
+A manicule (☞) is the obvious mark.
+
+- **The hand:** a stylised pointing hand in the outline style of GNOME app icons, its finger pointing right at a rounded "screenshot" card.
+- **The mark:** on the card, a short highlighter stroke in RedFox red where the finger points, so it reads as "point, then mark it up".
+- **Colours:** keep the hand monochrome (warm off-white with a dark outline) so it stays legible at 16 px, with the red stroke as the one accent.
+- **Symbolic icon:** just the hand's silhouette.
+- **Who draws it:** the artist being commissioned for the watercolour fox could draw the full-colour version, so it matches the rest of RedFox's art.
