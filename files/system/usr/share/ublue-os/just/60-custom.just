@@ -264,7 +264,7 @@ update-gui:
 update-appimages:
     /usr/bin/update-appimages
 
-# Install Winboat (Example: GitHub Source)
+# Install Winboat (opt-in; not part of any bundle)
 install-winboat:
     /usr/bin/install-appimage \
       "WinBoat" \
@@ -275,6 +275,53 @@ install-winboat:
 # Uninstall Winboat
 uninstall-winboat:
     /usr/bin/uninstall-appimage "WinBoat"
+
+# Start Signal and Joplin in the tray at login. Opened any other way, they open normally.
+configure-autostart-tray:
+    #!/usr/bin/bash
+    set -euo pipefail
+    AUTOSTART="${XDG_CONFIG_HOME:-$HOME/.config}/autostart"
+    APPS="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
+    mkdir -p "$AUTOSTART"
+    exported() {
+        for dir in "${XDG_DATA_HOME:-$HOME/.local/share}/flatpak/exports/share/applications" /var/lib/flatpak/exports/share/applications; do
+            if [ -f "$dir/$1.desktop" ]; then echo "$dir/$1.desktop"; return 0; fi
+        done
+        return 0
+    }
+    if flatpak info org.signal.Signal >/dev/null 2>&1; then
+        printf '%s\n' '[Desktop Entry]' 'Type=Application' 'Name=Signal' 'Icon=org.signal.Signal' \
+            'Exec=flatpak run org.signal.Signal --use-tray-icon --start-in-tray' \
+            'X-Flatpak=org.signal.Signal' 'X-GNOME-Autostart-Delay=5' > "$AUTOSTART/org.signal.Signal.desktop"
+        echo "Signal will start in the tray at login."
+    else
+        echo "Signal isn't installed; skipping it."
+    fi
+    if flatpak info net.cozic.joplin_desktop >/dev/null 2>&1; then
+        printf '%s\n' '[Desktop Entry]' 'Type=Application' 'Name=Joplin' 'Icon=net.cozic.joplin_desktop' \
+            'Exec=/usr/libexec/redfox-joplin-launch --tray' \
+            'X-Flatpak=net.cozic.joplin_desktop' 'X-GNOME-Autostart-Delay=5' > "$AUTOSTART/net.cozic.joplin_desktop.desktop"
+        # Joplin has no tray flag, so its normal launcher goes through the same
+        # wrapper, which switches "start minimised" back off before it starts.
+        SRC="$(exported net.cozic.joplin_desktop)"
+        if [ -n "$SRC" ]; then
+            mkdir -p "$APPS"
+            sed -E 's|^Exec=.*|Exec=/usr/libexec/redfox-joplin-launch %u|' "$SRC" > "$APPS/net.cozic.joplin_desktop.desktop"
+        fi
+        echo "Joplin will start in the tray at login."
+    else
+        echo "Joplin isn't installed; skipping it."
+    fi
+
+# Undo configure-autostart-tray
+reset-autostart-tray:
+    #!/usr/bin/bash
+    AUTOSTART="${XDG_CONFIG_HOME:-$HOME/.config}/autostart"
+    APPS="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
+    grep -qs 'start-in-tray' "$AUTOSTART/org.signal.Signal.desktop" && rm -f "$AUTOSTART/org.signal.Signal.desktop"
+    grep -qs 'redfox-joplin-launch' "$AUTOSTART/net.cozic.joplin_desktop.desktop" && rm -f "$AUTOSTART/net.cozic.joplin_desktop.desktop"
+    grep -qs 'redfox-joplin-launch' "$APPS/net.cozic.joplin_desktop.desktop" && rm -f "$APPS/net.cozic.joplin_desktop.desktop"
+    echo "Signal and Joplin no longer start at login."
 
 # UI/UX Atoms
 fix-flatpak-theming:
@@ -774,7 +821,7 @@ install-video:
         io.github.wartybix.Constrict
 
 # Install Compatibility Tools
-install-compatibility: install-winboat
+install-compatibility:
     flatpak install -y flathub \
         com.usebottles.bottles
 
@@ -1001,7 +1048,7 @@ configure-music: enable-midikeep
 configure-dev: configure-vscode configure-cursor configure-antigravity
 
 # Configure Matt's Environment
-configure-matt: redfox-enforce-config apply-hardware-quirks add-swap configure-nordvpn reset-hostname configure-keybindings-default configure-dev configure-text-editor-dev configure-terminal-default configure-powersaver-no-suspend configure-xway-scale-off configure-music
+configure-matt: redfox-enforce-config apply-hardware-quirks add-swap configure-nordvpn reset-hostname configure-keybindings-default configure-dev configure-text-editor-dev configure-terminal-default configure-powersaver-no-suspend configure-xway-scale-off configure-music configure-autostart-tray
     mkdir -p ~/dev
     gnome-extensions enable unblank@sun.wxg@gmail.com
     # just runs hardware atoms here eventually
