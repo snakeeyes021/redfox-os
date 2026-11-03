@@ -229,7 +229,7 @@ Move RedFox's own tooling into one GUI Flatpak app, like Thirties and Pianola al
     - [ ] Import all Bluefin / Bluefin DX wallpapers.
     - [ ] **Collection:** Collect more Paweł Czerwiński light/dark pairs (Unsplash License, credited). *(The default pair is his and credited in [`docs/wallpaper-credits.md`](wallpaper-credits.md), which also lists candidate pairs.)*
 - [ ] **RedFoxOS Branding:** the OS calls itself RedFoxOS, not Bazzite, everywhere a person sees it. Machine-readable IDs that tooling reads stay Bazzite's; the trade-offs are in `docs/branding.md`. *(Built and tested in the VM on `feat/branding`, including update, rollback and rebase; waiting for Matt's OK to merge. Ticked items are done on that branch.)*
-    - [x] `os-release`: NAME/PRETTY_NAME "RedFoxOS", LOGO, URLs, DEFAULT_HOSTNAME `redfox`, BOOTLOADER_NAME, IMAGE_ID. `ID=bazzite` is kept.
+    - [x] `os-release`: NAME/PRETTY_NAME "RedFoxOS", LOGO, URLs, DEFAULT_HOSTNAME `redfox`, BOOTLOADER_NAME, IMAGE_ID. `ID=redfox` with `ID_LIKE="bazzite fedora"` on `feat/redfox-os-identity`.
     - [x] `image-info.json`: image name, vendor and ref are RedFox's (for the MOTD and Bazzite's scripts).
     - [x] Settings → About: name and logo (light and dark variants).
     - [x] GRUB entries: "RedFoxOS (ostree:N)".

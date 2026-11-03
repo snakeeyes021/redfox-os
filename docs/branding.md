@@ -29,7 +29,7 @@ The name is **RedFoxOS** (as in the README and the wordmark); the short name is 
 
 | Identifier | Kept as | Who reads it |
 | --- | --- | --- |
-| os-release `ID` | `bazzite` | Starship and other `os_info` users (an unknown ID makes them guess Fedora); Bazzite's and Universal Blue's scripts. `ID=redfox` with `ID_LIKE="bazzite fedora"` would be the textbook way to mark a derivative, but nothing a person sees reads `ID`, and keeping it avoids breaking anything that checks for Bazzite. |
+| os-release `ID` | `redfox`, with `ID_LIKE="bazzite fedora"` | Changed on `feat/redfox-os-identity`. Nothing in the image keys on `ID`: Bazzite's scripts read `image-info.json`, topgrade falls back to `ID_LIKE` and keeps running `rpm-ostree upgrade`, and Starship (which doesn't know `redfox`) reports Fedora, which RedFox's prompt also draws as the fox. Tools that only know Fedora or Bazzite find them through `ID_LIKE`. |
 | `ID_LIKE`, `VERSION`, `VERSION_ID`, `VERSION_CODENAME`, `VARIANT`, `VARIANT_ID`, `CPE_NAME`, `BUILD_ID`, `OSTREE_VERSION`, `SUPPORT_END` | Bazzite's values | Version and support tracking; RedFox follows Bazzite's Fedora version and support window. |
 | `image-info.json` `base-image-name`, `fedora-version`, `version`, `image-tag`, `image-branch` | Bazzite's values | Bazzite's hardware setup, user setup and Flatpak manager compare these to decide whether to run again; `base-image-name` (`silverblue`) picks GNOME-specific behaviour. |
 

@@ -85,3 +85,22 @@ Bluefin stable (F44, GNOME 50.6), rebased onto a local build of `feat/layout-mod
 - `os-release` still says Bazzite. That's the branding work, not the rebase.
 
 The disks are kept: `redfox-bluefin.qcow2` (rebased) and `redfox-bluefin-baseline.qcow2` (Bluefin before the rebase).
+
+### The os-release identity (`ID=redfox`), 2026-11-03
+
+Tested on `feat/redfox-os-identity` along the three paths that matter now:
+- an existing RedFoxOS install updating onto it;
+- a fresh Bazzite install rebased onto it;
+- Bluefin rebased onto it.
+
+All three:
+- boot and log in;
+- report `ID=redfox` with `ID_LIKE="bazzite fedora"`;
+- run Bazzite's hardware setup and Flatpak manager successfully, and keep the docker group;
+- plan `rpm-ostree upgrade` in topgrade;
+- answer `uupd update-check` and `bootc upgrade --check`.
+
+The existing install also rolled back to `ID=bazzite` and forward again cleanly.
+
+**Greenboot can undo a rebase if the machine was rebased before.** Bazzite (and so RedFoxOS) runs greenboot; Bluefin doesn't. When this VM was rebased from RedFoxOS to Bluefin earlier, greenboot recorded "the next deployment should be Bluefin" in GRUB's environment, and nothing on Bluefin cleared it. On the first boot after rebasing on to RedFoxOS, RedFoxOS's greenboot saw a different deployment from the one it expected, took that as a failed boot, and rolled back to Bluefin, even though its health check passed. A Bluefin machine that has never run greenboot doesn't hit this: rebasing the cleaned-up VM again stayed on RedFoxOS across reboots. To recover by hand, run `sudo grub2-editenv - unset greenboot_next_deployment_id` and rebase again.
+
