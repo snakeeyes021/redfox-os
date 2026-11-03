@@ -12,5 +12,12 @@
     "commit": "a4c4856",
     "changed": "Adwaita Sans at last (the Flatpak couldn't see system fonts, so the login hook now copies it into the user's font folder). The selection is a neutral rounded pill instead of a full-width blue bar, the checkboxes are gone, sidebar rows are pills, and the window buttons are on the right.",
     "gaps": "The header bar is still one white strip, not darker over the sidebar. Faint lines remain between threads. The window buttons are in close, minimise, maximise order. The message body is monospace, and the header bar is shorter than libadwaita's."
+  },
+  {
+    "id": "v3",
+    "date": "2026-11-03",
+    "commit": "b1cb88d",
+    "changed": "The header bar is libadwaita's height, and its part over the folder sidebar takes the sidebar colour. The window buttons are in GNOME's order (minimise, maximise, close). Plain-text mail shows in Adwaita Sans instead of monospace, and the open message's subject is a bold page title.",
+    "gaps": "Faint lines still run between threads (another element draws them). The thread list has no header of its own (\"Inbox \u00b7 5 unread\"). Reply and forward sit in the message card, not the header bar. There's Mailspring's contact panel on the right, and no avatars. The search field and these layout points are Mailspring's own and can't change with a stylesheet."
   }
 ]
