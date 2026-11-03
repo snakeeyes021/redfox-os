@@ -180,6 +180,18 @@ Any order works for 2–5 and for 8–9.
   - The `ID` readers are cosmetic (`lsb_release`, the shell prompt) or no-ops (`grub2-mkconfig`'s EFI-path check).
   - topgrade falls back to `ID_LIKE`, so it keeps running `rpm-ostree upgrade`.
 
+
+## 12. `chore/wallpaper-credits`
+
+- **What it does:** credits both default wallpapers to Paweł Czerwiński (Unsplash License).
+  - The light one is the top 16:9 crop of "Pastel ink clouds in water".
+  - The dark one is "Pink and blue abstract painting".
+  - Both were matched pixel for pixel against his Unsplash photos.
+  - Adds `docs/wallpaper-credits.md` with links, the licence's limits, and three candidate light/dark pairs; a `CREDITS` file next to the images; and `<author>`/`<license>` in the GNOME wallpaper entry, as Fedora's wallpapers have. Rewords the roadmap item for collecting more pairs.
+- **Compare:** https://github.com/snakeeyes021/redfox-os/compare/unstable...chore/wallpaper-credits
+- **Commits:** 1.
+- **Look at:** `docs/wallpaper-credits.md`.
+
 ---
 
 ## Also waiting for Matt (not branches)
