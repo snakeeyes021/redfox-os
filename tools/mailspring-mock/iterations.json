@@ -29,5 +29,15 @@
     "extra": {
       "Button layouts tested (screenshot)": "v4-button-layouts.png"
     }
+  },
+  {
+    "id": "v5",
+    "date": "2026-11-03",
+    "commit": "aaebab2",
+    "changed": "Reply, Reply all and Forward are now in the message pane's header bar, added by the companion plugin through Mailspring's supported toolbar slot. They do exactly what Mailspring's own reply does. The window buttons still follow GNOME's layout live (v4).",
+    "gaps": "Mailspring places plugin buttons after its own, so the reply group isn't first as in the mock, and its icons are a little larger than the neighbouring ones. The rest is as v3: faint lines between threads; no thread-list header (a plugin could only add one by fragile DOM changes); the contact panel; no avatars yet (feasible next, through a plugin slot).",
+    "extra": {
+      "Plugin: what's fixable, effort and risk (docs/mailspring-adwaita.md)": "https://github.com/snakeeyes021/redfox-os/blob/feat/mailspring-adwaita/docs/mailspring-adwaita.md"
+    }
   }
 ]
