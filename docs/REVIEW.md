@@ -118,15 +118,16 @@ Any order works for 2–5 and for 8–9.
 - **Ubuntu dock line, fixed:** the thin line between the dock and the top bar (and down the dock's sides) was a 1 px border from Blur my Shell's dark dock style (`.dark-dash` in its `stylesheet.css`). The helper extension's new `stylesheet.css` removes it on full-height docks only; floating docks keep it as their outline. Checked on the desktop, in the overview, on hover and after switching layouts. Shots: `ubuntu-dock-corner-before-after.png`.
 - **Needs:** smooth-overview `harden`.
 
-## 7. `feat/redfox-rollback-helper`
+## 7. `feat/redfox-rollback-helper` (merged)
 
 - **What it does:** `redfox-rollback-helper` lists RedFoxOS builds by commit and date, and rolls back or moves to one. `ujust rollback-helper` (and `bruh`) open it.
+- **Merged** 2026-11-03 (8da831c).
 - **Compare:** https://github.com/snakeeyes021/redfox-os/compare/unstable...feat/redfox-rollback-helper
 - **Commits:** 1.
 - **Look at:** `files/system/usr/bin/redfox-rollback-helper`.
 - **Merge after:** `feat/small-roadmap-items`.
 
-## 8. `feat/system-monitor`
+## 8. `feat/system-monitor` (merged)
 
 - **What it does:**
   - New installs get Resources instead of Mission Center, and Dewy's dock pins it.
@@ -134,17 +135,19 @@ Any order works for 2–5 and for 8–9.
   - Existing installs keep Mission Center.
   - The measurements behind the choice are in `docs/system-monitor.md`.
 - **Decided:** Matt said yes to Resources (2026-11-03).
+- **Merged** 2026-11-03 (49c6e6f).
 - **Compare:** https://github.com/snakeeyes021/redfox-os/compare/unstable...feat/system-monitor
 - **Commits:** 2.
 - **Look at:** `docs/system-monitor.md`, `files/system/usr/bin/redfox-system-monitor`, the `redfox.d` dconf additions, `recipes/_common-modules.yml`.
 - **Screenshot:** `system-monitor-resources.png`.
 
-## 9. `feat/mailspring-adwaita`
+## 9. `feat/mailspring-adwaita` (on hold)
 
 - **What it does:**
   - RedFox's own Adwaita themes for Mailspring, light and dark, written from scratch.
   - A login hook installs them and makes them Mailspring's automatic themes, so Mailspring follows GNOME's light/dark setting and accent colour.
   - A themed light or dark choice you've already made in Mailspring is kept.
+- **On hold:** Matt says it "doesn't look very adwaita". A side-by-side comparison with a real libadwaita app is being prepared.
 - **Compare:** https://github.com/snakeeyes021/redfox-os/compare/unstable...feat/mailspring-adwaita
 - **Commits:** 2.
 - **Look at:**
