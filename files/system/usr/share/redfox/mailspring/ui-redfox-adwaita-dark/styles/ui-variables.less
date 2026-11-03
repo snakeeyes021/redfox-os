@@ -28,14 +28,15 @@
 
 @adw-is-dark: true;
 
-// Mailspring's grey scale runs from the text colour, so turn it round for dark,
-// as its own dark theme does.
+// Mailspring's grey scale (@gray-darker … @gray-lighter) goes from strong to
+// faint against the background. On dark that means light to dark, so set it
+// from the GNOME palette's light-to-dark greys.
 @gray-base: #ffffff;
-@gray-darker: darken(@gray-base, 13.5%);
-@gray-dark: darken(@gray-base, 20%);
-@gray: darken(@gray-base, 33.5%);
-@gray-light: darken(@gray-base, 46.7%);
-@gray-lighter: darken(@gray-base, 92.5%);
+@gray-darker: #deddda;
+@gray-dark: #c0bfbc;
+@gray: #9a9996;
+@gray-light: #77767b;
+@gray-lighter: #3d3846;
 @white: @adw-view-bg;
 
 @import 'adwaita-variables';

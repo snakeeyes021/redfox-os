@@ -182,21 +182,19 @@ textarea {
   background: fade(@adw-text, 25%);
 }
 
-// Dark only: Mailspring draws some icons and images dark-on-light, and its
-// own dark theme inverts them the same way.
+// Dark only. Mailspring's small icons are dark drawings meant for a light
+// background, so turn them light; read messages in the list are dimmed
+// like secondary text; and message cards get a hairline instead of a shadow.
 & when (@adw-is-dark = true) {
-  .thread-icon:not(.thread-icon-unread):not(.thread-icon-star),
   img.content-dark,
-  img.content-light {
-    filter: invert(100%);
-  }
-  .mail-label {
-    filter: contrast(110%) brightness(85%);
+  img.content-light,
+  .thread-list .thread-icon:not(.thread-icon-unread):not(.thread-icon-star) {
+    filter: invert(1);
   }
   .thread-list .list-item:not(.unread):not(.selected):not(.focused) {
     color: @text-color-subtle;
   }
-  #message-list .message-item-wrap .message-item-white-wrap {
+  #message-list .message-item-white-wrap {
     box-shadow: 0 0 0 1px @adw-border;
   }
 }
