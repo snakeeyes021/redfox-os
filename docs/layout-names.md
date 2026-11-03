@@ -1,26 +1,27 @@
 # Layout names
 
-Status: proposal for Matt to pick from. Nothing is renamed yet.
+Status: decided by Matt on 2026-11-03, and applied on `feat/layout-modes`.
 
-RedFox's six desktop layouts shouldn't carry other systems' names (Windows, macOS, Ubuntu) anywhere a person sees them. Below is a proposed name for each, with a small preview for the layout picker in RedFox Hub (Settings › Layout). The previews are SVGs drawn by [`assets/layouts/make-previews.py`](../assets/layouts/make-previews.py); rerun it after changing a layout.
+RedFox's six desktop layouts, in the order the layout picker shows them: RedFox's own first, then the two open-source desktops, then the three modelled on other systems. Those three get their own names, not the names of the systems they resemble.
 
-The internal ids (`redfox-layout set ubuntu` and so on) stay as they are, so scripts and saved settings keep working. Only the names people read change.
-
-| Preview | Proposed name | What it is | Other names to consider | Internal id |
+| Preview | Name | What it is | `redfox-layout` id | `ujust` recipe |
 | --- | --- | --- | --- | --- |
-| ![](../assets/layouts/gnome.svg) | **GNOME** | Just the top bar. The dash appears in the overview. | Minimal, Clean | `gnome` |
-| ![](../assets/layouts/ubuntu.svg) | **Side Dock** | A full-height dock on the left, always visible. | Sidebar, Rail | `ubuntu` |
-| ![](../assets/layouts/macos.svg) | **Bottom Dock** | A floating dock along the bottom, window buttons on the left. | Floating Dock, Shelf | `macos` |
-| ![](../assets/layouts/windows-classic.svg) | **Taskbar** | One bar along the bottom: start menu and apps on the left, status icons and clock on the right. | Classic Taskbar | `windows-classic` |
-| ![](../assets/layouts/windows.svg) | **Centered Taskbar** | The same bar with the start menu and apps centered. | Center Bar | `windows` |
-| ![](../assets/layouts/redfox.svg) | **RedFox** | A floating dock on the left on big screens; GNOME's dash on small ones. | Den | `redfox` |
+| ![](../assets/layouts/redfox.svg) | **RedFox** | A floating dock on the left on big screens; the GNOME dash on small ones. | `redfox` | `preset-dock-redfox` |
+| ![](../assets/layouts/gnome.svg) | **GNOME** | Plain GNOME: the top bar, with the dash in the overview. | `gnome` | `preset-dock-gnome` |
+| ![](../assets/layouts/ubuntu.svg) | **Ubuntu** | A full-height dock on the left, always visible. | `ubuntu` | `preset-dock-ubuntu` |
+| ![](../assets/layouts/cal.svg) | **Cal** | A floating dock along the bottom, window buttons on the left. | `cal` | `preset-dock-cal` |
+| ![](../assets/layouts/wash.svg) | **Wash** | One taskbar along the bottom, with the start menu and apps centred. | `wash` | `preset-dock-wash` |
+| ![](../assets/layouts/nostalgia.svg) | **Nostalgia** | One taskbar along the bottom: start menu and apps on the left. | `nostalgia` | `preset-dock-nostalgia` |
 
-Why these: they say what you'll see (where the dock or bar goes), so the picker needs no explanation. "GNOME" stays because that layout *is* plain GNOME, the desktop RedFox runs, rather than an imitation of another system. Fox-themed names (Den, Burrow, Trail) are fun but don't tell you what you're picking, so they're only offered for the RedFox layout, which has no plainer name.
+The picker in RedFox Hub (Settings › Layout) shows them three across in that order: RedFox, GNOME and Ubuntu on top, then Cal, Wash and Nostalgia.
 
-## Where the names show today
+Each preview has a very light border round the picture (not the text), so previews with bars at the top, the bottom or the side still look the same size and in line. On hover, a card lifts slightly and gets a drop shadow.
 
-Once Matt picks, these change:
+## Files
 
-- `redfox-layout`: each layout's `title` and `description`, which `redfox-layout list` prints.
-- `60-custom.just`: the comments above the `preset-dock-*` recipes, which `ujust --choose` shows. The recipe names themselves (`preset-dock-ubuntu`, `preset-dock-macos`, `preset-dock-win-classic`, `preset-dock-win-new`) also carry the old names. Proposed: add `preset-side-dock`, `preset-bottom-dock`, `preset-taskbar` and `preset-centered-taskbar` (`preset-dock-gnome` and `preset-dock-redfox` already have neutral names), and keep the old names as hidden aliases so existing scripts work. (`layout-*` is taken by the per-person molecules such as `layout-matt`.)
-- The docs that describe the layouts (`docs/ROADMAP.md`, `docs/redfox-apps-design.md`).
+- [`assets/layouts/make-previews.py`](../assets/layouts/make-previews.py) draws the SVG previews. It also writes `picker.html`, a mock-up of the picker to try in a browser. Rerun it after changing a layout.
+- `redfox-layout list` prints the same names and descriptions, in the same order.
+
+The old names are gone, with no aliases:
+- ids: `macos`, `windows`, `windows-classic`;
+- recipes: `preset-dock-macos`, `preset-dock-win-new`, `preset-dock-win-classic`.
