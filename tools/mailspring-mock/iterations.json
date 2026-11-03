@@ -43,7 +43,7 @@
   {
     "id": "v6",
     "date": "2026-11-03",
-    "commit": "PENDING",
+    "commit": "288f03e",
     "mock": "mock-v6",
     "changed": "A detail pass, no new features. Header buttons are flat libadwaita-style buttons (transparent until hover, rounded, even gaps), every icon in a 16 px box, and the compose button clear of the top edge. Mailspring's icons are replaced by GNOME's Adwaita symbolic icons, loaded from the system's icon theme (nothing copied; Mailspring's own icon stays if one is missing). The selected thread and the Inbox row are inset pills with even margins; the separators between threads are gone; the search field is padded off the divider and matches the buttons' height; the sidebar count is a plain dim number; the contact panel starts hidden (the sidebar button in the header brings it back); the message card and the reply box sit 12 px clear of the edges with the time and Reply centred on the sender's line, and the dashed line above \"Write a reply…\" is a soft solid one. The mock's two broken icons are fixed.",
     "gaps": "Things only GNOME's toolkit can do: rounded window corners, native menus and dialogs, GNOME's split header, row heights. Mailspring still puts the plugin's Reply group after its own buttons. No avatars yet, no thread-list header, and the unread dot and attachment file-type icons are still Mailspring's (Adwaita has no match).",
