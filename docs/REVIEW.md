@@ -205,6 +205,22 @@ Any order works for 2–5 and for 8–9.
 - **Commits:** 1.
 - **Look at:** `docs/wallpaper-credits.md`.
 
+
+## 13. `fix/flatpak-system-fonts` (ready for review)
+
+- **What it fixes:** Flatpak apps on the Freedesktop 26.08 runtime (OBS, Mailspring, …) couldn't see any system fonts and fell back to DejaVu Sans. Upstream: [freedesktop-sdk#1563](https://gitlab.com/freedesktop-sdk/freedesktop-sdk/-/issues/1563).
+- **How:** a boot-time oneshot (`redfox-flatpak-fonts.service`) puts a small fontconfig file in `/var/lib/redfox/flatpak-fonts` and adds one system-wide Flatpak override: read access to that folder, and `FONTCONFIG_FILE` pointing at it. Bazzite's own override entries are kept. `redfox-flatpak-fonts remove` undoes exactly what it added, for when the runtime is fixed.
+- **Tested in the VM:**
+  - OBS and Mailspring go from 0 host fonts to 277 and use Adwaita Sans;
+  - it survives reboots and applies from a clean state at boot;
+  - `remove` restores the override file exactly;
+  - it's harmless on 25.08 and GNOME-runtime apps.
+
+  Screenshot: `flatpak-fonts-mailspring.png` (Mailspring in Adwaita Sans with no per-user font copy).
+- **Once merged:** the Mailspring branch's per-user copy of Adwaita Sans becomes unnecessary and can be dropped.
+- **Compare:** https://github.com/snakeeyes021/redfox-os/compare/unstable...fix/flatpak-system-fonts
+- **Look at:** `docs/flatpak-fonts.md`, `files/system/usr/libexec/redfox-flatpak-fonts`, `files/system/usr/share/redfox/flatpak-fonts/fonts.conf`.
+
 ---
 
 ## Also waiting for Matt (not branches)
