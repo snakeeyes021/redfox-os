@@ -27,7 +27,34 @@ case "${MODE}" in
     *) echo "mode is vanilla or redfox" >&2; exit 1 ;;
 esac
 
-"${VM}" ssh 'sudo podman start greenmail >/dev/null 2>&1 || true'
+# GreenMail keeps mail in memory, so refill the fake inbox after a restart.
+# FRESH=1 restarts it first, to replace whatever is there.
+[ "${FRESH:-0}" = 1 ] && "${VM}" ssh 'sudo podman restart greenmail >/dev/null'
+"${VM}" ssh 'sudo podman start greenmail >/dev/null 2>&1 || true; sleep 8; python3 - <<PY
+import email.message, imaplib, smtplib
+m = imaplib.IMAP4("127.0.0.1", 143); m.login("tester@redfox.test", "secret")
+n = int(m.select("INBOX")[1][0]); m.logout()
+if n == 0:
+    # The same mailbox as mock.py, newest first, with fixed times so the order is stable.
+    mails = [("Ada Lovelace", "Notes on the Analytical Engine", "I have attached my notes, with the table for Bernoulli numbers.", 5),
+             ("Linus", "Re: patch v3", "Applied, thanks. Looks good.", 4),
+             ("Margaret Hamilton", "Lunar module checklist", "Final review of the priority display logic.", 3),
+             ("RedFox Labs", "Welcome to RedFoxOS", "Your desktop is ready. Here are a few tips to get started.", 2),
+             ("Dewy", "Weekend plans?", "Hiking on Saturday if the weather holds.", 1),
+             ("Grace Hopper", "Compiler meeting moved to Thursday", "Room 4B, bring the punch cards.", 0)]
+    import datetime, email.utils
+    day = datetime.datetime.now().astimezone().replace(hour=11, second=0, microsecond=0)
+    s = smtplib.SMTP("127.0.0.1", 587)
+    for who, sub, body, minute in mails:
+        msg = email.message.EmailMessage()
+        msg["Date"] = email.utils.format_datetime(day.replace(minute=minute))
+        msg["From"] = f"{who} <{who.split()[0].lower()}@example.org>"
+        msg["To"] = "tester@redfox.test"; msg["Subject"] = sub; msg.set_content(body)
+        s.send_message(msg)
+    s.quit(); print("refilled the test inbox")
+else:
+    print(f"test inbox has {n} messages")
+PY'
 "${VM}" user "flatpak kill com.getmailspring.Mailspring 2>/dev/null; sleep 2; python3 - <<'PY'
 import json, os
 p = os.path.expanduser('~/.var/app/com.getmailspring.Mailspring/config/Mailspring/config.json')
@@ -57,8 +84,9 @@ gsettings set org.gnome.desktop.interface color-scheme default
   return 'none';
 })()
 JS
-place() { "${VM}" user "gdbus call --session --dest org.gnome.Shell --object-path /org/gnome/Shell --method org.gnome.Shell.Eval \"\$(cat /tmp/place-ms.js)\"" | sed -n "s/.*'\(.*\)'.*/\1/p"; }
-place >/dev/null; sleep 1
+place() { "${VM}" user "gdbus call --session --dest org.gnome.Shell --object-path /org/gnome/Shell --method org.gnome.Shell.Eval \"\$(cat /tmp/place-ms.js)\"" | grep -o "[0-9]*,[0-9]*,[0-9]*,[0-9]*" | head -1; }
+# Mutter applies the move a moment later, so place it, wait, and read back.
+place >/dev/null; sleep 2; place >/dev/null; sleep 2
 RECT="$(place)"
 echo "Mailspring frame: ${RECT}"
 

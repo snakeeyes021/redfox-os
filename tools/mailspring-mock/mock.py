@@ -24,12 +24,12 @@ FOLDERS = [("mail-inbox-symbolic", "Inbox", 6), ("mail-unread-symbolic", "Unread
            ("mail-send-symbolic", "Sent", 0), ("user-trash-symbolic", "Trash", 0)]
 THREADS = [
     ("Ada Lovelace", "Notes on the Analytical Engine",
-     "I have attached my notes, with the table for Bernoulli numbers.", "11:01", True, True),
-    ("Linus", "Re: patch v3", "Applied, thanks. Looks good.", "11:01", True, False),
-    ("Margaret Hamilton", "Lunar module checklist", "Final review of the priority display logic.", "11:01", True, False),
-    ("RedFox Labs", "Welcome to RedFoxOS", "Your desktop is ready. Here are a few tips to get started.", "11:01", True, False),
-    ("Dewy", "Weekend plans?", "Hiking on Saturday if the weather holds.", "11:01", True, False),
-    ("Grace Hopper", "Compiler meeting moved to Thursday", "Room 4B, bring the punch cards.", "11:01", True, False),
+     "I have attached my notes, with the table for Bernoulli numbers.", "11:05 AM", True, True),
+    ("Linus", "Re: patch v3", "Applied, thanks. Looks good.", "11:04 AM", True, False),
+    ("Margaret Hamilton", "Lunar module checklist", "Final review of the priority display logic.", "11:03 AM", True, False),
+    ("RedFox Labs", "Welcome to RedFoxOS", "Your desktop is ready. Here are a few tips to get started.", "11:02 AM", True, False),
+    ("Dewy", "Weekend plans?", "Hiking on Saturday if the weather holds.", "11:01 AM", True, False),
+    ("Grace Hopper", "Compiler meeting moved to Thursday", "Room 4B, bring the punch cards.", "11:00 AM", True, False),
 ]
 
 CSS = """
@@ -159,20 +159,13 @@ def message_pane():
     names.append(label(sender, "heading"))
     names.append(label("To: you", "dim-label", "caption"))
     who.append(names)
-    who.append(label(f"Today {time}", "dim-label", "caption", ellipsize=False))
+    who.append(label(time, "dim-label", "caption", ellipsize=False))
     card.append(who)
     card.append(Gtk.Separator())
     # In a real front end this is a WebKitGTK view showing the message's HTML.
-    body = label("Hi,\n\nI have attached my notes, with the table for Bernoulli numbers. "
-                 "The engine could act upon other things besides number, were objects found "
-                 "whose mutual relations could be expressed by those of the abstract science "
-                 "of operations.\n\nAda", "message-body", wrap=True)
+    body = label(THREADS[0][2], "message-body", wrap=True)
     body.set_selectable(True)
     card.append(body)
-    attach = Gtk.Box(spacing=8)
-    attach.append(Gtk.Image(icon_name="mail-attachment-symbolic"))
-    attach.append(label("bernoulli-table.pdf · 84 kB", "caption", ellipsize=False))
-    card.append(attach)
     col.append(card)
 
     reply = Gtk.Button(label="Reply", halign=Gtk.Align.START)
