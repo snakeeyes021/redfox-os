@@ -1,6 +1,6 @@
 # Branches waiting for review
 
-Status: eight RedFox branches and one smooth-overview branch, all pushed to GitHub and none merged. Pushing them builds nothing: images build only from `main` and `unstable` (and PRs into them).
+Status: eight RedFox branches, all pushed to GitHub and none merged yet. smooth-overview's `harden` is merged (item 1). Pushing them builds nothing: images build only from `main` and `unstable` (and PRs into them).
 
 Each section below has:
 - a short summary;
@@ -17,7 +17,7 @@ How they were tested, in the `redfox-test` VM:
 
 ## Suggested merge order
 
-1. smooth-overview `harden` (its own repo; `feat/layout-modes` needs it)
+1. smooth-overview `harden` (its own repo; `feat/layout-modes` needs it). **Merged 2026-11-03.**
 2. `fix/docker-group-after-rebase`
 3. `feat/midikeep-data-dir`
 4. `feat/small-roadmap-items`
@@ -31,14 +31,14 @@ Any order works for 2–5 and for 8–9.
 
 ---
 
-## 1. smooth-overview: `harden`
+## 1. smooth-overview: `harden` (merged)
 
 - **What it does:** works on GNOME 49/50, can be turned off and on again safely, and keeps the overview's search centred when the dock is on the side.
 - **Compare:** https://github.com/snakeeyes021/smooth-overview/compare/main...harden
 - **Commits:** 2.
 - **Look at:** `extension.js`.
 - **Screenshot:** `overview-centred.png`.
-- **To merge:** merge into smooth-overview's `main`. RedFox builds it from there.
+- **Merged:** Matt said yes on 2026-11-03. smooth-overview's `main` is fast-forwarded to `harden` (6c91aad), and RedFox's next image build uses it.
 
 ## 2. `fix/docker-group-after-rebase`
 
@@ -62,6 +62,7 @@ Any order works for 2–5 and for 8–9.
   - Signal and Joplin start in the tray at login.
   - Claude Code defaults to its auto theme.
   - New Signal installs keep their database key in the login keyring, which removes Signal's warning dialog at first start.
+- **Decided:** Matt said yes to keeping new Signal profiles in the GNOME login keyring (2026-11-03).
 - **Compare:** https://github.com/snakeeyes021/redfox-os/compare/unstable...feat/small-roadmap-items
 - **Commits:** 5.
 - **Look at:**
@@ -127,6 +128,7 @@ Any order works for 2–5 and for 8–9.
   - Ctrl+Shift+Esc, Ctrl+Alt+Del on the keypad and Logo Menu's button open it. Where only Mission Center is installed, they open that.
   - Existing installs keep Mission Center.
   - The measurements behind the choice are in `docs/system-monitor.md`.
+- **Decided:** Matt said yes to Resources (2026-11-03).
 - **Compare:** https://github.com/snakeeyes021/redfox-os/compare/unstable...feat/system-monitor
 - **Commits:** 2.
 - **Look at:** `docs/system-monitor.md`, `files/system/usr/bin/redfox-system-monitor`, the `redfox.d` dconf additions, `recipes/_common-modules.yml`.
@@ -150,5 +152,5 @@ Any order works for 2–5 and for 8–9.
 
 ## Also waiting for Matt (not branches)
 
-- RedFox Hub (`docs/redfox-apps-design.md`): Welcome's words and pages, and whether to rebuild GNOME Tour's pattern or fork it.
+- RedFox Hub (`docs/redfox-apps-design.md`): Welcome's words and pages. (Decided 2026-11-03: rebuild GNOME Tour's look in Python/libadwaita, don't fork it.)
 - Not building a GNOME front end for Mailspring (`docs/mailspring-gnome-frontend.md`): agree or not.

@@ -68,7 +68,7 @@ Pages (a first draft of the words):
 - **Forking it** would give us its behaviour exactly. But Hub would then be Rust, unlike Thirties and Pianola, and Hub as a whole would have to be GPL-3.0.
 - **Rebuilding the pattern** in Python is little work, because libadwaita now provides the pieces: `Adw.Carousel` with `Adw.CarouselIndicatorDots`, plus a page of picture, title and text. That's a few hundred lines, keeps one stack, and leaves the licence our choice.
 
-**Recommendation: rebuild the pattern, and follow GNOME Tour's design closely**: its page layout, its pacing (about five pages), and its tone. If we copy any of its code or artwork, Hub becomes GPL-3.0, and that's fine too, but decide before starting.
+**Decided (Matt, 2026-11-03): rebuild the pattern in Python and libadwaita; don't fork GNOME Tour's Rust code.** Follow its design closely: its page layout, its pacing (about five pages), and its tone. Write the code ourselves rather than copying any, so Hub's licence stays our choice; reusing GNOME Tour's code or artwork would make Hub GPL-3.0.
 
 The illustrations should be RedFox's own, in the watercolour style. They're a good brief for the artist being commissioned for the fox. Until then, the generated fox and the layout previews will do.
 
@@ -130,5 +130,4 @@ The pages are Markdown files in this repo (`docs/manual/`), so they can be revie
 ## Open questions for Matt
 
 - Welcome's words and pages: the draft above, or a different story?
-- GNOME Tour: rebuild its pattern in Python (recommended), or fork it (Rust, GPL-3.0)?
 - Welcome and Bazzite Portal: keep "run after Portal", or turn Portal off for RedFox users?
