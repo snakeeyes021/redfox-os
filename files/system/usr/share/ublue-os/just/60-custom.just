@@ -268,19 +268,7 @@ update-gui:
 update-appimages:
     /usr/bin/update-appimages
 
-# Install Winboat (opt-in; not part of any bundle)
-install-winboat:
-    /usr/bin/install-appimage \
-      "WinBoat" \
-      "GithubUpdater" \
-      "https://github.com/TibixDev/winboat" \
-      "winboat-*-x86_64.AppImage"
-
-# Uninstall Winboat
-uninstall-winboat:
-    /usr/bin/uninstall-appimage "WinBoat"
-
-# Start Signal and Joplin in the tray at login. Opened any other way, they open normally.
+# Start Signal and Joplin in the tray at login, if they're installed. Opened any other way, they open normally.
 configure-autostart-tray:
     #!/usr/bin/bash
     set -euo pipefail
@@ -293,8 +281,17 @@ configure-autostart-tray:
         done
         return 0
     }
+    # The Flatpak's own launcher, used as TryExec: if the app is uninstalled
+    # later, GNOME skips these entries instead of failing or showing a broken icon.
+    launcher() {
+        for dir in "${XDG_DATA_HOME:-$HOME/.local/share}/flatpak/exports/bin" /var/lib/flatpak/exports/bin; do
+            if [ -x "$dir/$1" ]; then echo "$dir/$1"; return 0; fi
+        done
+        echo "/var/lib/flatpak/exports/bin/$1"
+    }
     if flatpak info org.signal.Signal >/dev/null 2>&1; then
         printf '%s\n' '[Desktop Entry]' 'Type=Application' 'Name=Signal' 'Icon=org.signal.Signal' \
+            "TryExec=$(launcher org.signal.Signal)" \
             'Exec=flatpak run org.signal.Signal --use-tray-icon --start-in-tray' \
             'X-Flatpak=org.signal.Signal' 'X-GNOME-Autostart-Delay=5' > "$AUTOSTART/org.signal.Signal.desktop"
         echo "Signal will start in the tray at login."
@@ -303,6 +300,7 @@ configure-autostart-tray:
     fi
     if flatpak info net.cozic.joplin_desktop >/dev/null 2>&1; then
         printf '%s\n' '[Desktop Entry]' 'Type=Application' 'Name=Joplin' 'Icon=net.cozic.joplin_desktop' \
+            "TryExec=$(launcher net.cozic.joplin_desktop)" \
             'Exec=/usr/libexec/redfox-joplin-launch --tray' \
             'X-Flatpak=net.cozic.joplin_desktop' 'X-GNOME-Autostart-Delay=5' > "$AUTOSTART/net.cozic.joplin_desktop.desktop"
         # Joplin has no tray flag, so its normal launcher goes through the same
@@ -310,7 +308,9 @@ configure-autostart-tray:
         SRC="$(exported net.cozic.joplin_desktop)"
         if [ -n "$SRC" ]; then
             mkdir -p "$APPS"
-            sed -E 's|^Exec=.*|Exec=/usr/libexec/redfox-joplin-launch %u|' "$SRC" > "$APPS/net.cozic.joplin_desktop.desktop"
+            sed -E -e '/^TryExec=/d' -e 's|^Exec=.*|Exec=/usr/libexec/redfox-joplin-launch %u|' \
+                -e "/^\[Desktop Entry\]/a TryExec=$(launcher net.cozic.joplin_desktop)" \
+                "$SRC" > "$APPS/net.cozic.joplin_desktop.desktop"
         fi
         echo "Joplin will start in the tray at login."
     else
