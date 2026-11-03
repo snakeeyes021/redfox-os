@@ -85,12 +85,13 @@
 @list-bg: @adw-view-bg;
 @list-border: @adw-border;
 @list-hover-bg: @adw-hover;
-@list-focused-color: #ffffff;
-@list-focused-bg: @accent-primary;
-@list-focused-border: @accent-primary;
-@list-selected-color: inherit;
-@list-selected-bg: color-mix(in srgb, @accent-primary 18%, @adw-view-bg);
-@list-selected-border: color-mix(in srgb, @accent-primary 40%, @adw-view-bg);
+// libadwaita selects rows with a neutral tint, not the accent colour.
+@list-focused-color: @adw-text;
+@list-focused-bg: @adw-row-selected;
+@list-focused-border: @adw-view-bg;
+@list-selected-color: @adw-text;
+@list-selected-bg: @adw-row-selected;
+@list-selected-border: @adw-view-bg;
 
 @menu-item-color-hover: @adw-hover;
 @menu-item-color-selected: @accent-primary;

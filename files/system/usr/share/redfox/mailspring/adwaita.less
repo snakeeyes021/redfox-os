@@ -97,6 +97,65 @@ body.platform-linux.is-blurred .toolbar-window-controls button {
   }
 }
 
+// Window buttons on the right, where GNOME puts them. Mailspring draws them
+// in its first toolbar column; pin them to the window's top right instead,
+// and keep the last column's own buttons clear of them.
+body.platform-linux .toolbar-window-controls {
+  position: fixed;
+  top: 7px;
+  right: 6px;
+  z-index: 10;
+  margin: 0;
+  order: 0;
+}
+body.platform-linux .sheet-toolbar-container > [role='toolbar']:last-child {
+  padding-right: 84px;
+}
+
+// The header bar: the part over the folder sidebar takes the sidebar's colour,
+// so the sidebar runs to the top of the window as in libadwaita's split views.
+.sheet-toolbar-container .column-RootSidebar,
+body.platform-linux .sheet-toolbar-container .column-RootSidebar {
+  background: @adw-sidebar-bg;
+  border-right: 1px solid @adw-border;
+}
+
+// Thread list: no divider lines or selection checkboxes; a selected row is a
+// neutral rounded pill inset from the edges, as in a libadwaita list. The
+// inset is a border in the list's own colour, so row heights don't change.
+.list-tabular .list-tabular-item,
+.thread-list .list-item,
+.thread-list-narrow .list-item {
+  border: 0 solid @adw-view-bg;
+  border-width: 2px 6px;
+  border-radius: 12px;
+  background-clip: padding-box;
+}
+.list-tabular .list-tabular-item.keyboard-cursor {
+  border-left: 6px solid @adw-view-bg;
+}
+.list-container .list-item.selected,
+.list-container .list-item.focused,
+.list-container .list-item.next-is-selected,
+body.is-blurred .list-container .list-item.selected,
+body.is-blurred .list-container .list-item.focused {
+  border-color: @adw-view-bg;
+  color: @adw-text;
+}
+.thread-list .checkmark {
+  display: none;
+}
+
+// Folder sidebar: rounded pills with a little space round them.
+.outline-view .item {
+  margin: 1px 6px;
+  border-radius: @border-radius-base;
+}
+.outline-view .item.selected,
+.outline-view .item-container.selected .item {
+  margin: 1px 6px;
+}
+
 // Buttons: libadwaita's flat, rounded buttons with no outline.
 .btn {
   background: @adw-button-bg;
