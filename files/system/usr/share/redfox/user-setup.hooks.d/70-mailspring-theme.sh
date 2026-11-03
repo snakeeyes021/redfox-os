@@ -22,8 +22,9 @@ for variant in light dark; do
     name="ui-redfox-adwaita-$variant"
     stage="$(mktemp -d "$DIR/packages/.$name.XXXXXX")"
     cp -r "$SRC/$name/." "$stage/"
-    cp "$SRC/adwaita-variables.less" "$stage/styles/adwaita-variables.less"
-    cp "$SRC/adwaita.less" "$stage/styles/index.less"
+    cp "$SRC/adwaita-variables.less" "$stage/styles/adwaita-variables.inc"
+    cp "$SRC/adwaita.less" "$stage/styles/adwaita.less"
+    cp "$SRC/email-frame.less" "$stage/styles/email-frame.less"
     rm -rf "$DIR/packages/$name"
     mv "$stage" "$DIR/packages/$name"
 done

@@ -1,5 +1,7 @@
-// RedFox Adwaita: the rules. Installed as styles/index.less in both the
-// light and the dark theme package, so it uses only variables.
+// RedFox Adwaita: the rules. Installed as styles/adwaita.less in both the
+// light and the dark theme package, so it uses only variables. (Not index.less:
+// with no index, Mailspring loads every stylesheet in styles/, which lets the
+// theme add email-frame.less for the message body.)
 @import 'ui-variables';
 
 body {
@@ -102,11 +104,40 @@ body.platform-linux.is-blurred .toolbar-window-controls button {
 // and keep the last column's own buttons clear of them.
 body.platform-linux .toolbar-window-controls {
   position: fixed;
-  top: 7px;
+  top: 13px;
   right: 6px;
   z-index: 10;
   margin: 0;
   order: 0;
+  display: flex;
+}
+// GNOME's order: minimise, maximise, close.
+body.platform-linux .toolbar-window-controls button.minimize { order: 1; }
+body.platform-linux .toolbar-window-controls button.maximize { order: 2; }
+body.platform-linux .toolbar-window-controls button.close { order: 3; }
+
+// libadwaita's header bar is 47 px tall, Mailspring's 34; match it and
+// centre the buttons in it.
+.sheet-toolbar,
+body.platform-linux .sheet-toolbar {
+  height: 46px;
+  min-height: 46px;
+  max-height: 46px;
+}
+.sheet-toolbar-container > [role='toolbar'] {
+  height: 100%;
+  align-items: center;
+}
+.sheet-toolbar .btn-toolbar,
+body.platform-linux .sheet-toolbar .btn-toolbar {
+  margin-top: 0;
+  height: 34px;
+  line-height: 34px;
+  min-width: 34px;
+}
+.sheet-toolbar .item-container .window-title {
+  line-height: 46px;
+  font-weight: 700;
 }
 body.platform-linux .sheet-toolbar-container > [role='toolbar']:last-child {
   padding-right: 84px;
@@ -114,8 +145,8 @@ body.platform-linux .sheet-toolbar-container > [role='toolbar']:last-child {
 
 // The header bar: the part over the folder sidebar takes the sidebar's colour,
 // so the sidebar runs to the top of the window as in libadwaita's split views.
-.sheet-toolbar-container .column-RootSidebar,
-body.platform-linux .sheet-toolbar-container .column-RootSidebar {
+.sheet-toolbar-container .toolbar-RootSidebar,
+body.platform-linux .sheet-toolbar-container .toolbar-RootSidebar {
   background: @adw-sidebar-bg;
   border-right: 1px solid @adw-border;
 }
@@ -144,6 +175,18 @@ body.is-blurred .list-container .list-item.focused {
 }
 .thread-list .checkmark {
   display: none;
+}
+// Mailspring draws a line under unread rows with a more specific rule.
+.thread-list .list-item.unread:not(.focused):not(.selected):not(.next-is-selected),
+.thread-list .list-item.next-is-selected {
+  border-bottom-color: @adw-view-bg;
+}
+
+// The open message's subject, as a libadwaita page title.
+.message-list .message-subject,
+#message-list .message-subject {
+  font-size: 20px;
+  font-weight: 800;
 }
 
 // Folder sidebar: rounded pills with a little space round them.
