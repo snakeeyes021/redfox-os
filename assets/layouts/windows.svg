@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="150" viewBox="0 0 240 150">
+<defs>
+<filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="9"/></filter>
+<filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-opacity="0.25"/></filter>
+<clipPath id="screen"><rect width="240" height="150" rx="6"/></clipPath>
+</defs>
+<g clip-path="url(#screen)">
+<rect width="240" height="150" fill="#e9e9eb"/>
+<g filter="url(#soft)" opacity="0.75">
+<circle cx="70" cy="70" r="46" fill="#f4a6a0"/>
+<circle cx="120" cy="60" r="40" fill="#f2a9cf"/>
+<circle cx="168" cy="72" r="44" fill="#8fd3f4"/>
+<circle cx="198" cy="92" r="34" fill="#9be7d8"/>
+<circle cx="95" cy="105" r="38" fill="#f9c9b8"/>
+</g>
+<rect x="46" y="18" width="148" height="92" rx="4" fill="#fbfbfb" filter="url(#shadow)"/>
+<path d="M46 22 a4 4 0 0 1 4 -4 h140 a4 4 0 0 1 4 4 v6 h-148 z" fill="#ececec"/>
+<circle cx="189" cy="23" r="1.5" fill="#9a9a9a"/>
+<circle cx="184" cy="23" r="1.5" fill="#9a9a9a"/>
+<circle cx="179" cy="23" r="1.5" fill="#9a9a9a"/>
+<rect x="54" y="34" width="103.6" height="3" rx="1.5" fill="#dcdcdc"/>
+<rect x="54" y="41" width="85.83999999999999" height="3" rx="1.5" fill="#dcdcdc"/>
+<rect x="54" y="48" width="68.08" height="3" rx="1.5" fill="#dcdcdc"/>
+<rect x="54" y="55" width="50.31999999999999" height="3" rx="1.5" fill="#dcdcdc"/>
+<rect y="136" width="240" height="14" fill="#3d3d40"/>
+<circle cx="79.0" cy="143.0" r="4.5" fill="#b22234"/>
+<path d="M79.0 140.525 a2.475 2.475 0 1 1 -2.25 3.375" fill="none" stroke="#fff" stroke-width="1.125" stroke-linecap="round"/>
+<rect x="87.5" y="139.5" width="2.94" height="7" rx="1" fill="#ffffff" opacity="0.9"/>
+<rect x="91.14" y="139.5" width="3.36" height="3.15" rx="1" fill="#ffffff" opacity="0.9"/>
+<rect x="91.14" y="143.35" width="3.36" height="3.15" rx="1" fill="#ffffff" opacity="0.9"/>
+<rect x="100.5" y="138.5" width="9" height="9" rx="2.25" fill="#3584e4"/>
+<rect x="113.5" y="138.5" width="9" height="9" rx="2.25" fill="#f6a33a"/>
+<rect x="126.5" y="138.5" width="9" height="9" rx="2.25" fill="#e66161"/>
+<rect x="139.5" y="138.5" width="9" height="9" rx="2.25" fill="#9141ac"/>
+<rect x="152.5" y="138.5" width="9" height="9" rx="2.25" fill="#26a269"/>
+<circle cx="194" cy="143.0" r="1.6" fill="#ffffff" opacity="0.85"/>
+<circle cx="199" cy="143.0" r="1.6" fill="#ffffff" opacity="0.85"/>
+<circle cx="204" cy="143.0" r="1.6" fill="#ffffff" opacity="0.85"/>
+<rect x="212" y="141.5" width="20" height="3" rx="1.5" fill="#ffffff" opacity="0.85"/>
+</g>
+</svg>
