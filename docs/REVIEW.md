@@ -206,8 +206,9 @@ Any order works for 2–5 and for 8–9.
 - **Look at:** `docs/wallpaper-credits.md`.
 
 
-## 13. `fix/flatpak-system-fonts` (ready for review)
+## 13. `fix/flatpak-system-fonts` (merged)
 
+- **Merged** 2026-11-03 (fda4456), approved by Matt; its unstable build (run 41711731534) passed on all three variants.
 - **What it fixes:** Flatpak apps on the Freedesktop 26.08 runtime (OBS, Mailspring, …) couldn't see any system fonts and fell back to DejaVu Sans. Upstream: [freedesktop-sdk#1563](https://gitlab.com/freedesktop-sdk/freedesktop-sdk/-/issues/1563).
 - **How:** a boot-time oneshot (`redfox-flatpak-fonts.service`) puts a small fontconfig file in `/var/lib/redfox/flatpak-fonts` and adds one system-wide Flatpak override: read access to that folder, and `FONTCONFIG_FILE` pointing at it. Bazzite's own override entries are kept. `redfox-flatpak-fonts remove` undoes exactly what it added, for when the runtime is fixed.
 - **Tested in the VM:**
@@ -220,6 +221,22 @@ Any order works for 2–5 and for 8–9.
 - **Once merged:** the Mailspring branch's per-user copy of Adwaita Sans becomes unnecessary and can be dropped.
 - **Compare:** https://github.com/snakeeyes021/redfox-os/compare/unstable...fix/flatpak-system-fonts
 - **Look at:** `docs/flatpak-fonts.md`, `files/system/usr/libexec/redfox-flatpak-fonts`, `files/system/usr/share/redfox/flatpak-fonts/fonts.conf`.
+
+## 14. `fix/greenboot-stale-record` (merged)
+
+- **Merged** 2026-11-03 (825a4d7), pre-approved by Matt.
+- **What it fixes:** the rollback trap found under 11. `redfox-greenboot-stale-check.service` runs just before greenboot's health check. It clears greenboot's record only when the default deployment booted and the record names another one, which can only be left over from an earlier rebase. A genuine fallback boots a non-default deployment, so greenboot still rolls back.
+- **Tested in VMs:** RedFoxOS → Bluefin → RedFoxOS stays on RedFoxOS; a normal update; an update whose health check always fails still rolls back; a GRUB-fallback state is left to greenboot. Details in `tests/vm/README.md`.
+
+## 15. `fix/update-lock-wait` (ready for review)
+
+- **What it fixes:** uupd (the automatic update) and topgrade (`ujust update`) both use rpm-ostree/bootc, and the second one to start failed with "System transaction in progress" instead of waiting. uupd's timer is `Persistent=true`, so it often runs right after boot, just when someone might run `ujust update`.
+- **How:** `/usr/libexec/redfox-wait-for-system-update` waits (up to an hour, then carries on) while uupd, a `bootc upgrade/switch/rollback` or an rpm-ostree transaction is running. topgrade runs it as a pre-command; uupd runs it as `ExecStartPre` through a drop-in.
+- **Tested in the VM, both orders:**
+  - `ujust update`'s topgrade during uupd's `bootc upgrade`: it printed "Waiting for the automatic update to finish first...", then the system update was OK. Before the fix it failed at once.
+  - uupd started during topgrade's `rpm-ostree upgrade`: it waited 2 minutes, then ran cleanly with no restarts. Before, it failed and relied on systemd's retry (3 tries in 10 minutes).
+- **Compare:** https://github.com/snakeeyes021/redfox-os/compare/unstable...fix/update-lock-wait
+- **Look at:** `files/system/usr/libexec/redfox-wait-for-system-update`, `files/system/usr/lib/systemd/system/uupd.service.d/50-redfox-wait.conf`, `files/system/usr/share/ublue-os/topgrade.toml`.
 
 ---
 

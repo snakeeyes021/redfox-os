@@ -1,0 +1,49 @@
+#!/usr/bin/bash
+# Wait until no other system update is running.
+#
+# RedFoxOS has two updaters: uupd, the automatic daily update (uupd.timer;
+# Persistent=true, so it often fires right after boot), and topgrade, run by
+# `ujust update`. Both end up in rpm-ostree or bootc, which hold the system's
+# update lock. The second one doesn't wait for the lock: rpm-ostree fails at
+# once with "System transaction in progress". So topgrade runs this as a
+# pre-command, and uupd as ExecStartPre (with --from-uupd, so it doesn't wait
+# for itself).
+#
+# It always exits 0: after REDFOX_UPDATE_WAIT_MAX seconds (default an hour) it
+# gives up and lets the updater try anyway.
+
+from_uupd=false
+[ "${1:-}" = --from-uupd ] && from_uupd=true
+max="${REDFOX_UPDATE_WAIT_MAX:-3600}"
+
+busy() {
+    # A oneshot service is "activating" while it runs, which is-active --quiet
+    # counts as inactive.
+    if ! $from_uupd && [[ "$(systemctl show -P ActiveState uupd.service 2>/dev/null)" == @(active|activating) ]]; then
+        echo "the automatic update"
+        return 0
+    fi
+    if pgrep -f '^(/usr/bin/)?bootc (upgrade|switch|rollback)' >/dev/null; then
+        echo "a bootc update"
+        return 0
+    fi
+    if LC_ALL=C rpm-ostree status 2>/dev/null | grep -q '^State: busy'; then
+        echo "another rpm-ostree operation"
+        return 0
+    fi
+    return 1
+}
+
+what="$(busy)" || exit 0
+echo "Waiting for ${what} to finish first..."
+waited=0
+while what="$(busy)"; do
+    if [ "$waited" -ge "$max" ]; then
+        echo "Still waiting for ${what} after ${max}s; carrying on anyway."
+        exit 0
+    fi
+    sleep 5
+    waited=$((waited + 5))
+done
+echo "Done waiting; carrying on."
+exit 0

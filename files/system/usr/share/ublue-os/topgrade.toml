@@ -8,6 +8,11 @@ ignore_failures = ["flatpak", "brew_cask", "brew_formula", "firmware", "custom_c
 assume_yes = true
 no_retry = false
 
+[pre_commands]
+# Wait for the automatic update (uupd) or any other rpm-ostree/bootc operation;
+# rpm-ostree fails instead of waiting when another one holds the lock.
+"Wait for other updates" = "/usr/libexec/redfox-wait-for-system-update"
+
 [linux]
 rpm_ostree = true
 
