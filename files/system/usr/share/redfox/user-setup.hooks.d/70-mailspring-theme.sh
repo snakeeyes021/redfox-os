@@ -39,18 +39,6 @@ if [ -d "$SRC/$plugin" ]; then
     mv "$stage" "$DIR/packages/$plugin"
 fi
 
-# GNOME's font for the theme. Flatpaks built on the Freedesktop 26.08 runtime
-# (Mailspring among them) can't see the system's fonts: a font cache built into
-# the app lists the host font folder as empty, and on an image-based system the
-# folders' timestamps never change, so fontconfig keeps trusting it. The user's
-# own font folder is scanned afresh, so Adwaita Sans is copied there.
-FONTS="${XDG_DATA_HOME:-$HOME/.local/share}/fonts/redfox-adwaita"
-for f in /usr/share/fonts/adwaita-sans-fonts/*.ttf /usr/share/fonts/adwaita-mono-fonts/*.ttf; do
-    [ -f "$f" ] || continue
-    mkdir -p "$FONTS"
-    cmp -s "$f" "$FONTS/${f##*/}" || cp "$f" "$FONTS/"
-done
-
 python3 - "$CONFIG" <<'PY'
 import json, os, sys
 path = sys.argv[1]

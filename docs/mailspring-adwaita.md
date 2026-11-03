@@ -7,9 +7,9 @@ Status: on `feat/mailspring-adwaita`, not merged. The comparison page (vanilla, 
 - **RedFox Adwaita Light and Dark**, two Mailspring theme packages, written from scratch. Mailspring's Automatic theme switches between them as GNOME switches between light and dark, and they follow the GNOME accent colour.
 - **GNOME's Adwaita icons** in place of Mailspring's own, in the header bar, the folder sidebar and the message view. See "Icons" below.
 - **RedFox GNOME integration**, a small plugin (`redfox-gnome-integration`, plain JavaScript). It puts the window buttons where GNOME's `button-layout` setting says: which side, which buttons, and in what order. It reads the setting through the desktop portal, since Mailspring runs in a Flatpak, and follows changes live.
-- **Adwaita Sans and Mono in the user's font folder.** Flatpaks on the Freedesktop 26.08 runtime can't see system fonts (see `fix/flatpak-system-fonts`). Once that branch fixes it for every Flatpak, this copy can go.
+- **No font copy is needed.** Mailspring sees Adwaita Sans through RedFoxOS's system-wide Flatpak font fix (`docs/flatpak-fonts.md`).
 
-The login hook `70-mailspring-theme.sh` installs all of it into Mailspring's own folder. A light or dark theme the user picked is left alone.
+The login hook `70-mailspring-theme.sh` installs the themes and the plugin into Mailspring's own folder. A light or dark theme the user picked is left alone.
 
 ## What a plugin can and can't do
 
