@@ -4,8 +4,9 @@
 "$schema" = "https://starship.rs/config-schema.json"
 
 # Show which OS this is, as the RedFox fox. Starship learns the OS from
-# /etc/os-release's ID, which RedFoxOS keeps as "bazzite" for Bazzite's
-# tooling, so every type it might report maps to the fox.
+# /etc/os-release's ID. It doesn't know "redfox", so it falls back to
+# Fedora's release file and reports Fedora; older RedFox images said
+# "bazzite". Every type it might report maps to the fox.
 [os]
 disabled = false
 format = "[$symbol]($style)"
