@@ -6,23 +6,95 @@ body {
   font-family: @font-family-sans-serif;
 }
 
-// Header bar: flat, like libadwaita's, with a hairline under it. Mailspring
-// draws a gradient and lightens it when the window loses focus.
+// Header bar: flat, like libadwaita's, with a hairline under it. Mailspring's
+// Linux rules paint it the content colour (and other platforms a gradient that
+// lightens when the window loses focus), so match their specificity.
 .sheet-toolbar-container,
+body.platform-linux .sheet-toolbar-container,
 body.is-blurred .sheet-toolbar-container,
 body.platform-linux.is-blurred .sheet-toolbar-container {
   background: @adw-headerbar-bg;
   background-image: none;
 }
-.nav-rail-frame {
+.nav-rail-frame,
+body.platform-linux .nav-rail-frame {
   background: @adw-headerbar-bg;
 }
-.sheet-toolbar {
+.sheet-toolbar,
+body.platform-linux .sheet-toolbar {
   border-bottom: 1px solid @adw-border;
   box-shadow: none;
 }
 body.is-blurred .sheet-toolbar-container .btn.btn-toolbar {
   box-shadow: none;
+}
+
+// Window buttons: libadwaita's grey circles with a dark glyph, instead of
+// Mailspring's coloured gumdrops.
+// Mailspring's own rules set the gumdrop images per button class, so these
+// use button.close and so on to outrank them. Three 20 px circles fit the
+// 72 px strip Mailspring gives the buttons.
+body.platform-linux .toolbar-window-controls button,
+body.platform-linux .toolbar-window-controls button.close,
+body.platform-linux .toolbar-window-controls button.minimize,
+body.platform-linux .toolbar-window-controls button.maximize,
+body.platform-linux .toolbar-window-controls.alt-true button.maximize,
+body.platform-linux.is-blurred .toolbar-window-controls button {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  margin: 0 2px;
+  border-radius: 50%;
+  background: @adw-button-bg;
+  background-image: none;
+  box-shadow: none;
+  &:hover {
+    background: fade(@adw-text, 15%);
+    background-image: none;
+  }
+  &:active {
+    background: fade(@adw-text, 22%);
+    background-image: none;
+  }
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    background: @adw-text;
+  }
+  &.close::before,
+  &.close::after {
+    width: 9px;
+    height: 1.5px;
+    margin: -0.75px 0 0 -4.5px;
+  }
+  &.close::before {
+    transform: rotate(45deg);
+  }
+  &.close::after {
+    transform: rotate(-45deg);
+  }
+  &.minimize::before {
+    width: 8px;
+    height: 1.5px;
+    margin: 2px 0 0 -4px;
+  }
+  &.minimize::after {
+    display: none;
+  }
+  &.maximize::before {
+    width: 6px;
+    height: 6px;
+    margin: -4px 0 0 -4px;
+    background: transparent;
+    border: 1.5px solid @adw-text;
+    border-radius: 1px;
+  }
+  &.maximize::after {
+    display: none;
+  }
 }
 
 // Buttons: libadwaita's flat, rounded buttons with no outline.
