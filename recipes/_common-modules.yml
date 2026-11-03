@@ -107,7 +107,7 @@ modules:
           - org.gnome.Loupe
           - io.gitlab.adhami3310.Impression
           - org.gnome.Logs
-          - io.missioncenter.MissionCenter
+          - net.nokyan.Resources
           - org.gnome.TextEditor
           - org.gnome.Showtime
           - io.github.flattool.Warehouse

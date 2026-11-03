@@ -17,7 +17,7 @@ io.github.flattool.Ignition         # Ignition
 org.gnome.Loupe                     # Image Viewer
 io.gitlab.adhami3310.Impression     # Impression / ISO Writer
 org.gnome.Logs                      # Logs
-io.missioncenter.MissionCenter      # Mission Center
+net.nokyan.Resources                # Resources (system monitor)
 org.gnome.TextEditor                # Text Editor
 org.gnome.Showtime                  # Video Player
 io.github.flattool.Warehouse        # WareHouse

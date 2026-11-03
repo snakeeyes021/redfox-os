@@ -1,0 +1,15 @@
+Mission Center {"window": 1.59, "numbers": 14.13, "list": 17.32, "stall": 0.74, "slow_pings": 1, "asked_list_at": 17.32, "kind": "cold"}
+Mission Center {"window": 1.49, "numbers": 13.29, "list": 17.49, "stall": 8.25, "slow_pings": 1, "asked_list_at": 17.49, "kind": "cold"}
+Mission Center {"window": 1.1, "numbers": 14.66, "list": 16.89, "stall": 0.73, "slow_pings": 1, "asked_list_at": 16.89, "kind": "warm"}
+Mission Center {"window": 1.32, "numbers": 12.89, "list": 16.78, "stall": 0.55, "slow_pings": 1, "asked_list_at": 16.77, "kind": "warm"}
+Mission Center {"window": 1.37, "numbers": 13.09, "list": 16.35, "stall": 0.01, "slow_pings": 0, "asked_list_at": 16.35, "kind": "warm"}
+Resources {"window": 2.51, "numbers": 3.09, "list": 3.73, "stall": 0.03, "slow_pings": 0, "asked_list_at": 3.73, "kind": "cold"}
+Resources {"window": 2.74, "numbers": 3.23, "list": 4.72, "stall": 0.09, "slow_pings": 0, "asked_list_at": 4.72, "kind": "cold"}
+Resources {"window": 3.0, "numbers": 4.04, "list": 5.14, "stall": 0.04, "slow_pings": 0, "asked_list_at": 5.14, "kind": "warm"}
+Resources {"window": 2.64, "numbers": 3.15, "list": 3.85, "stall": 0.09, "slow_pings": 0, "asked_list_at": 3.85, "kind": "warm"}
+Resources {"window": 2.5, "numbers": 3.0, "list": 3.64, "stall": 0.03, "slow_pings": 0, "asked_list_at": 3.64, "kind": "warm"}
+System Monitor {"window": 2.47, "numbers": 2.69, "list": null, "stall": 0.08, "slow_pings": 0, "asked_list_at": 2.88, "kind": "cold"}
+System Monitor {"window": 2.79, "numbers": 3.01, "list": null, "stall": 0.14, "slow_pings": 0, "asked_list_at": 3.32, "kind": "cold"}
+System Monitor {"window": 2.43, "numbers": 2.7, "list": null, "stall": 0.12, "slow_pings": 0, "asked_list_at": 2.92, "kind": "warm"}
+System Monitor {"window": 2.83, "numbers": 3.19, "list": null, "stall": 0.02, "slow_pings": 0, "asked_list_at": 3.41, "kind": "warm"}
+System Monitor {"window": 2.71, "numbers": 2.94, "list": null, "stall": 0.11, "slow_pings": 0, "asked_list_at": 3.12, "kind": "warm"}
