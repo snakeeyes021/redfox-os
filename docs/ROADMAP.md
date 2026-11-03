@@ -168,6 +168,16 @@
 - [ ] **Switching layouts works live:** moving between presets shouldn't need a logout or restart. Some switches depend on smooth-overview, and something there may need a restart (possibly because the extension is built from source at image build time: `files/scripts/install-smooth-overview.sh`). Find out and fix it.
 - [ ] **smooth-overview, hardened:** *(Done on smooth-overview's local `harden` branch, not pushed yet: InjectionManager, safe to enable/disable twice, only the overview's and top bar's own lookups change, keeps the clock centred. Publishing on extensions.gnome.org needs Matt's account.)* review it against GNOME Shell extension best practice (it was thrown together quickly), make sure it's solid on the current GNOME, install it the proper way for a system extension, and consider publishing it on extensions.gnome.org.
 
+## 💿 RedFoxOS ISO
+*Today the only way to get RedFoxOS is to rebase onto it. Eventually it wants an ISO. Open questions only for now, no build work: [`docs/iso.md`](iso.md).*
+
+- [ ] **RedFoxOS ISO**, once these are answered:
+    - [ ] **Builder:** how other Universal Blue-family images build ISOs (bootc-image-builder's `anaconda-iso`, BlueBuild's `generate-iso`, Titanoboa), and what fits us. The existing `build-iso.yml` (bootc-image-builder) last ran on 2026-01-01 and failed.
+    - [ ] **Hosting:** GitHub release assets cap at 2 GiB per file; ghcr, an object store such as R2, or a network installer instead; cost.
+    - [ ] **Branding the installer:** Anaconda's theming, or Bazzite's installer setup.
+    - [ ] **Secure Boot and NVIDIA variants:** enrolling Universal Blue's key; one ISO per variant or one that picks.
+    - [ ] **Testing in the VM:** boot the ISO in a fresh VM unattended, then check boot, login, update and rollback.
+
 ## 🧩 RedFox Hub (Flatpak GUI)
 *Design: [`docs/redfox-apps-design.md`](redfox-apps-design.md). Matt decided on one app, **RedFox Hub** (`tech.redfoxlabs.Hub`), a Flatpak released like Thirties and Pianola, with four sections. Building starts after Matt's branch review.*
 
