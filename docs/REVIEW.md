@@ -157,11 +157,12 @@ Any order works for 2–5 and for 8–9.
 - **Screenshots:** `mailspring-adwaita-light.png`, `mailspring-adwaita-dark.png`.
 
 
-## 10. `fix/remove-winboat` (follow-up to 4)
+## 10. `fix/remove-winboat` (follow-up to 4, merged)
 
 - **What it does:**
   - Removes Winboat completely, as Matt asked ("we don't want winboat at all. No ujust."): the `install-winboat` and `uninstall-winboat` recipes, the roadmap items, and FreeRDP, which was in the image only for Winboat.
   - Makes Signal's and Joplin's tray entries safe after an uninstall. `configure-autostart-tray` already skipped apps that weren't installed, but an app removed later left its login entry, and Joplin's app-grid override, behind. Each entry now has `TryExec` pointing at the Flatpak's launcher, so GNOME skips it once the app is gone.
+- **Merged** 2026-11-03 (112c05f), FreeRDP included, as Matt approved.
 - **Compare:** https://github.com/snakeeyes021/redfox-os/compare/unstable...fix/remove-winboat
 - **Commits:** 1.
 - **Look at:** the `configure-autostart-tray` recipe in `60-custom.just`, `recipes/_common-modules.yml`.
@@ -169,7 +170,6 @@ Any order works for 2–5 and for 8–9.
   - The entries get `TryExec`, and both login services are generated.
   - An entry whose app is missing gets no login service and is hidden from the app grid.
   - Joplin's own entry still loads.
-- **Check:** whether to keep FreeRDP for other remote-desktop uses. It's one line to put back.
 
 
 ## 11. `feat/redfox-os-identity` (follow-up to 5, in progress)
