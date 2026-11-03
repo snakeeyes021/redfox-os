@@ -337,10 +337,20 @@ body.platform-linux .sheet-toolbar-container .toolbar-RootSidebar {
     background: @adw-text;
   }
 }
+// The card and the reply box under it keep Mailspring's centring (auto side
+// margins, a max width) but are 12 px narrower, so they sit about 12 px clear
+// of the column divider and the window edge, in line with the subject. Both
+// use the same rule so their edges stay flush at any window width.
+#message-list .message-item-wrap,
+#message-list .footer-reply-area-wrap {
+  width: calc(100% - 12px);
+}
 #message-list .message-header {
+  // Mailspring's right-hand group is a 1em-high box; centre the 30 px
+  // buttons and the time on the sender's line rather than above it.
   .message-header-right {
     align-items: center;
-    top: -4px;
+    top: 4px;
   }
   .message-time {
     min-width: 0;

@@ -19,7 +19,7 @@ from gi.repository import Adw, Gdk, GLib, Gtk  # noqa: E402
 
 # The same fake mailbox as the test account in the VM (see compare.sh).
 ACCOUNT = "tester@redfox.test"
-FOLDERS = [("mail-inbox-symbolic", "Inbox", 6), ("mail-unread-symbolic", "Unread", 6),
+FOLDERS = [("folder-download-symbolic", "Inbox", 6), ("mail-unread-symbolic", "Unread", 6),
            ("starred-symbolic", "Starred", 0), ("document-edit-symbolic", "Drafts", 0),
            ("mail-send-symbolic", "Sent", 0), ("user-trash-symbolic", "Trash", 0)]
 THREADS = [
@@ -139,7 +139,7 @@ def message_pane():
         header.pack_start(Gtk.Button(icon_name=icon, tooltip_text=tip))
     header.pack_end(Gtk.MenuButton(icon_name="view-more-symbolic", tooltip_text="More"))
     header.pack_end(Gtk.Button(icon_name="user-trash-symbolic", tooltip_text="Delete"))
-    header.pack_end(Gtk.Button(icon_name="mail-archive-symbolic", tooltip_text="Archive"))
+    header.pack_end(Gtk.Button(icon_name="package-x-generic-symbolic", tooltip_text="Archive"))
     view.add_top_bar(header)
 
     sender, subject, _snippet, time, _u, _s = THREADS[0]

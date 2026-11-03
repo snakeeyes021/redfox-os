@@ -6,7 +6,8 @@ toggle and click-to-zoom.
     make-compare.py OUTDIR
 
 OUTDIR holds vanilla/, mock/ and v1/, v2/, ... each with light.png and
-dark.png (from capture-mailspring.sh and mock.py). The notes for each
+dark.png. A row can name its own mock folder ("mock" in iterations.json), and
+list its self-review ("checked") (from capture-mailspring.sh and mock.py). The notes for each
 iteration come from iterations.json next to this script.
 """
 import html
@@ -80,9 +81,9 @@ ROW = """<section class="row">
 <div class="cols">
   <figure><img data-base="vanilla/" src="vanilla/light.png" alt="Vanilla Mailspring"></figure>
   <figure><img data-base="{id}/" src="{id}/light.png" alt="RedFox Adwaita {id}"></figure>
-  <figure><img data-base="mock/" src="mock/light.png" alt="Native mock"></figure>
+  <figure><img data-base="{mock}/" src="{mock}/light.png" alt="Native mock"></figure>
 </div>
-<div class="notes"><b>Changed:</b> {changed}<br><b>Gaps left:</b> {gaps}{extra}</div>
+<div class="notes"><b>Changed:</b> {changed}<br><b>Gaps left:</b> {gaps}{checked}{extra}</div>
 </section>"""
 
 
@@ -92,10 +93,15 @@ def main():
         iterations = json.load(f)
     rows = []
     for it in reversed(iterations):
-        missing = [p for p in (f"{it['id']}/light.png", f"{it['id']}/dark.png") if not os.path.exists(os.path.join(out, p))]
+        mock = it.get("mock", "mock")
+        missing = [p for d in (it["id"], mock) for p in (f"{d}/light.png", f"{d}/dark.png")
+                   if not os.path.exists(os.path.join(out, p))]
         if missing:
             sys.exit(f"missing screenshots for {it['id']}: {missing}")
-        fields = {k: html.escape(str(v)) for k, v in it.items() if k != "extra"}
+        fields = {k: html.escape(str(v)) for k, v in it.items() if k not in ("extra", "mock", "checked")}
+        fields["mock"] = html.escape(mock)
+        checked = it.get("checked")
+        fields["checked"] = f"<br><b>Self-review checked:</b> {html.escape(checked)}" if checked else ""
         links = "".join(f'<br><a href="{html.escape(href)}">{html.escape(text)}</a>'
                         for text, href in it.get("extra", {}).items())
         rows.append(ROW.format(extra=links, **fields))
