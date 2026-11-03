@@ -255,6 +255,10 @@ uninstall-thirties:
     fi
     rm -f "${XDG_DATA_HOME:-$HOME/.local/share}/redfox-apps/tech.redfoxlabs.Thirties.tag"
 
+# Roll back, or move to another RedFoxOS build (latest, unstable, a dated or commit build)
+rollback-helper *ARGS:
+    /usr/bin/redfox-rollback-helper {{ ARGS }}
+
 # Run the optional Bazzite graphical updater
 update-gui:
     #!/usr/bin/bash

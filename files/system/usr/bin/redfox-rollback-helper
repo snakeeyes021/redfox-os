@@ -1,0 +1,266 @@
+#!/usr/bin/bash
+# redfox-rollback-helper: roll back, or move to another RedFoxOS build.
+#
+# RedFoxOS's version of Bazzite's bazzite-rollback-helper, which only knows
+# Bazzite's images. Run with no arguments for a menu.
+set -uo pipefail
+
+REGISTRY="ghcr.io/snakeeyes021"
+REPO_API="https://api.github.com/repos/snakeeyes021/redfox-os"
+IMAGES=(redfox-os redfox-os-nvidia redfox-os-nvidia-legacy)
+IMAGE_INFO="/usr/share/ublue-os/image-info.json"
+
+if [ -t 1 ]; then
+    bold=$'\e[1m' red=$'\e[31m' green=$'\e[32m' yellow=$'\e[33m' normal=$'\e[0m'
+else
+    bold='' red='' green='' yellow='' normal=''
+fi
+
+usage() {
+    cat <<EOF
+${bold}RedFoxOS rollback helper${normal}
+
+Go back to the previous system, or move to another RedFoxOS build.
+
+Usage: $(basename "$0") [COMMAND] [ARGUMENTS]
+
+  (no command)        a menu
+  current             what is booted, staged for next boot, and kept for rollback
+  list [CHANNEL] [N]  the last N builds of a channel: latest (stable) or unstable
+                      (default: the channel you are on, 15 builds)
+  rollback            boot the previous system next time (rpm-ostree rollback)
+  rebase TARGET       switch to TARGET next boot. TARGET is one of:
+                        latest | unstable                  follow a channel
+                        20261101                           a dated stable build
+                        b00fd74                            the build of a commit
+                        redfox-os-nvidia:latest            another image (IMAGE:TAG)
+                        ostree-image-signed:docker://...   a full reference
+  -y, --yes           don't ask before rebasing or rolling back
+
+Images: ${IMAGES[*]}
+EOF
+}
+
+die() { echo "${red}$*${normal}" >&2; exit 1; }
+
+ASSUME_YES=false
+confirm() {
+    $ASSUME_YES && return 0
+    local reply
+    # No answer (no terminal, end of input) means no.
+    read -r -p "$1 [Y/n] " reply || { echo; return 1; }
+    [[ -z "$reply" || "${reply,,}" =~ ^y ]]
+}
+
+# rpm-ostree asks for a password through the desktop's polkit agent. Without
+# a desktop (SSH, a text console) there is no agent, so use sudo.
+as_root() {
+    if [ "$EUID" -eq 0 ] || [ -n "${WAYLAND_DISPLAY:-}${DISPLAY:-}" ]; then
+        "$@"
+    else
+        sudo "$@"
+    fi
+}
+
+# The container image reference of a deployment: booted, staged or rollback.
+deployment_ref() {
+    rpm-ostree status --json | jq -r --arg which "$1" '
+        .deployments[]
+        | select(
+            ($which == "booted" and .booted == true) or
+            ($which == "staged" and .staged == true) or
+            ($which == "rollback" and .booted != true and .staged != true))
+        | .["container-image-reference"] // empty' | head -n1
+}
+
+# ostree-image-signed:docker://ghcr.io/snakeeyes021/redfox-os:latest -> redfox-os:latest
+short_ref() {
+    sed -E 's#^ostree-[a-z-]+(:[a-z-]+)?:(docker://)?##; s#^.*/##' <<< "$1"
+}
+
+current_image() {
+    local ref name
+    ref="$(deployment_ref booted)"
+    name="$(short_ref "$ref")"
+    name="${name%%:*}"
+    for image in "${IMAGES[@]}"; do
+        [ "$name" = "$image" ] && { echo "$image"; return; }
+    done
+    name="$(jq -r '."image-name" // empty' "$IMAGE_INFO" 2>/dev/null)"
+    for image in "${IMAGES[@]}"; do
+        [ "$name" = "$image" ] && { echo "$image"; return; }
+    done
+    echo redfox-os
+}
+
+current_channel() {
+    local tag
+    tag="$(short_ref "$(deployment_ref booted)")"
+    tag="${tag##*:}"
+    case "$tag" in
+        unstable|br-unstable-*) echo unstable ;;
+        *) echo latest ;;
+    esac
+}
+
+show_current() {
+    local booted staged rollback
+    booted="$(deployment_ref booted)"
+    staged="$(deployment_ref staged)"
+    rollback="$(deployment_ref rollback)"
+    echo "${bold}Booted:${normal}   ${green}${booted:-unknown}${normal}"
+    [ -n "$staged" ] && echo "${bold}Next boot:${normal} ${yellow}${staged}${normal}"
+    [ -n "$rollback" ] && echo "${bold}Rollback:${normal} ${rollback}"
+    return 0
+}
+
+registry_tags() {
+    skopeo list-tags "docker://${REGISTRY}/$1" 2>/dev/null | jq -r '.Tags[]' 2>/dev/null
+}
+
+# Recent builds of a channel, newest first, as "TAG<tab>DATE<tab>DESCRIPTION".
+# Builds are tagged with their commit (<sha7>-<fedora>), so walk the branch's
+# commits and keep those that have an image. Stable builds also get a date tag.
+list_builds() {
+    local image="$1" channel="$2" count="$3" branch tags commits
+    case "$channel" in
+        unstable) branch=unstable ;;
+        latest|stable) branch=main ;;
+        *) die "Unknown channel '$channel' (use latest or unstable)." ;;
+    esac
+    tags="$(registry_tags "$image")" || true
+    [ -n "$tags" ] || die "Couldn't list the tags of ${REGISTRY}/${image}. Are you online?"
+    commits="$(curl -fsSL "${REPO_API}/commits?sha=${branch}&per_page=100" 2>/dev/null |
+        jq -r '.[] | [.sha[0:7], .commit.committer.date[0:10], (.commit.message | split("\n")[0])] | @tsv' 2>/dev/null)"
+    [ -n "$commits" ] || die "Couldn't read the ${branch} branch from GitHub (offline, or rate-limited)."
+
+    local n=0 sha date msg tag
+    while IFS=$'\t' read -r sha date msg; do
+        tag="$(grep -m1 -E "^${sha}-[0-9]+$" <<< "$tags")" || continue
+        printf '%s\t%s\t%s\n' "$tag" "$date" "$msg"
+        n=$((n + 1))
+        [ "$n" -ge "$count" ] && break
+    done <<< "$commits"
+}
+
+show_list() {
+    local channel="${1:-$(current_channel)}" count="${2:-15}" image
+    image="$(current_image)"
+    echo "${bold}Recent ${channel} builds of ${image}${normal} (newest first):"
+    local builds
+    builds="$(list_builds "$image" "$channel" "$count")" || exit 1
+    [ -n "$builds" ] || { echo "  (none found)"; return 0; }
+    while IFS=$'\t' read -r tag date msg; do
+        printf '  %-14s %s  %s\n' "${tag%-*}" "$date" "${msg:0:70}"
+    done <<< "$builds"
+    if [ "$channel" != unstable ]; then
+        local dated
+        dated="$(registry_tags "$image" | grep -E '^[0-9]{8}$' | sort -r | head -n 10 | tr '\n' ' ')"
+        [ -n "$dated" ] && echo "Dated stable builds: ${dated}"
+    fi
+    echo
+    echo "Switch with: $(basename "$0") rebase <commit or date>"
+}
+
+# Turn a TARGET into a full reference.
+resolve_target() {
+    local target="$1" image tags
+    image="$(current_image)"
+    case "$target" in
+        ostree-*) echo "$target"; return ;;
+        */*) echo "ostree-image-signed:docker://${target}"; return ;;
+        *:*) echo "ostree-image-signed:docker://${REGISTRY}/${target}"; return ;;
+        latest|stable) echo "ostree-image-signed:docker://${REGISTRY}/${image}:latest"; return ;;
+        unstable) echo "ostree-image-signed:docker://${REGISTRY}/${image}:unstable"; return ;;
+    esac
+    tags="$(registry_tags "$image")"
+    if grep -qx -- "$target" <<< "$tags"; then
+        echo "ostree-image-signed:docker://${REGISTRY}/${image}:${target}"
+    elif tag="$(grep -m1 -E "^${target:0:7}-[0-9]+$" <<< "$tags")"; then
+        echo "ostree-image-signed:docker://${REGISTRY}/${image}:${tag}"
+    else
+        die "No build '${target}' of ${image}. Try: $(basename "$0") list"
+    fi
+}
+
+do_rebase() {
+    local ref current_name new_name
+    ref="$(resolve_target "$1")" || exit 1
+    current_name="$(current_image)"
+    new_name="$(short_ref "$ref")"
+    new_name="${new_name%%:*}"
+
+    echo "Rebasing to ${bold}${ref}${normal}"
+    if [[ "$ref" != *"${REGISTRY}/redfox-os"* ]]; then
+        echo "${yellow}That isn't a RedFoxOS image. Switching to another OS is up to you; RedFox's settings may not carry over.${normal}"
+    elif [ "$new_name" != "$current_name" ]; then
+        echo "${yellow}This changes the image from ${current_name} to ${new_name}, which has different graphics drivers.${normal}"
+        echo "${yellow}Only do this if it matches your GPU (see README: \"Not sure which one to pick?\").${normal}"
+    fi
+    case "$(short_ref "$ref")" in
+        *:latest|*:unstable) ;;
+        *) echo "This build won't update by itself. To follow updates again: $(basename "$0") rebase latest (or unstable)." ;;
+    esac
+    confirm "Continue?" || { echo "Cancelled."; return 1; }
+    as_root rpm-ostree rebase "$ref" || die "The rebase failed. The build may not exist or may not be signed."
+    echo "${green}Done.${normal} Reboot to start the new system; the current one stays available to roll back to."
+}
+
+do_rollback() {
+    local rollback
+    rollback="$(deployment_ref rollback)"
+    [ -n "$rollback" ] || die "There's no previous system to roll back to."
+    echo "The next boot will use the previous system: ${bold}${rollback}${normal}"
+    confirm "Roll back?" || { echo "Cancelled."; return 1; }
+    as_root rpm-ostree rollback || die "The rollback failed."
+    echo "${green}Done.${normal} Reboot to use it. Updates will move you forward again unless you pin it (see 'sudo ostree admin pin --help')."
+}
+
+choose() {
+    if command -v ugum >/dev/null 2>&1 && [ -t 0 ]; then
+        ugum choose "$@"
+    else
+        local option
+        select option in "$@"; do [ -n "$option" ] && { echo "$option"; return; }; done
+    fi
+}
+
+menu() {
+    show_current
+    echo
+    local action
+    action="$(choose "Roll back to the previous system" "Switch to another build" "Follow latest (stable)" "Follow unstable" "Cancel")"
+    case "$action" in
+        "Roll back to the previous system") do_rollback ;;
+        "Follow latest (stable)") do_rebase latest ;;
+        "Follow unstable") do_rebase unstable ;;
+        "Switch to another build")
+            local channel builds picked
+            channel="$(choose latest unstable)" || exit 0
+            builds="$(list_builds "$(current_image)" "$channel" 15)" || exit 1
+            [ -n "$builds" ] || die "No builds found."
+            picked="$(choose $(awk -F'\t' '{print $1}' <<< "$builds" | sed 's/-[0-9]*$//'))" || exit 0
+            [ -n "$picked" ] && do_rebase "$picked"
+            ;;
+        *) echo "Cancelled." ;;
+    esac
+}
+
+ARGS=()
+for arg in "$@"; do
+    case "$arg" in
+        -y|--yes) ASSUME_YES=true ;;
+        -h|--help) usage; exit 0 ;;
+        *) ARGS+=("$arg") ;;
+    esac
+done
+set -- "${ARGS[@]+"${ARGS[@]}"}"
+
+case "${1:-}" in
+    "") menu ;;
+    current|status) show_current ;;
+    list) show_list "${2:-}" "${3:-15}" ;;
+    rollback) do_rollback ;;
+    rebase) [ -n "${2:-}" ] || die "rebase needs a TARGET. See --help."; do_rebase "$2" ;;
+    *) usage; exit 1 ;;
+esac
