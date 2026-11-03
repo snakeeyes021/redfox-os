@@ -40,29 +40,32 @@ Any order works for 2–5 and for 8–9.
 - **Screenshot:** `overview-centred.png`.
 - **Merged:** Matt said yes on 2026-11-03. smooth-overview's `main` is fast-forwarded to `harden` (6c91aad), and RedFox's next image build uses it.
 
-## 2. `fix/docker-group-after-rebase`
+## 2. `fix/docker-group-after-rebase` (merged)
 
 - **What it fixes:** a machine that rebases onto RedFoxOS (from Bazzite or Bluefin) never gets a `docker` group, so Docker's socket fails to start. It now gets one.
+- **Merged** 2026-11-03 (c9b5386); the `unstable` build passed.
 - **Compare:** https://github.com/snakeeyes021/redfox-os/compare/unstable...fix/docker-group-after-rebase
 - **Commits:** 1, 2 files.
 - **Look at:** `files/system/usr/lib/sysusers.d/redfox-docker.conf`, `files/system/usr/bin/bluefin-dx-groups`.
 
-## 3. `feat/midikeep-data-dir`
+## 3. `feat/midikeep-data-dir` (merged)
 
 - **What it does:** Midikeep reads `data_dir` from `config.yaml` to decide where the MIDI archive goes, matching Pianola. It adds 8 tests, and all 27 tests pass.
+- **Merged** 2026-11-03 (d6d61a3); the `unstable` build passed.
 - **Compare:** https://github.com/snakeeyes021/redfox-os/compare/unstable...feat/midikeep-data-dir
 - **Commits:** 1.
 - **Look at:** `files/system/usr/bin/midikeep-daemon`, `files/system/usr/bin/midikeep`, `docs/midikeep.md`, `tests/test_midikeep.py`.
 
-## 4. `feat/small-roadmap-items`
+## 4. `feat/small-roadmap-items` (merged)
 
 - **What it does:**
   - VS Code and its forks get the Antigravity, Dewy and Sloppy extensions.
-  - Winboat leaves the compatibility bundle; `ujust install-winboat` still works.
+  - Winboat leaves the compatibility bundle. (Matt then decided against Winboat entirely; see `fix/remove-winboat` below.)
   - Signal and Joplin start in the tray at login.
   - Claude Code defaults to its auto theme.
   - New Signal installs keep their database key in the login keyring, which removes Signal's warning dialog at first start.
 - **Decided:** Matt said yes to keeping new Signal profiles in the GNOME login keyring (2026-11-03).
+- **Merged** 2026-11-03 (7349ca2). Matt's caveats became the follow-up branch `fix/remove-winboat` (below) and a Hub roadmap item for per-app "start in tray at login" toggles.
 - **Compare:** https://github.com/snakeeyes021/redfox-os/compare/unstable...feat/small-roadmap-items
 - **Commits:** 5.
 - **Look at:**
@@ -78,6 +81,7 @@ Any order works for 2–5 and for 8–9.
   - RedFoxOS everywhere a person sees the OS name: About, GRUB, the login screen, the boot splash, the terminal welcome message, fastfetch and the Starship prompt.
   - The drawn nine-tailed fox for fastfetch, and the swirl symbolic icon.
   - The system still identifies itself as `bazzite` (`ID=bazzite`) on purpose; `docs/branding.md` explains why.
+- **On hold:** Matt is asking about `ID=bazzite` first.
 - **Compare:** https://github.com/snakeeyes021/redfox-os/compare/unstable...feat/branding
 - **Commits:** 8.
 - **Look at:** `docs/branding.md`, `files/scripts/branding.sh`, `assets/branding/make-marks.py`, `files/system/usr/share/ublue-os/bazzite/fastfetch.jsonc`.
@@ -147,6 +151,21 @@ Any order works for 2–5 and for 8–9.
   - `files/system/usr/share/redfox/mailspring/adwaita-variables.less`
   - `files/system/usr/share/redfox/user-setup.hooks.d/70-mailspring-theme.sh`
 - **Screenshots:** `mailspring-adwaita-light.png`, `mailspring-adwaita-dark.png`.
+
+
+## 10. `fix/remove-winboat` (follow-up to 4)
+
+- **What it does:**
+  - Removes Winboat completely, as Matt asked ("we don't want winboat at all. No ujust."): the `install-winboat` and `uninstall-winboat` recipes, the roadmap items, and FreeRDP, which was in the image only for Winboat.
+  - Makes Signal's and Joplin's tray entries safe after an uninstall. `configure-autostart-tray` already skipped apps that weren't installed, but an app removed later left its login entry, and Joplin's app-grid override, behind. Each entry now has `TryExec` pointing at the Flatpak's launcher, so GNOME skips it once the app is gone.
+- **Compare:** https://github.com/snakeeyes021/redfox-os/compare/unstable...fix/remove-winboat
+- **Commits:** 1.
+- **Look at:** the `configure-autostart-tray` recipe in `60-custom.just`, `recipes/_common-modules.yml`.
+- **Tested in the VM:**
+  - The entries get `TryExec`, and both login services are generated.
+  - An entry whose app is missing gets no login service and is hidden from the app grid.
+  - Joplin's own entry still loads.
+- **Check:** whether to keep FreeRDP for other remote-desktop uses. It's one line to put back.
 
 ---
 
