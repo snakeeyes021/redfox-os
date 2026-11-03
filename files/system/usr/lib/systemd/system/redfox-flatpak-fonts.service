@@ -1,0 +1,13 @@
+[Unit]
+Description=Let Flatpak apps see the system's fonts (RedFoxOS)
+Documentation=file:///usr/share/redfox/flatpak-fonts/fonts.conf
+After=local-fs.target
+ConditionPathExists=/usr/bin/flatpak
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/redfox-flatpak-fonts apply
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

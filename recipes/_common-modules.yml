@@ -66,6 +66,7 @@ modules:
         - bluefin-dx-groups.service
         - incus-workaround.service
         - redfox-greenboot-stale-check.service
+        - redfox-flatpak-fonts.service
         # clamav-freshclam.service is enabled by `ujust enable-clamav-weekly` (opt-in)
     user:
       enabled:
