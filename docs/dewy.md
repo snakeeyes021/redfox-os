@@ -6,7 +6,7 @@
 ---
 
 ## Feature Requests & Wishlist
-<!-- Things you wish RedFox OS had out of the box, packages to pre-install, workflow tweaks -->
+<!-- Things you wish RedFoxOS had out of the box, packages to pre-install, workflow tweaks -->
 
 ---
 

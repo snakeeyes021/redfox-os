@@ -168,14 +168,14 @@
 - [ ] **Switching layouts works live:** moving between presets shouldn't need a logout or restart. Some switches depend on smooth-overview, and something there may need a restart (possibly because the extension is built from source at image build time: `files/scripts/install-smooth-overview.sh`). Find out and fix it.
 - [ ] **smooth-overview, hardened:** *(Done on smooth-overview's local `harden` branch, not pushed yet: InjectionManager, safe to enable/disable twice, only the overview's and top bar's own lookups change, keeps the clock centred. Publishing on extensions.gnome.org needs Matt's account.)* review it against GNOME Shell extension best practice (it was thrown together quickly), make sure it's solid on the current GNOME, install it the proper way for a system extension, and consider publishing it on extensions.gnome.org.
 
-## 🧩 RedFox Apps (Flatpak GUIs)
-*Design: [`docs/redfox-apps-design.md`](redfox-apps-design.md). Matt decided on two Flatpak apps, released like Thirties and Pianola: an info app (Welcome + Manual) and a config app (Software + Settings). Proposed names: RedFox Guide for the info app; the config app's name is on hold.*
+## 🧩 RedFox Hub (Flatpak GUI)
+*Design: [`docs/redfox-apps-design.md`](redfox-apps-design.md). Matt decided on one app, **RedFox Hub** (`tech.redfoxlabs.Hub`), a Flatpak released like Thirties and Pianola, with four sections. Building starts after Matt's branch review.*
 
-Move RedFox's own tooling into GUI Flatpak apps, like Thirties and Pianola already are (`tech.redfoxlabs.*`), building them where they don't exist yet:
-- [ ] **Welcome:** first-run app.
-- [ ] **Config:** a front end to `redfox-config` / `config.yaml` and RedFox's settings, services and actions (see the setup-GUIs item in Fixups).
-- [ ] **Software installer:** a checklist of software and bundles (the `install-*` packs); tick and it installs them.
-- [ ] **RedFox Manual:** a very short help guide, only for where RedFox differs from mainline Linux (it's immutable) or from other immutable distros (the conveniences and tools we chose). For example: "I want to install a Flatpak / a CLI tool, what do I do?", "My collaborators and I need identical dev setups with a specific Node version", "I need a Python environment; what are my options?" (uv, and whatever else we provide).
+Move RedFox's own tooling into one GUI Flatpak app, like Thirties and Pianola already are (`tech.redfoxlabs.*`):
+- [ ] **Welcome:** a short, cheerful tour of RedFoxOS at first login, in the spirit of GNOME Tour, ending in links to Apps, Settings and the Manual. Runs after Bazzite Portal; a first-login step fetches Hub.
+- [ ] **Settings:** a front end to `redfox-config` / `config.yaml` and RedFox's settings, services and actions (see the setup-GUIs item in Fixups), including the layout picker with the RedFox layout names and previews.
+- [ ] **Apps:** a checklist of software and bundles (the `install-*` packs); tick and it installs them.
+- [ ] **Manual:** a very short help guide, only for where RedFoxOS differs from mainline Linux (it's immutable) or from other immutable distros (the conveniences and tools we chose). For example: "I want to install a Flatpak / a CLI tool, what do I do?", "My collaborators and I need identical dev setups with a specific Node version", "I need a Python environment; what are my options?" (uv, and whatever else we provide).
 
 ## 🧰 Editors
 - [ ] **Dewy and Sloppy extensions by default:** *(On `feat/small-roadmap-items`, in the `90-vscode.sh` login hook; Cursor's marketplace returns 403 for both, so it falls back to the Open VSX `.vsix`.)* install `RedFoxLabs.dewy` and `RedFoxLabs.sloppy` (on both the VS Code Marketplace and Open VSX) in VS Code and every fork we ship or set up (Cursor, Antigravity, etc.): add to `setup-vscode` / `setup-cursor`.
@@ -215,7 +215,7 @@ Move RedFox's own tooling into GUI Flatpak apps, like Thirties and Pianola alrea
     - [x] Starship: a RedFox default config with a 🦊 OS symbol (Starship itself is the separate Starship item).
     - [x] Terminal banner (MOTD): RedFox welcome, links and tips; Bazzite's tips removed.
     - [x] Fedora logo files (installer, initial setup, About dialogs) regenerated from the RedFox art.
-    - [ ] Bazzite Portal and Bazzite Announcements stay as they are: their content is Bazzite's. RedFox's Welcome runs after the Portal for now (whether to replace it is still open).
+    - [ ] Bazzite Portal and Bazzite Announcements stay as they are: their content is Bazzite's. RedFox Hub's Welcome runs after the Portal for now (whether to replace it is still open).
     - [x] Bazzite's rollback helper (`bazzite-rollback-helper`, `bruh`) only knows Bazzite images. *(`redfox-rollback-helper` / `ujust rollback-helper` on `feat/redfox-rollback-helper`: lists builds of latest/unstable by commit and date, rolls back, rebases with a warning when switching NVIDIA flavour. Tested in the VM.)*
     - [x] Create/Add assets: Neofetch/Fastfetch Logo, Splash Screen, System Info Logo. *(Made from the existing art by `assets/branding/make-images.py` on `feat/branding`.)*
     - [ ] **New artwork from Matt** (listed in `docs/branding.md`): the fox as an SVG; a simple single-colour fox mark for 16 px and symbolic icons (ArcMenu's start button, Logo Menu); the wordmark as a vector, or its font.
