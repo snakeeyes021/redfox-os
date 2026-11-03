@@ -29,6 +29,15 @@ for variant in light dark; do
     mv "$stage" "$DIR/packages/$name"
 done
 
+# The companion plugin: window buttons follow GNOME's button-layout setting.
+plugin=redfox-gnome-integration
+if [ -d "$SRC/$plugin" ]; then
+    stage="$(mktemp -d "$DIR/packages/.$plugin.XXXXXX")"
+    cp -r "$SRC/$plugin/." "$stage/"
+    rm -rf "$DIR/packages/$plugin"
+    mv "$stage" "$DIR/packages/$plugin"
+fi
+
 # GNOME's font for the theme. Flatpaks built on the Freedesktop 26.08 runtime
 # (Mailspring among them) can't see the system's fonts: a font cache built into
 # the app lists the host font folder as empty, and on an image-based system the

@@ -82,7 +82,7 @@ ROW = """<section class="row">
   <figure><img data-base="{id}/" src="{id}/light.png" alt="RedFox Adwaita {id}"></figure>
   <figure><img data-base="mock/" src="mock/light.png" alt="Native mock"></figure>
 </div>
-<div class="notes"><b>Changed:</b> {changed}<br><b>Gaps left:</b> {gaps}</div>
+<div class="notes"><b>Changed:</b> {changed}<br><b>Gaps left:</b> {gaps}{extra}</div>
 </section>"""
 
 
@@ -95,7 +95,10 @@ def main():
         missing = [p for p in (f"{it['id']}/light.png", f"{it['id']}/dark.png") if not os.path.exists(os.path.join(out, p))]
         if missing:
             sys.exit(f"missing screenshots for {it['id']}: {missing}")
-        rows.append(ROW.format(**{k: html.escape(str(v)) for k, v in it.items()}))
+        fields = {k: html.escape(str(v)) for k, v in it.items() if k != "extra"}
+        links = "".join(f'<br><a href="{html.escape(href)}">{html.escape(text)}</a>'
+                        for text, href in it.get("extra", {}).items())
+        rows.append(ROW.format(extra=links, **fields))
     with open(os.path.join(out, "index.html"), "w") as f:
         f.write(PAGE.format(rows="\n".join(rows)))
     print(f"wrote {out}/index.html ({len(rows)} iterations)")
