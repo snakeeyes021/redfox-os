@@ -51,5 +51,14 @@
     "extra": {
       "Icons: the mapping table and licence (docs/mailspring-adwaita.md)": "https://github.com/snakeeyes021/redfox-os/blob/feat/mailspring-adwaita/docs/mailspring-adwaita.md#icons"
     }
+  },
+  {
+    "id": "v6.1",
+    "date": "2026-11-03",
+    "commit": "6bda8e9",
+    "mock": "mock-v6",
+    "changed": "Two fixes on v6. Window buttons: libadwaita's 24 px circles, 37 px apart, with Adwaita's own window-minimize/maximize/close-symbolic glyphs at 16 px from the system icon theme (the maximize glyph had read as a small circle). Dark mode: the message card is libadwaita's dark card, a step lighter than the pane with a faint outline, and the reply strip under it is the same colour.",
+    "gaps": "As v6.",
+    "checked": "Window buttons at 400% next to the mock's, light and dark: same size, glyphs and spacing, within a pixel; the header's last button stays clear of them. The message card at 200%, light and dark: the card and reply strip are one colour, lighter than the pane in dark mode, with even edges; light mode unchanged."
   }
 ]
