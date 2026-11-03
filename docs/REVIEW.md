@@ -141,20 +141,23 @@ Any order works for 2–5 and for 8–9.
 - **Look at:** `docs/system-monitor.md`, `files/system/usr/bin/redfox-system-monitor`, the `redfox.d` dconf additions, `recipes/_common-modules.yml`.
 - **Screenshot:** `system-monitor-resources.png`.
 
-## 9. `feat/mailspring-adwaita` (on hold)
+## 9. `feat/mailspring-adwaita` (merged)
 
-- **What it does:**
-  - RedFox's own Adwaita themes for Mailspring, light and dark, written from scratch.
-  - A login hook installs them and makes them Mailspring's automatic themes, so Mailspring follows GNOME's light/dark setting and accent colour.
-  - A themed light or dark choice you've already made in Mailspring is kept.
-- **On hold:** Matt says it "doesn't look very adwaita". A side-by-side comparison with a real libadwaita app is being prepared.
-- **Compare:** https://github.com/snakeeyes021/redfox-os/compare/unstable...feat/mailspring-adwaita
-- **Commits:** 2.
-- **Look at:**
-  - `files/system/usr/share/redfox/mailspring/adwaita.less`
-  - `files/system/usr/share/redfox/mailspring/adwaita-variables.less`
-  - `files/system/usr/share/redfox/user-setup.hooks.d/70-mailspring-theme.sh`
-- **Screenshots:** `mailspring-adwaita-light.png`, `mailspring-adwaita-dark.png`.
+- **Merged** 2026-11-03, approved by Matt at v6.1 ("that looks good, yup, thanks for cleaning it up").
+- **What ships:**
+  - RedFox Adwaita Light and Dark, Mailspring themes written from scratch. Mailspring's Automatic theme uses them, so it follows GNOME's light/dark setting and accent colour. A light or dark theme the user picked is kept.
+  - GNOME's Adwaita symbolic icons in place of Mailspring's, loaded from the system's icon theme (nothing copied).
+  - A small companion plugin (`redfox-gnome-integration`): the window buttons follow GNOME's button layout live; Reply / Reply all / Forward in the header bar; the icon lookup.
+  - The contact panel starts hidden; the header's sidebar button brings it back, and a choice the user made is kept.
+  - Installed per user by the login hook `70-mailspring-theme.sh`. No per-user font copy: fonts come from the system-wide Flatpak font fix (13).
+- **Known limits** (Mailspring is Electron, so a theme can't change these):
+  - no GNOME split header bar, and row heights stay Mailspring's;
+  - no native rounded window corners, menus or dialogs;
+  - Mailspring puts the plugin's Reply group after its own header buttons;
+  - no avatars or thread-list header yet; the unread dot and attachment file-type icons stay Mailspring's.
+  - The plugin uses Mailspring's internal plugin APIs, so each Mailspring update needs a quick check (buttons in place, Reply opens a draft). If it breaks, Mailspring logs an error and the theme still works.
+- **Iterations:** v1 to v6.1 side by side with vanilla Mailspring and a GTK 4 mock: https://redmax.taila6a47f.ts.net:8401/mailspring-compare/
+- **Look at:** `docs/mailspring-adwaita.md`, `files/system/usr/share/redfox/mailspring/`, `files/system/usr/share/redfox/user-setup.hooks.d/70-mailspring-theme.sh`, `tools/mailspring-mock/`.
 
 
 ## 10. `fix/remove-winboat` (follow-up to 4, merged)

@@ -1,6 +1,6 @@
 # Mailspring in RedFoxOS: the Adwaita theme and its companion plugin
 
-Status: on `feat/mailspring-adwaita`, not merged. The comparison page (vanilla, our theme at each iteration, and a native GTK 4 mock) is built by `tools/mailspring-mock/`; see `iterations.json` there for what each round changed.
+Status: shipped in RedFoxOS (merged 2026-11-03, at v6.1). The comparison page (vanilla, our theme at each iteration, and a native GTK 4 mock) is built by `tools/mailspring-mock/`; see `iterations.json` there for what each round changed.
 
 ## What ships
 
