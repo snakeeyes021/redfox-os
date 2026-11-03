@@ -1,0 +1,18 @@
+# RedFoxOS default Starship prompt settings. Used when you have no
+# ~/.config/starship.toml of your own (see /etc/profile.d/redfox-starship.sh).
+
+"$schema" = "https://starship.rs/config-schema.json"
+
+# Show which OS this is, as the RedFox fox. Starship learns the OS from
+# /etc/os-release's ID, which RedFoxOS keeps as "bazzite" for Bazzite's
+# tooling, so every type it might report maps to the fox.
+[os]
+disabled = false
+format = "[$symbol]($style)"
+style = "bold red"
+
+[os.symbols]
+Bazzite = "🦊 "
+Fedora = "🦊 "
+Linux = "🦊 "
+Unknown = "🦊 "
