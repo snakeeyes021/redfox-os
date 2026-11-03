@@ -1,0 +1,130 @@
+// RedFox Adwaita: the rules. Installed as styles/index.less in both the
+// light and the dark theme package, so it uses only variables.
+@import 'ui-variables';
+
+body {
+  font-family: @font-family-sans-serif;
+}
+
+// Header bar: flat, like libadwaita's, with a hairline under it. Mailspring
+// draws a gradient and lightens it when the window loses focus.
+.sheet-toolbar-container,
+body.is-blurred .sheet-toolbar-container,
+body.platform-linux.is-blurred .sheet-toolbar-container {
+  background: @adw-headerbar-bg;
+  background-image: none;
+}
+.nav-rail-frame {
+  background: @adw-headerbar-bg;
+}
+.sheet-toolbar {
+  border-bottom: 1px solid @adw-border;
+  box-shadow: none;
+}
+body.is-blurred .sheet-toolbar-container .btn.btn-toolbar {
+  box-shadow: none;
+}
+
+// Buttons: libadwaita's flat, rounded buttons with no outline.
+.btn {
+  background: @adw-button-bg;
+  color: @adw-text;
+  box-shadow: none;
+  border-radius: @border-radius-base;
+  &:hover {
+    background: fade(@adw-text, 12%);
+  }
+  &:active,
+  &.active {
+    background: fade(@adw-text, 18%);
+  }
+  img.content-mask {
+    background-color: @adw-text;
+  }
+}
+.btn.btn-toolbar {
+  background: transparent;
+  box-shadow: none;
+  &:hover {
+    background: @adw-hover;
+  }
+}
+.btn.btn-emphasis,
+.btn.btn-action {
+  background: @accent-primary;
+  color: #ffffff;
+  img.content-mask {
+    background-color: #ffffff;
+  }
+  &:hover {
+    background: @accent-primary-dark;
+  }
+}
+.btn.btn-danger,
+.btn.btn-destructive {
+  background: @adw-red;
+  color: #ffffff;
+}
+
+// Text fields: libadwaita's filled entries, with an accent ring on focus.
+input[type='text'],
+input[type='email'],
+input[type='password'],
+input[type='search'],
+input[type='url'],
+input[type='number'],
+textarea {
+  background: @adw-button-bg;
+  border: 1px solid transparent;
+  border-radius: @border-radius-base;
+  color: @adw-text;
+  &:focus {
+    border-color: transparent;
+    box-shadow: 0 0 0 2px fade(@adw-accent-bg, 50%);
+  }
+}
+
+// The account sidebar reads as a libadwaita sidebar.
+.account-sidebar,
+.outline-view {
+  background: @adw-sidebar-bg;
+}
+.outline-view .item.selected,
+.outline-view .item-container.selected .item {
+  background: @adw-sidebar-selected;
+  border-radius: @border-radius-base;
+  color: @adw-text;
+}
+
+// Popovers and menus: rounded cards.
+.menu,
+.nylas-dropdown .menu,
+.popover {
+  background: @adw-card-bg;
+  border-radius: @border-radius-large;
+  box-shadow: 0 1px 5px 1px @adw-shade, 0 0 0 1px @adw-border;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 6px;
+  background: fade(@adw-text, 25%);
+}
+
+// Dark only: Mailspring draws some icons and images dark-on-light, and its
+// own dark theme inverts them the same way.
+& when (@adw-is-dark = true) {
+  .thread-icon:not(.thread-icon-unread):not(.thread-icon-star),
+  img.content-dark,
+  img.content-light {
+    filter: invert(100%);
+  }
+  .mail-label {
+    filter: contrast(110%) brightness(85%);
+  }
+  .thread-list .list-item:not(.unread):not(.selected):not(.focused) {
+    color: @text-color-subtle;
+  }
+  #message-list .message-item-wrap .message-item-white-wrap {
+    box-shadow: 0 0 0 1px @adw-border;
+  }
+}

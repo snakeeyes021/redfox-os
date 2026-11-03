@@ -1,0 +1,41 @@
+// RedFox Adwaita (dark): Mailspring in GNOME's libadwaita colours.
+// The RedFox login hook adds the shared adwaita-variables.less (Mailspring's
+// variables, set from these) and adwaita.less (as styles/index.less, the rules).
+@import 'base/ui-variables';
+
+// libadwaita's dark palette
+@adw-window-bg: #222226;
+@adw-view-bg: #1d1d20;
+@adw-headerbar-bg: #2e2e32;
+@adw-sidebar-bg: #2e2e32;
+@adw-sidebar-selected: rgba(255, 255, 255, 0.1);
+@adw-card-bg: #36363a;
+@adw-text: #ffffff;
+@adw-dim: fadeout(#ffffff, 45%);
+@adw-border: rgba(255, 255, 255, 0.15);
+@adw-shade: rgba(0, 0, 6, 0.25);
+@adw-hover: rgba(255, 255, 255, 0.07);
+@adw-button-bg: rgba(255, 255, 255, 0.1);
+@adw-accent-bg: #3584e4;
+@adw-accent-text: #78aeed;
+@adw-red: #c01c28;
+@adw-red-text: #ff7b63;
+@adw-green: #26a269;
+@adw-green-text: #78e9ab;
+@adw-yellow: #cd9309;
+@adw-yellow-text: #ffc252;
+@adw-purple: #9141ac;
+
+@adw-is-dark: true;
+
+// Mailspring's grey scale runs from the text colour, so turn it round for dark,
+// as its own dark theme does.
+@gray-base: #ffffff;
+@gray-darker: darken(@gray-base, 13.5%);
+@gray-dark: darken(@gray-base, 20%);
+@gray: darken(@gray-base, 33.5%);
+@gray-light: darken(@gray-base, 46.7%);
+@gray-lighter: darken(@gray-base, 92.5%);
+@white: @adw-view-bg;
+
+@import 'adwaita-variables';
