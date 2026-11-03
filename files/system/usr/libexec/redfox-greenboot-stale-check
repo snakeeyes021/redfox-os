@@ -1,0 +1,95 @@
+#!/usr/bin/python3
+"""Clear a stale greenboot "next deployment" record before greenboot checks it.
+
+When a deployment is staged, greenboot records its ID in GRUB's environment
+(greenboot_next_deployment_id, plus fallback=1). On the next boot, if the
+booted deployment isn't the recorded one, greenboot concludes that GRUB fell
+back after the new deployment failed, and rolls back.
+
+That record goes stale when a machine leaves RedFoxOS for a system without
+greenboot (Bluefin, say): RedFoxOS records "next is Bluefin", Bluefin never
+checks or clears it, and when the machine is rebased back to RedFoxOS, its
+first boot sees "expected Bluefin, booted RedFoxOS" and rolls back to Bluefin
+even though nothing failed.
+
+A real GRUB fallback boots an older entry, not the default deployment. So this
+check only acts when the booted deployment *is* the default (first) one and the
+record names a different deployment: the boot went exactly as intended, and the
+record can't be about it. Every other case is left to greenboot, unchanged.
+"""
+import json
+import subprocess
+import sys
+
+GRUBENV = "/boot/grub2/grubenv"
+
+
+def run(*cmd):
+    return subprocess.run(cmd, capture_output=True, text=True)
+
+
+def grubenv():
+    out = run("grub2-editenv", GRUBENV, "list").stdout
+    return dict(line.split("=", 1) for line in out.splitlines() if "=" in line)
+
+
+def booted_ids():
+    """Every ID greenboot might have recorded for the booted deployment."""
+    ids = set()
+    bootc = run("bootc", "status", "--booted", "--json")
+    if bootc.returncode == 0:
+        try:
+            digest = json.loads(bootc.stdout)["status"]["booted"]["image"]["imageDigest"]
+            if digest:
+                ids.add(digest)
+        except (KeyError, TypeError, ValueError):
+            pass
+    return ids
+
+
+def deployments():
+    status = run("rpm-ostree", "status", "--json")
+    if status.returncode != 0:
+        return []
+    return json.loads(status.stdout).get("deployments", [])
+
+
+def main():
+    env = grubenv()
+    expected = env.get("greenboot_next_deployment_id")
+    if not expected:
+        return 0
+
+    deps = deployments()
+    booted = next((d for d in deps if d.get("booted")), None)
+    if not deps or booted is None:
+        print("redfox-greenboot-stale-check: can't read the deployments; leaving greenboot's record alone")
+        return 0
+
+    ids = booted_ids() | {booted.get("checksum")}
+    if expected in ids:
+        return 0  # the record is about this boot; greenboot handles it
+
+    if deps[0] is not booted:
+        # Booted an older entry: a real GRUB fallback. Greenboot rolls back.
+        print(f"redfox-greenboot-stale-check: booted a non-default deployment; leaving {expected} for greenboot")
+        return 0
+
+    print(f"redfox-greenboot-stale-check: the default deployment booted, but greenboot's record names "
+          f"another one ({expected}), left by an earlier rebase. Clearing it.")
+    remounted = False
+    mounts = open("/proc/mounts").read().split("\n")
+    if any(f.split()[1:2] == ["/boot"] and "ro" in f.split()[3].split(",") for f in mounts if f):
+        remounted = run("mount", "-o", "remount,rw", "/boot").returncode == 0
+    try:
+        for key in ("greenboot_next_deployment_id", "fallback"):
+            if key in env:
+                run("grub2-editenv", GRUBENV, "unset", key)
+    finally:
+        if remounted:
+            run("mount", "-o", "remount,ro", "/boot")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

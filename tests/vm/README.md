@@ -104,3 +104,10 @@ The existing install also rolled back to `ID=bazzite` and forward again cleanly.
 
 **Greenboot can undo a rebase if the machine was rebased before.** Bazzite (and so RedFoxOS) runs greenboot; Bluefin doesn't. When this VM was rebased from RedFoxOS to Bluefin earlier, greenboot recorded "the next deployment should be Bluefin" in GRUB's environment, and nothing on Bluefin cleared it. On the first boot after rebasing on to RedFoxOS, RedFoxOS's greenboot saw a different deployment from the one it expected, took that as a failed boot, and rolled back to Bluefin, even though its health check passed. A Bluefin machine that has never run greenboot doesn't hit this: rebasing the cleaned-up VM again stayed on RedFoxOS across reboots. To recover by hand, run `sudo grub2-editenv - unset greenboot_next_deployment_id` and rebase again.
 
+RedFoxOS now clears that stale record itself. `redfox-greenboot-stale-check.service` runs just before greenboot's health check. It clears the record only when the machine booted its default deployment and the record names a different one; that can only be left over from an earlier rebase. A genuine fallback boots a non-default deployment, so the record stays and greenboot still rolls back. Tested in these VMs:
+
+- RedFoxOS → Bluefin → RedFoxOS: the check cleared Bluefin's record, greenboot passed, and the VM stayed on RedFoxOS across two reboots.
+- A normal update: the record matched, the check did nothing, and greenboot cleared it as usual.
+- An update whose health check always fails: greenboot rolled back to the previous deployment, as before.
+- A GRUB fallback (the previous deployment booted while the record names the default): the check left the record for greenboot.
+
