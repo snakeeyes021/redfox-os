@@ -42,6 +42,7 @@
 - [x] **Implement** System-level GNOME Boxes + Virt-Manager
 - [x] **Tailscale:** add to system defaults. *(Already there: Bazzite ships Tailscale, off until you run `ujust tailscale enable`. Nothing to change.)*
 - [ ] **Remove Winboat** from the defaults (reverses the Winboat item above). *(On `feat/small-roadmap-items`: out of `install-compatibility`; `install-winboat` stays opt-in.)*
+- [ ] **Replace Mission Center** (slow to start, frozen at first, heavy on memory) with a better system monitor. *(On `feat/system-monitor`: Resources, `net.nokyan.Resources`, for new setups and the Dewy dock; Ctrl+Shift+Esc, Ctrl+Alt+Del on the keypad and Logo Menu's button open it through `redfox-system-monitor`, which falls back to Mission Center where that's all there is. Existing installs keep Mission Center.)*
 - [ ] **VS Code:** install the Antigravity extension. *(On `feat/small-roadmap-items`: `Google.google-antigravity`.)*
 - [ ] **Implement** Starship terminal prompt by default with light-theme terminal (steal from Bluefin)
     - [ ] **Implement** ujust "configure" recipes for starship bluefin (system default, "reset"), starship bazzite (deviation), starship off (deviation)
@@ -162,12 +163,13 @@
 
 ## 🪟 Layout Modes
 *Built on `feat/layout-modes` and tested live in the VM; waiting for Matt's check before merging. `redfox-layout list/get/set` switches between gnome, ubuntu, macos, windows-classic, windows and redfox without a logout, and the `preset-dock-*` recipes call it. Windows layouts use Dash to Panel + ArcMenu. The restart had two causes: the gap hack copied Dash to Dock into `~/.local`, which GNOME only picks up at login; and smooth-overview broke when GNOME called enable() or disable() twice in a row ("too much recursion"), leaving the overview broken until the shell restarted.*
+- [ ] **Layout names without other systems' names** (no Windows, macOS or Ubuntu where people see them). *(Proposal with SVG previews in [`docs/layout-names.md`](layout-names.md) on `feat/layout-modes`; waiting for Matt to pick.)*
 - [ ] **More layouts, built from scratch:** today only the Ubuntu-style layout (and Dewy's variant) is finished. Build the rest of the presets above (`preset-dock-win-classic`, `preset-dock-win-new`, `preset-dock-macos`, the `_preset-dock-redfox` hybrid proof of concept) plus any others we want. Zorin's layouts are Zorin Pro (paid): don't consult or look at their implementation.
 - [ ] **Switching layouts works live:** moving between presets shouldn't need a logout or restart. Some switches depend on smooth-overview, and something there may need a restart (possibly because the extension is built from source at image build time: `files/scripts/install-smooth-overview.sh`). Find out and fix it.
 - [ ] **smooth-overview, hardened:** *(Done on smooth-overview's local `harden` branch, not pushed yet: InjectionManager, safe to enable/disable twice, only the overview's and top bar's own lookups change, keeps the clock centred. Publishing on extensions.gnome.org needs Matt's account.)* review it against GNOME Shell extension best practice (it was thrown together quickly), make sure it's solid on the current GNOME, install it the proper way for a system extension, and consider publishing it on extensions.gnome.org.
 
 ## 🧩 RedFox Apps (Flatpak GUIs)
-*Design: [`docs/redfox-apps-design.md`](redfox-apps-design.md). Matt decided on two Flatpak apps, released like Thirties and Pianola: an info app (Welcome + Manual) and a config app (Software + Settings). Names proposed there: RedFox Guide and RedFox Workshop.*
+*Design: [`docs/redfox-apps-design.md`](redfox-apps-design.md). Matt decided on two Flatpak apps, released like Thirties and Pianola: an info app (Welcome + Manual) and a config app (Software + Settings). Proposed names: RedFox Guide for the info app; the config app's name is on hold.*
 
 Move RedFox's own tooling into GUI Flatpak apps, like Thirties and Pianola already are (`tech.redfoxlabs.*`), building them where they don't exist yet:
 - [ ] **Welcome:** first-run app.
@@ -239,7 +241,7 @@ Move RedFox's own tooling into GUI Flatpak apps, like Thirties and Pianola alrea
 - [ ] implement 6 openclaw recipes (installs for openclaw, openclaw orchestrator, openclaw worker, and uninstalls for openclaw, orchestrator, and worker) -- see standalone to-do doc
 - [ ] rounded blur issue in blur my shell
 - [ ] Joplin and Signal start minimized to the tray, but only when started at boot; started any other way they open normally. *(On `feat/small-roadmap-items`: `ujust configure-autostart-tray`, run by `configure-matt`.)*
-- [ ] Mailspring doesn't get Adwaita as its default theme, but it should. *(Mailspring has no Adwaita theme built in. The best match, drakkar1969/mailspring-libadwaita-theme, has no license, so it can be downloaded per user but not shipped. Needs Matt's call.)*
+- [ ] Mailspring doesn't get Adwaita as its default theme, but it should. *(Matt chose to write our own. On `feat/mailspring-adwaita`: RedFox Adwaita Light and Dark, written from scratch, used by Mailspring's Automatic theme so it follows GNOME's light/dark setting and accent colour. A GNOME front end over Mailspring's sync engine was looked at and isn't recommended: [`docs/mailspring-gnome-frontend.md`](mailspring-gnome-frontend.md).)*
 - [ ] Setup/bootstrapping/config GUIs for managing RedFox's app sets, settings, services, actions, etc.
 - [ ] Midikeep: GNOME notifications don't group.
 - [ ] Midikeep: let the user set where the session archive goes, in a config Pianola also reads (Pianola side is in its `docs/BACKLOG.md`).

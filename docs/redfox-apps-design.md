@@ -20,9 +20,9 @@ This covers the "🧩 RedFox Apps (Flatpak GUIs)" section of the roadmap: **Welc
 | | Recommended | Alternatives |
 | --- | --- | --- |
 | Info app (Welcome + Manual) | **RedFox Guide**, `tech.redfoxlabs.Guide` | RedFox Field Guide; RedFox Den |
-| Config app (Software + Settings) | **RedFox Workshop**, `tech.redfoxlabs.Workshop` | RedFox Control; RedFox Burrow |
+| Config app (Software + Settings) | *On hold* (working name "Workshop") | Matt felt "Workshop" sounds like you build things in it; the PM is offering him other names |
 
-"Guide" says what it is: it greets you, then it's the manual. "Workshop" is where you fit out the machine, apps and settings both, and it doesn't clash with GNOME's own *Settings* or *Software* apps in the app grid or search. Avoid "Toolbox" (Fedora's `toolbox` command) and "Tweaks" (GNOME Tweaks). Each app gets a second launcher for its other half, so the app grid shows *RedFox Guide*, *RedFox Manual*, *RedFox Workshop* and *RedFox Software*. Both launchers of an app open the same window on a different page.
+"Guide" says what it is: it greets you, then it's the manual. The config app's name is on hold; "Workshop" is used below only as a working name. Whatever it becomes, it shouldn't clash with GNOME's own *Settings* or *Software* apps in the app grid or search. Avoid "Toolbox" (Fedora's `toolbox` command) and "Tweaks" (GNOME Tweaks). Each app gets a second launcher for its other half, so the app grid shows *RedFox Guide*, *RedFox Manual*, *RedFox Workshop* and *RedFox Software*. Both launchers of an app open the same window on a different page.
 
 ## Still open
 
@@ -75,7 +75,7 @@ A very short guide, only where RedFox differs from ordinary Linux (it's immutabl
 
 The pages are Markdown files in this repo (`docs/manual/`), so they can be reviewed like code. The app bundles them at build time, and the same files can be published on the RedFox website.
 
-## The config app (RedFox Workshop)
+## The config app (name on hold; "Workshop" for now)
 
 ### Software
 
@@ -118,5 +118,6 @@ An `Adw.PreferencesWindow`-style app with these pages:
 
 ## Open questions for Matt
 
-- The two names: RedFox Guide and RedFox Workshop, or one of the alternatives?
+- The info app's name: RedFox Guide, or one of the alternatives?
+- The config app's name (on hold while Matt looks at alternatives to "Workshop").
 - Welcome and Bazzite Portal: keep "run after Portal", or turn Portal off for RedFox users?
