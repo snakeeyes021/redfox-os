@@ -109,6 +109,7 @@ Any order works for 2–5 and for 8–9.
   - `layout-redfox.png`, `layout-ubuntu.png`, `layout-ubuntu-overview.png`, `layout-cal.png`, `layout-wash.png`, `layout-nostalgia.png`.
 
   VM-tested after the rename (2026-11-03): all six `preset-dock-*` recipes switch live, the old recipe names and ids are gone, and there are no shell errors.
+- **Known issue, waiting on Matt:** in the Ubuntu layout, a 1 px lighter line runs along the top and sides of the dock, where it meets the top bar (`ubuntu-dock-corner-before.png`). It comes from Blur my Shell's Dash to Dock blur reaching a pixel past the dock's background. Matt is tuning Blur my Shell by hand in `redfox-test`; the settings he lands on go into the Ubuntu preset on this branch.
 - **Needs:** smooth-overview `harden`.
 
 ## 7. `feat/redfox-rollback-helper`
