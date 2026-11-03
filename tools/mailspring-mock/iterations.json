@@ -19,5 +19,15 @@
     "commit": "b1cb88d",
     "changed": "The header bar is libadwaita's height, and its part over the folder sidebar takes the sidebar colour. The window buttons are in GNOME's order (minimise, maximise, close). Plain-text mail shows in Adwaita Sans instead of monospace, and the open message's subject is a bold page title.",
     "gaps": "Faint lines still run between threads (another element draws them). The thread list has no header of its own (\"Inbox \u00b7 5 unread\"). Reply and forward sit in the message card, not the header bar. There's Mailspring's contact panel on the right, and no avatars. The search field and these layout points are Mailspring's own and can't change with a stylesheet."
+  },
+  {
+    "id": "v4",
+    "date": "2026-11-03",
+    "commit": "367e014",
+    "changed": "Window buttons now follow GNOME's button-layout setting live: side, which buttons and order. This is done by a small companion plugin that reads the setting through the desktop portal. Tested with right, left, close-only on either side, and none.",
+    "gaps": "Plugin evaluation in docs/mailspring-adwaita.md. Reply/Forward in the header bar and initials avatars are feasible with a plugin, through supported slots. A thread-list header would be fragile. Row heights, the split header layout, window corners and native menus can't change.",
+    "extra": {
+      "Button layouts tested (screenshot)": "v4-button-layouts.png"
+    }
   }
 ]
