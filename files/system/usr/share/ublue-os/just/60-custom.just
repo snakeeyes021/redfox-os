@@ -406,31 +406,31 @@ default-app-grid:
 # Each preset applies live through `redfox-layout` (see `redfox-layout list`);
 # no logout needed. Switching presets resets the dock/panel settings first.
 
-# Layout preset: Ubuntu (full-height dock on the left)
-preset-dock-ubuntu:
-    redfox-layout set ubuntu
+# Layout preset: RedFox (floating dock on big screens, GNOME dash on small ones)
+preset-dock-redfox GAP="8":
+    redfox-layout set redfox
+    gsettings set org.gnome.shell.extensions.redfox-layouts floating-dock-gap {{ GAP }}
 
 # Layout preset: GNOME (no dock; the dash lives in the overview)
 preset-dock-gnome:
     redfox-layout set gnome
 
-# Layout preset: Windows classic (one bottom taskbar, start menu and apps on the left)
-preset-dock-win-classic:
-    redfox-layout set windows-classic
+# Layout preset: Ubuntu (full-height dock on the left)
+preset-dock-ubuntu:
+    redfox-layout set ubuntu
 
-# Layout preset: Windows 11 style (one bottom taskbar, start menu and apps centred)
-preset-dock-win-new:
-    redfox-layout set windows
-
-# Layout preset: macOS (floating bottom dock, window buttons on the left)
-preset-dock-macos GAP="8":
-    redfox-layout set macos
+# Layout preset: Cal (floating dock along the bottom, window buttons on the left)
+preset-dock-cal GAP="8":
+    redfox-layout set cal
     gsettings set org.gnome.shell.extensions.redfox-layouts floating-dock-gap {{ GAP }}
 
-# Layout preset: RedFox (floating dock on big screens, GNOME dash on small ones)
-preset-dock-redfox GAP="8":
-    redfox-layout set redfox
-    gsettings set org.gnome.shell.extensions.redfox-layouts floating-dock-gap {{ GAP }}
+# Layout preset: Wash (one taskbar along the bottom, start menu and apps centred)
+preset-dock-wash:
+    redfox-layout set wash
+
+# Layout preset: Nostalgia (one taskbar along the bottom, start menu and apps on the left)
+preset-dock-nostalgia:
+    redfox-layout set nostalgia
 
 # Hardware Atoms
 fix-oryp9-mouse:

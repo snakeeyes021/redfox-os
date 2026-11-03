@@ -38,4 +38,5 @@
 <circle cx="204" cy="143.0" r="1.6" fill="#ffffff" opacity="0.85"/>
 <rect x="212" y="141.5" width="20" height="3" rx="1.5" fill="#ffffff" opacity="0.85"/>
 </g>
+<rect x="0.5" y="0.5" width="239" height="149" rx="5.5" fill="none" stroke="#000006" stroke-opacity="0.15"/>
 </svg>

@@ -87,9 +87,9 @@ def panel_elements(*elements):
     return [{"element": e, "visible": v, "position": p} for e, v, p in elements]
 
 
-# Windows 10: start button and pinned/running apps from the left; on the
+# Nostalgia (like Windows 10): start button and pinned/running apps from the left; on the
 # right the tray, the status icons, then the clock, as Windows has them.
-WINDOWS_CLASSIC_ELEMENTS = panel_elements(
+NOSTALGIA_ELEMENTS = panel_elements(
     ("showAppsButton", False, "stackedTL"),
     ("activitiesButton", False, "stackedTL"),
     ("leftBox", True, "stackedTL"),
@@ -101,8 +101,8 @@ WINDOWS_CLASSIC_ELEMENTS = panel_elements(
     ("desktopButton", True, "stackedBR"),
 )
 
-# Windows 11: start button and apps centred together.
-WINDOWS_ELEMENTS = panel_elements(
+# Wash (like Windows 11): start button and apps centred together.
+WASH_ELEMENTS = panel_elements(
     ("showAppsButton", False, "stackedTL"),
     ("activitiesButton", False, "stackedTL"),
     ("leftBox", True, "centerMonitor"),
@@ -146,7 +146,23 @@ def dash_to_panel(elements, **extra):
     }
 
 
+# In the order a layout picker shows them: RedFox's own first, then the
+# open-source desktops, then the ones modelled on other systems.
 LAYOUTS = {
+    "redfox": {
+        "title": "RedFox",
+        "description": "A floating dock on the left on big screens; the GNOME dash on small ones.",
+        "extensions": [SMOOTH_OVERVIEW],
+        # Dash to Dock is turned on and off by the helper extension.
+        "auto_dock": True,
+        "settings": {
+            DTD: {
+                "extend-height": False,
+                "disable-overview-on-startup": False,
+            },
+            RFL: {"floating-dock": True, "auto-dock": True},
+        },
+    },
     "gnome": {
         "title": "GNOME",
         "description": "Plain GNOME: the top bar, with the dash in the overview.",
@@ -164,8 +180,8 @@ LAYOUTS = {
             BMS_PANEL: {"unblur-in-overview": False},
         },
     },
-    "macos": {
-        "title": "macOS",
+    "cal": {
+        "title": "Cal",
         "description": "A floating dock along the bottom, window buttons on the left.",
         "extensions": [DASH_TO_DOCK, SMOOTH_OVERVIEW],
         "settings": {
@@ -181,38 +197,24 @@ LAYOUTS = {
             WM: {"button-layout": BUTTONS_MAC},
         },
     },
-    "windows-classic": {
-        "title": "Windows (classic)",
-        "description": "One taskbar along the bottom: start menu and apps on the left, clock on the right.",
-        "extensions": [DASH_TO_PANEL, ARCMENU],
-        "settings": {
-            **dash_to_panel(WINDOWS_CLASSIC_ELEMENTS),
-            ARC: {"menu-layout": "windows", **ARC_BUTTON},
-            WM: {"button-layout": BUTTONS_RIGHT},
-        },
-    },
-    "windows": {
-        "title": "Windows",
+    "wash": {
+        "title": "Wash",
         "description": "One taskbar along the bottom with the start menu and apps centred.",
         "extensions": [DASH_TO_PANEL, ARCMENU],
         "settings": {
-            **dash_to_panel(WINDOWS_ELEMENTS),
+            **dash_to_panel(WASH_ELEMENTS),
             ARC: {"menu-layout": "11", **ARC_BUTTON},
             WM: {"button-layout": BUTTONS_RIGHT},
         },
     },
-    "redfox": {
-        "title": "RedFox",
-        "description": "A floating dock on the left on big screens; the GNOME dash on small ones.",
-        "extensions": [SMOOTH_OVERVIEW],
-        # Dash to Dock is turned on and off by the helper extension.
-        "auto_dock": True,
+    "nostalgia": {
+        "title": "Nostalgia",
+        "description": "One taskbar along the bottom: start menu and apps on the left, clock on the right.",
+        "extensions": [DASH_TO_PANEL, ARCMENU],
         "settings": {
-            DTD: {
-                "extend-height": False,
-                "disable-overview-on-startup": False,
-            },
-            RFL: {"floating-dock": True, "auto-dock": True},
+            **dash_to_panel(NOSTALGIA_ELEMENTS),
+            ARC: {"menu-layout": "windows", **ARC_BUTTON},
+            WM: {"button-layout": BUTTONS_RIGHT},
         },
     },
 }

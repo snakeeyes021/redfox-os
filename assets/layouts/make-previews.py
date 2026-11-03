@@ -3,7 +3,8 @@
 
     python3 assets/layouts/make-previews.py
 
-Writes assets/layouts/<layout id>.svg, one per layout in redfox-layout.
+Writes assets/layouts/<layout id>.svg, one per layout in redfox-layout, and
+picker.html, a mock-up of the layout picker that shows them.
 Each is a sketch, not a screenshot: wallpaper, bars, dock and one window,
 in the places that layout puts them.
 """
@@ -118,13 +119,21 @@ def overview_dash_hint():
             'stroke="#3d3d40" stroke-dasharray="2 2" stroke-width="0.8"/>']
 
 
+# In the order the layout picker shows them, with the names and one-line
+# descriptions people see (the same as redfox-layout's).
 LAYOUTS = {
-    "gnome": lambda: [*top_bar(), *window(48, 30, 144, 86), *overview_dash_hint()],
-    "ubuntu": lambda: [*top_bar(), *side_dock(False), *window(56, 28, 140, 88)],
-    "macos": lambda: [*top_bar(), *window(48, 22, 144, 84, "left"), *bottom_dock()],
-    "windows-classic": lambda: [*window(46, 18, 148, 92), *taskbar(False)],
-    "windows": lambda: [*window(46, 18, 148, 92), *taskbar(True)],
-    "redfox": lambda: [*top_bar(), *side_dock(True), *window(56, 28, 140, 88, "close-left")],
+    "redfox": ("RedFox", "A floating dock on big screens; the GNOME dash on small ones.",
+               lambda: [*top_bar(), *side_dock(True), *window(56, 28, 140, 88, "close-left")]),
+    "gnome": ("GNOME", "Plain GNOME: the top bar, with the dash in the overview.",
+              lambda: [*top_bar(), *window(48, 30, 144, 86), *overview_dash_hint()]),
+    "ubuntu": ("Ubuntu", "A full-height dock on the left, always visible.",
+               lambda: [*top_bar(), *side_dock(False), *window(56, 28, 140, 88)]),
+    "cal": ("Cal", "A floating dock along the bottom, window buttons on the left.",
+            lambda: [*top_bar(), *window(48, 22, 144, 84, "left"), *bottom_dock()]),
+    "wash": ("Wash", "One taskbar along the bottom with the start menu and apps centred.",
+             lambda: [*window(46, 18, 148, 92), *taskbar(True)]),
+    "nostalgia": ("Nostalgia", "One taskbar along the bottom: start menu and apps on the left.",
+                  lambda: [*window(46, 18, 148, 92), *taskbar(False)]),
 }
 
 DEFS = """<defs>
@@ -134,17 +143,66 @@ DEFS = """<defs>
 </defs>"""
 
 
+# A very light hairline round the picture, so previews with bars at the top,
+# the bottom or the side still read as the same size and in line.
+BORDER = (f'<rect x="0.5" y="0.5" width="{W - 1}" height="{H - 1}" rx="5.5" '
+          'fill="none" stroke="#000006" stroke-opacity="0.15"/>')
+
+
 def svg(parts):
     body = "\n".join(parts)
     return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}">\n'
-            f'{DEFS}\n<g clip-path="url(#screen)">\n{body}\n</g>\n</svg>\n')
+            f'{DEFS}\n<g clip-path="url(#screen)">\n{body}\n</g>\n{BORDER}\n</svg>\n')
+
+
+# A mock-up of the picker, to try the look in a browser: three across, the
+# border on the picture only, and a shadow and lift on hover.
+PICKER = """<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RedFox layouts</title>
+<style>
+  body {{ margin: 0; padding: 32px; background: #fafafb; color: #323233;
+         font-family: "Adwaita Sans", Cantarell, "Noto Sans", sans-serif; }}
+  h1 {{ font-size: 20px; font-weight: 700; margin: 0 0 24px; }}
+  .grid {{ display: grid; grid-template-columns: repeat(3, minmax(0, 260px)); gap: 28px 24px; }}
+  @media (max-width: 760px) {{ .grid {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }} body {{ padding: 16px; }} }}
+  .card {{ cursor: pointer; border-radius: 12px; padding: 6px; }}
+  .card img {{ display: block; width: 100%; height: auto; border-radius: 6px;
+              transition: transform 160ms ease, box-shadow 160ms ease; }}
+  .card:hover img, .card:focus img {{ transform: translateY(-3px) scale(1.03);
+              box-shadow: 0 6px 18px rgba(0, 0, 6, 0.22); }}
+  .card.selected img {{ outline: 3px solid #3584e4; outline-offset: 3px; }}
+  .name {{ font-weight: 700; margin: 10px 2px 2px; }}
+  .desc {{ font-size: 13px; color: rgba(50, 50, 51, 0.65); margin: 0 2px; }}
+</style></head><body>
+<h1>Layout</h1>
+<div class="grid">
+{cards}
+</div>
+<script>
+  for (const c of document.querySelectorAll('.card'))
+    c.addEventListener('click', () => {{
+      document.querySelectorAll('.card').forEach(x => x.classList.remove('selected'));
+      c.classList.add('selected');
+    }});
+</script>
+</body></html>
+"""
 
 
 def main():
-    for layout, draw in LAYOUTS.items():
+    cards = []
+    for layout, (name, description, draw) in LAYOUTS.items():
         with open(os.path.join(HERE, f"{layout}.svg"), "w") as f:
             f.write(svg([*wallpaper(), *draw()]))
         print(f"wrote assets/layouts/{layout}.svg")
+        selected = " selected" if layout == "redfox" else ""
+        cards.append(f'<div class="card{selected}" tabindex="0"><img src="{layout}.svg" alt="">'
+                     f'<div class="name">{name}</div><div class="desc">{description}</div></div>')
+    with open(os.path.join(HERE, "picker.html"), "w") as f:
+        f.write(PICKER.format(cards="\n".join(cards)))
+    print("wrote assets/layouts/picker.html")
 
 
 if __name__ == "__main__":
