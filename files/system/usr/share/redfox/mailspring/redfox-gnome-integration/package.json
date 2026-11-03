@@ -2,7 +2,7 @@
   "name": "redfox-gnome-integration",
   "displayName": "RedFox GNOME integration",
   "version": "1.0.0",
-  "description": "Follows GNOME's window-button layout (which side, which buttons, in what order) and adds Reply, Reply all and Forward to the header bar. Made for RedFoxOS, alongside the RedFox Adwaita themes.",
+  "description": "Follows GNOME's window-button layout (which side, which buttons, in what order), adds Reply, Reply all and Forward to the header bar, and gives the theme GNOME's Adwaita icons. Made for RedFoxOS, alongside the RedFox Adwaita themes.",
   "main": "./lib/main",
   "license": "Apache-2.0",
   "engines": {

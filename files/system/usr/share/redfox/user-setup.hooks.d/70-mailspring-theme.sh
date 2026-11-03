@@ -24,6 +24,7 @@ for variant in light dark; do
     cp -r "$SRC/$name/." "$stage/"
     cp "$SRC/adwaita-variables.less" "$stage/styles/adwaita-variables.inc"
     cp "$SRC/adwaita.less" "$stage/styles/adwaita.less"
+    cp "$SRC/adwaita-icons.less" "$stage/styles/adwaita-icons.less"
     cp "$SRC/email-frame.less" "$stage/styles/email-frame.less"
     rm -rf "$DIR/packages/$name"
     mv "$stage" "$DIR/packages/$name"
