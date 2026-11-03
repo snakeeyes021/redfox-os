@@ -102,6 +102,7 @@ Pages in the style of GNOME Settings:
 - **Desktop.** Window buttons (`set-window-controls-*`), app grid sorting, tiling presets, square corners, sound theme, XWayland scaling. These are today's "UI/UX atoms", each a switch or a combo row that calls its recipe.
 - **Services.** Tailscale, NordVPN, weekly ClamAV scans and swap, each with on/off and status.
 - **This machine.** Hostname and hardware quirks, read from the `machines:` section of the config.
+- **MIDI archive.** A "MIDI archive folder" row with a folder chooser: it writes `data_dir` to `~/.config/midikeep/config.yaml` (shared with Pianola) and restarts the `midikeep` user service (`midikeep-daemon`).
 - **Setup profile.** Matt, Dewy or someone else (later "plain Fedora"). This picks the defaults that Apps pre-ticks, mirroring the `bootstrap-*` organisms without running them blind.
 - **Config file.** View, import, export, or open `config.yaml` in an editor, with secrets masked. How secrets are stored and edited is the open secrets/config question, so this page waits for that.
 

@@ -174,6 +174,7 @@
 Move RedFox's own tooling into one GUI Flatpak app, like Thirties and Pianola already are (`tech.redfoxlabs.*`):
 - [ ] **Welcome:** a short, cheerful tour of RedFoxOS at first login, in the spirit of GNOME Tour, ending in links to Apps, Settings and the Manual. Runs after Bazzite Portal; a first-login step fetches Hub.
 - [ ] **Settings:** a front end to `redfox-config` / `config.yaml` and RedFox's settings, services and actions (see the setup-GUIs item in Fixups), including the layout picker with the RedFox layout names and previews.
+    - [ ] **"MIDI archive folder" setting:** today the only way to move Midikeep's archive is a `data_dir:` line in `~/.config/midikeep/config.yaml`. Add a row with a folder chooser that writes `data_dir` to that file and restarts the `midikeep` user service (`midikeep-daemon`). Pianola should get the same in its preferences, since it reads the same file (on Pianola's backlog).
 - [ ] **Apps:** a checklist of software and bundles (the `install-*` packs); tick and it installs them.
 - [ ] **Manual:** a very short help guide, only for where RedFoxOS differs from mainline Linux (it's immutable) or from other immutable distros (the conveniences and tools we chose). For example: "I want to install a Flatpak / a CLI tool, what do I do?", "My collaborators and I need identical dev setups with a specific Node version", "I need a Python environment; what are my options?" (uv, and whatever else we provide).
 
