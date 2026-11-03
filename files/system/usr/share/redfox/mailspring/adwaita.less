@@ -189,6 +189,18 @@ body.is-blurred .list-container .list-item.focused {
   font-weight: 800;
 }
 
+// The companion plugin's Reply / Reply all / Forward group in the message
+// pane's header bar. (Mailspring decides the order inside its plugin slot.)
+.sheet-toolbar .redfox-reply-buttons {
+  display: inline-flex;
+  margin: 0 6px;
+}
+// Mailspring's toolbar arrows are drawn larger than its other toolbar icons;
+// scale them to match.
+.sheet-toolbar .redfox-reply-button img.content-mask {
+  zoom: 0.62;
+}
+
 // Folder sidebar: rounded pills with a little space round them.
 .outline-view .item {
   margin: 1px 6px;

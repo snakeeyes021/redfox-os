@@ -17,7 +17,7 @@ Mailspring loads JavaScript packages from its `packages` folder (no developer mo
 | Gap | Plugin? | Notes |
 | --- | --- | --- |
 | Window buttons follow GNOME's layout | **Done** (v4) | Reads `org.gnome.desktop.wm.preferences button-layout` through `org.freedesktop.portal.Settings`, and watches its `SettingChanged` signal. Tested with right, left, close-only on either side, and none. |
-| Reply / Reply all / Forward in the header bar | Feasible, small | The thread toolbar has a slot for plugin buttons (`ThreadActionsToolbarButton`), as archive and trash use. The buttons call Mailspring's own actions. |
+| Reply / Reply all / Forward in the header bar | **Done** (v5) | Registered in Mailspring's thread-toolbar slot for plugins (`ThreadActionsToolbarButton`, the one archive and trash use), calling Mailspring's own `composeReply` / `composeForward`. Mailspring decides the order inside that slot, so the group sits after its own buttons, not first. |
 | Avatars in message headers | Feasible, medium | The `MessageHeader` and `message:BodyHeader` slots take components. Initials avatars are easy; photos would need a contacts source. |
 | A thread-list header ("Inbox · 5 unread") | Possible but fragile | There's no slot for it, so it would mean adding DOM nodes by hand, which a Mailspring update can break. |
 | The contact panel on the right | Already a setting | Mailspring can hide its sidebar; CSS could too. It's a feature, so we leave the choice to the user. |
@@ -26,4 +26,16 @@ Mailspring loads JavaScript packages from its `packages` folder (no developer mo
 
 **Costs of plugins:** plugins run with Mailspring's own access, and they use Mailspring's internal APIs, which can change between releases. Each one needs re-testing when Mailspring updates. The button-layout plugin is deliberately small, under 100 lines, with no React, only styles. If it ever breaks, Mailspring keeps the theme's default (right, GNOME order).
 
-**Recommendation:** keep the button-layout plugin. Add the Reply/Forward header buttons next, since they're small and use a supported slot. Skip the fragile ones.
+**How the button layout is read:**
+- **Inside the Flatpak, through the Settings portal**, the way GTK apps do: `org.freedesktop.portal.Settings` exposes `org.gnome.desktop.wm.preferences button-layout`, and the plugin watches the portal's `SettingChanged` signal, so changes apply live.
+- **Ruled out:** the alternatives were a login hook writing a generated stylesheet for the current layout, or a user service running `gsettings monitor` to regenerate it. They aren't needed now that the portal works, and they'd only apply at start-up unless Mailspring reloaded its theme.
+
+**Plugins and shared modules:** a plugin must take React and Mailspring's APIs from `mailspring-exports`. A plain `require('react')` doesn't resolve from a user package, and the error stops the whole plugin from loading.
+
+**Effort and risk:**
+- The plugin is about 150 lines of plain JavaScript in two files: button layout and Reply/Forward. It took about half a day, mostly testing.
+- It uses only documented plugin slots and actions (`ComponentRegistry`, `Actions`, `RetinaImg`). Those have been stable across Mailspring releases, but they're internal APIs, not a promised interface.
+- Each Mailspring update needs a quick check: buttons in place, Reply opens a draft.
+- If a release breaks the plugin, Mailspring logs "Failed to activate plugin" and carries on. The theme's defaults (buttons on the right, Mailspring's own reply controls) still work.
+
+**Recommendation:** keep both parts of the plugin. Initials avatars are the next cheap one, through a supported slot. Skip the thread-list header, which would need fragile DOM changes.

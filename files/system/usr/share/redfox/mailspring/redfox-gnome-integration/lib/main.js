@@ -1,9 +1,12 @@
-// RedFox GNOME integration for Mailspring: put the window buttons where GNOME's
+// RedFox GNOME integration for Mailspring. Adds Reply / Reply all / Forward to
+// the message pane's header bar (./reply-buttons.js), and puts the window buttons where GNOME's
 // "button-layout" setting says (org.gnome.desktop.wm.preferences), the way GTK
 // apps do. Mailspring runs in a Flatpak, so the setting is read through the
 // desktop portal (org.freedesktop.portal.Settings), and changes are followed
 // live by watching the portal's SettingChanged signal.
 const { execFile, spawn } = require('child_process');
+const { ComponentRegistry } = require('mailspring-exports');
+const RedFoxReplyButtons = require('./reply-buttons');
 
 const STYLE_ID = 'redfox-gnome-window-buttons';
 const BUTTON = 26; // a 20 px circle plus its margins, as the RedFox Adwaita theme draws them
@@ -84,8 +87,10 @@ module.exports = {
   activate() {
     read();
     watch();
+    ComponentRegistry.register(RedFoxReplyButtons, { role: 'ThreadActionsToolbarButton' });
   },
   deactivate() {
+    ComponentRegistry.unregister(RedFoxReplyButtons);
     if (monitor) monitor.kill();
     monitor = null;
     lastLayout = null;
