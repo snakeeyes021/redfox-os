@@ -6,11 +6,14 @@ set -oue pipefail
 echo "Installing smooth-overview extension from GitHub..."
 
 REPO_URL="https://github.com/snakeeyes021/smooth-overview"
+# Branch or tag to build from. Pin a release tag here so the image only
+# changes when we choose to update it.
+REF="main"
 TEMP_DIR="/tmp/smooth-overview"
 
 # 1. Clone the repository
-git clone --depth 1 "$REPO_URL" "$TEMP_DIR"
-rm -rf "$TEMP_DIR/.git"
+git clone --depth 1 --branch "$REF" "$REPO_URL" "$TEMP_DIR"
+rm -rf "$TEMP_DIR/.git" "$TEMP_DIR/README.md" "$TEMP_DIR/LICENSE"
 
 # 2. Extract UUID from metadata.json
 # We'll use a simple grep/sed to avoid dependency on jq if it's not present

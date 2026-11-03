@@ -1,0 +1,9 @@
+/* RedFox Layouts: GNOME Shell loads this with the extension. */
+
+/* Blur my Shell's dark dock style (.dark-dash, in its stylesheet.css) draws a
+ * 1 px white border round the dock's background. On a full-height dock (the
+ * Ubuntu layout) that shows as a thin line under the top bar and down both
+ * sides. Floating docks keep it: there it outlines the dock's rounded shape. */
+#dashtodockContainer.extended #dash .dash-background {
+    border-width: 0;
+}

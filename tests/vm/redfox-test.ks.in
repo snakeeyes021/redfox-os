@@ -1,0 +1,41 @@
+# Unattended install of Bazzite GNOME for the RedFox test VM.
+# create-vm.sh fills in @IMAGE@, @USER@, @PASSWORD@ and @SSHKEY@.
+text
+lang en_US.UTF-8
+keyboard us
+timezone America/New_York --utc
+network --bootproto=dhcp --device=link --activate --hostname=redfox-test
+
+zerombr
+clearpart --all --initlabel --disklabel=gpt
+autopart --type=btrfs --noswap
+
+ostreecontainer --url=@IMAGE@ --transport=registry --no-signature-verification
+
+rootpw --lock
+user --name=@USER@ --groups=wheel --password=@PASSWORD@ --plaintext
+sshkey --username=@USER@ "@SSHKEY@"
+
+firstboot --disable
+# Text-mode installs otherwise default to multi-user.target (no GDM).
+xconfig --startxonboot
+reboot
+
+%post --erroronfail
+# SSH with the key only, so the tests can drive the VM.
+systemctl enable sshd.service
+mkdir -p /etc/ssh/sshd_config.d
+printf 'PasswordAuthentication no\n' > /etc/ssh/sshd_config.d/50-redfox-test.conf
+
+# Log straight into GNOME so there is always a session to test against.
+mkdir -p /etc/gdm
+cat > /etc/gdm/custom.conf <<'GDM'
+[daemon]
+AutomaticLoginEnable=True
+AutomaticLogin=@USER@
+GDM
+
+# Passwordless sudo for the test user (test VM only).
+printf '@USER@ ALL=(ALL) NOPASSWD: ALL\n' > /etc/sudoers.d/50-redfox-test
+chmod 440 /etc/sudoers.d/50-redfox-test
+%end
