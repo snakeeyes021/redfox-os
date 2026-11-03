@@ -6,6 +6,11 @@
 # The themes are copied into Mailspring's own packages folder each login, so
 # fixes arrive with image updates. A light or dark theme the user picked in
 # Mailspring is left alone.
+#
+# Mailspring's contact panel (the column on the right of an open message)
+# starts hidden, as GNOME mail apps have none; the person button in the
+# header bar brings it back. Once the user has shown or hidden it, that
+# choice is kept.
 
 set -euo pipefail
 
@@ -59,11 +64,18 @@ for key, theme in (("lightThemeName", "ui-redfox-adwaita-light"), ("darkThemeNam
     if key not in appearance:
         appearance[key] = theme
         changed = True
+# Hide the contact panel, unless the user has already shown or hidden
+# something: Mailspring writes hiddenLocations whenever its toggle is used.
+workspace = config["*"]["core"].setdefault("workspace", {})
+if "hiddenLocations" not in workspace:
+    workspace["hiddenLocations"] = {
+        "MessageListSidebar": {"id": "MessageListSidebar", "Toolbar": {"id": "MessageListSidebar:Toolbar"}}}
+    changed = True
 if changed:
     tmp = path + ".redfox-tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(config, f, indent=2)
         f.write("\n")
     os.replace(tmp, path)
-    print("Mailspring's automatic theme now uses RedFox Adwaita Light and Dark.")
+    print("Mailspring's settings now use RedFox Adwaita Light and Dark, and hide the contact panel.")
 PY

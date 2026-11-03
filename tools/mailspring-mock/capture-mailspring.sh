@@ -27,6 +27,10 @@ case "${MODE}" in
     *) echo "mode is vanilla or redfox" >&2; exit 1 ;;
 esac
 
+# MAILSPRING_ARGS adds arguments to Mailspring's command line, e.g.
+# --remote-debugging-port=9222 to measure the window over DevTools afterwards.
+ARGS="${MAILSPRING_ARGS:-}"
+
 # GreenMail keeps mail in memory, so refill the fake inbox after a restart.
 # FRESH=1 restarts it first, to replace whatever is there.
 [ "${FRESH:-0}" = 1 ] && "${VM}" ssh 'sudo podman restart greenmail >/dev/null'
@@ -66,7 +70,7 @@ core.pop('theme', None)  # Automatic: follow GNOME's light/dark setting
 json.dump(c, open(p, 'w'), indent=2)
 PY
 gsettings set org.gnome.desktop.interface color-scheme default
-(nohup flatpak run com.getmailspring.Mailspring >/dev/null 2>&1 &); sleep 15
+(nohup flatpak run com.getmailspring.Mailspring ${ARGS} >/dev/null 2>&1 &); sleep 15
 (nohup flatpak run com.getmailspring.Mailspring >/dev/null 2>&1 &); sleep 4"
 
 # Put Mailspring's window at a fixed place and size, and raise it.
