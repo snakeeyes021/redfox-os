@@ -98,7 +98,7 @@ Any order works for 2–5 and for 8–9.
   - SVG previews for RedFox Hub's layout picker, with a light border round each picture, and `assets/layouts/picker.html`, a mock-up of the picker with a hover lift.
   - The VM testbed in `tests/vm/`.
 - **Compare:** https://github.com/snakeeyes021/redfox-os/compare/unstable...feat/layout-modes
-- **Commits:** 16.
+- **Commits:** 17.
 - **Look at:**
   - `files/system/usr/bin/redfox-layout`
   - `files/system/usr/share/gnome-shell/extensions/redfox-layouts@redfoxlabs.tech/extension.js`
@@ -109,7 +109,7 @@ Any order works for 2–5 and for 8–9.
   - `layout-redfox.png`, `layout-ubuntu.png`, `layout-ubuntu-overview.png`, `layout-cal.png`, `layout-wash.png`, `layout-nostalgia.png`.
 
   VM-tested after the rename (2026-11-03): all six `preset-dock-*` recipes switch live, the old recipe names and ids are gone, and there are no shell errors.
-- **Known issue, waiting on Matt:** in the Ubuntu layout, a 1 px lighter line runs along the top and sides of the dock, where it meets the top bar (`ubuntu-dock-corner-before.png`). It comes from Blur my Shell's Dash to Dock blur reaching a pixel past the dock's background. Matt is tuning Blur my Shell by hand in `redfox-test`; the settings he lands on go into the Ubuntu preset on this branch.
+- **Ubuntu dock line, fixed:** the thin line between the dock and the top bar (and down the dock's sides) was a 1 px border from Blur my Shell's dark dock style (`.dark-dash` in its `stylesheet.css`). The helper extension's new `stylesheet.css` removes it on full-height docks only; floating docks keep it as their outline. Checked on the desktop, in the overview, on hover and after switching layouts. Shots: `ubuntu-dock-corner-before-after.png`.
 - **Needs:** smooth-overview `harden`.
 
 ## 7. `feat/redfox-rollback-helper`
