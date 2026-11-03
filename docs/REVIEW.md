@@ -75,13 +75,13 @@ Any order works for 2–5 and for 8–9.
   - the `configure-autostart-tray` recipe in `60-custom.just`
 - **Screenshot:** `boot-tray-v2.png`.
 
-## 5. `feat/branding`
+## 5. `feat/branding` (merged)
 
 - **What it does:**
   - RedFoxOS everywhere a person sees the OS name: About, GRUB, the login screen, the boot splash, the terminal welcome message, fastfetch and the Starship prompt.
   - The drawn nine-tailed fox for fastfetch, and the swirl symbolic icon.
   - The system still identifies itself as `bazzite` (`ID=bazzite`) on purpose; `docs/branding.md` explains why.
-- **On hold:** Matt is asking about `ID=bazzite` first.
+- **Merged** 2026-11-03 (224c464), approved as it is. The os-release `ID` change is its own follow-up, `feat/redfox-os-identity` (below).
 - **Compare:** https://github.com/snakeeyes021/redfox-os/compare/unstable...feat/branding
 - **Commits:** 8.
 - **Look at:** `docs/branding.md`, `files/scripts/branding.sh`, `assets/branding/make-marks.py`, `files/system/usr/share/ublue-os/bazzite/fastfetch.jsonc`.
@@ -166,6 +166,15 @@ Any order works for 2–5 and for 8–9.
   - An entry whose app is missing gets no login service and is hidden from the app grid.
   - Joplin's own entry still loads.
 - **Check:** whether to keep FreeRDP for other remote-desktop uses. It's one line to put back.
+
+
+## 11. `feat/redfox-os-identity` (follow-up to 5, in progress)
+
+- **Plan:** os-release `ID=redfox` and `ID_LIKE="bazzite fedora"`. Audit every script and unit in the image that reads `ID` or `image-info.json`, and patch or retire each one. Tested in the VM from a fresh first boot and from a rebase.
+- **Findings so far, from the running image:**
+  - Bazzite's scripts, services and ujust recipes read `image-info.json` (image name and base image), not `ID`.
+  - The `ID` readers are cosmetic (`lsb_release`, the shell prompt) or no-ops (`grub2-mkconfig`'s EFI-path check).
+  - topgrade falls back to `ID_LIKE`, so it keeps running `rpm-ostree upgrade`.
 
 ---
 
