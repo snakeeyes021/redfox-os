@@ -70,6 +70,11 @@ if [ -f "$IMAGE_INFO" ]; then
     cat "$IMAGE_INFO"
 fi
 
+# --- Bazzite's hardware setup renames a machine whose hostname is over 20
+# characters to "bazzite" (for Distrobox); make that "redfox". ---
+sed -i 's/hostnamectl set-hostname bazzite$/hostnamectl set-hostname redfox/' /usr/libexec/bazzite-hardware-setup
+grep -q 'set-hostname redfox' /usr/libexec/bazzite-hardware-setup || echo "branding: bazzite-hardware-setup's hostname fallback wasn't found"
+
 # --- Terminal banner: Bazzite's tips (gaming, and links to Bazzite's docs);
 # RedFox ships its own in tips/20-redfox.md ---
 rm -f /usr/share/ublue-os/motd/tips/10-ublue.md /usr/share/ublue-os/motd/tips/20-bazzite.md \
