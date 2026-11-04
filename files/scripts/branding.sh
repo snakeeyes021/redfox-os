@@ -68,6 +68,11 @@ fi
 # RedFox ships its own in tips/20-redfox.md ---
 rm -f /usr/share/ublue-os/motd/tips/10-ublue.md /usr/share/ublue-os/motd/tips/20-bazzite.md \
       /usr/share/ublue-os/motd/tips/sv/10-ublue.md /usr/share/ublue-os/motd/tips/sv/20-bazzite.md
+# Swedish locales get Bazzite's own banner (its name and its issue, docs,
+# Discord and Bluesky links). RedFox has no Swedish one, so they get ours.
+if [ -f /usr/share/ublue-os/motd/template.sv.md ]; then
+    ln -sf template.md /usr/share/ublue-os/motd/template.sv.md
+fi
 
 # --- Icons: pick up redfox-logo ---
 gtk-update-icon-cache -f -t /usr/share/icons/hicolor || true
