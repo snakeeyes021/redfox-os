@@ -74,6 +74,29 @@ if [ -f /usr/share/ublue-os/motd/template.sv.md ]; then
     ln -sf template.md /usr/share/ublue-os/motd/template.sv.md
 fi
 
+# --- Wallpapers: Bazzite's and Universal Blue's (Steam Deck logos, VGUI2,
+# Troll, Bazzite blue and glass, uBlue, convergence, giants, penguins). The
+# GNOME and Fedora ones, which come from their packages, stay. RedFox's own
+# entry is 00-redfox.xml so it sorts first. ---
+for xml in /usr/share/gnome-background-properties/*.xml; do
+    [ -e "$xml" ] || continue
+    case "$(basename "$xml")" in 00-redfox.xml) continue ;; esac
+    rpm -qf "$xml" >/dev/null 2>&1 && ! rpm -qf "$xml" | grep -q '^steamdeck-backgrounds' && continue
+    rm -f -- "$xml"
+done
+rm -rf -- /usr/share/backgrounds/steamdeck
+rm -f -- /usr/share/backgrounds/bazzite-blue.png /usr/share/backgrounds/bazzite-glass.png \
+      /usr/share/backgrounds/ublue.png /usr/share/backgrounds/giants.jxl \
+      /usr/share/backgrounds/penguins.jxl /usr/share/backgrounds/convergence-dynamic.xml
+rm -rf -- /usr/share/backgrounds/convergence
+echo "Wallpapers in the picker:"
+ls /usr/share/gnome-background-properties/
+
+# --- Login notifications: Bazzite's announcements (Fcitx5 on Bazzite,
+# Sunshine through Brew, ...). The mechanism stays for RedFox's own later;
+# Bazzite's messages go. ---
+rm -f -- /usr/share/ublue-os/announcements/*.msg.json
+
 # --- Icons: pick up redfox-logo ---
 gtk-update-icon-cache -f -t /usr/share/icons/hicolor || true
 

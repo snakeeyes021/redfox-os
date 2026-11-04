@@ -9,7 +9,7 @@ RedFoxOS's default wallpaper pair is by **Paweł Czerwiński** ([@pawel_czerwins
 | `background-l.jpg` (light) | [Pastel ink clouds in water](https://unsplash.com/photos/pastel-ink-clouds-in-water-XQqd6JKDkSM) | 2021-05-02 | Cropped to 16:9 (5120×2880) from the top of the photo |
 | `background-d.jpg` (dark) | [Pink and blue abstract painting](https://unsplash.com/photos/pink-and-blue-abstract-painting-sxaYEsE12RM) | 2021-05-08 | As published (5429×3619) |
 
-The files are in `files/system/usr/share/backgrounds/redfox/`. A copy of these credits is in `CREDITS` there, and the artist and licence are also in the wallpaper's entry in `files/system/usr/share/gnome-background-properties/redfox.xml`.
+The files are in `files/system/usr/share/backgrounds/redfox/`. A copy of these credits is in `CREDITS` there, and the artist and licence are also in the wallpaper's entry in `files/system/usr/share/gnome-background-properties/00-redfox.xml`.
 
 ### How they were identified
 
