@@ -99,17 +99,35 @@ The packs from the catalog, one group each, with each app's icon, name, a line o
 
 ## Manual
 
-A very short guide, only where RedFoxOS differs from ordinary Linux (it's immutable) or from other immutable systems (the tools RedFox chose). It's a searchable list of short pages, with commands in monospace boxes that have a copy button. A first set of pages:
+A very short guide, only where RedFoxOS differs from ordinary Linux (it's immutable) or from other immutable systems (the tools RedFox chose). It's a searchable list of short pages, with commands in monospace boxes that have a copy button. The first set of pages (on `feat/hub-manual`):
 
-- How RedFoxOS works: the image, updates, rolling back, `unstable` versus stable.
+- How RedFoxOS works: the image, what's yours, the three images.
+- Updates and rolling back: automatic updates, restart to apply, the boot menu and Hub › Updates, `latest` versus `unstable`.
 - Installing apps: Bazaar/Flathub first, then Homebrew for CLI tools, then distrobox, and layering with `rpm-ostree` only as a last resort.
-- "My collaborators and I need identical dev setups with a specific Node version": dev containers (VS Code + Podman/Docker) or distrobox.
-- "I need a Python environment": uv (and pixi for conda-style projects), both preinstalled.
-- `ujust`: what it is and the recipes worth knowing.
+- Shared dev environments ("my collaborators and I need identical setups with a specific Node version"): dev containers (VS Code + Docker/Podman) or distrobox.
+- Python: uv, and pixi for conda-style projects, both preinstalled.
 - Layouts: switching, and what each one is.
 - Getting help: logs, and where to report a problem.
 
-The pages are Markdown files in this repo (`docs/manual/`), so they can be reviewed like code. Hub bundles them at build time, and the same files can be published on the RedFox website.
+There's no page about `ujust`: it's no longer part of what users are shown, and no page mentions it.
+
+### Files and format
+
+The pages ship in the image, in `files/system/usr/share/redfox/manual/` (so `/usr/share/redfox/manual/` on the machine), and are reviewed like code. Hub reads them from there; the same files can be published on the RedFox website.
+
+Each page is one file, `NN-slug.md`. `NN` (two digits) sets the order in the page list; the slug is the rest of the name, without `.md`, and is what links and `--page manual/<slug>` use.
+
+Hub renders a strict subset of Markdown, so use only this:
+
+- Line 1: `# Page title`. Then a blank line, then **one short sentence**: the page's summary, shown in the page list and in search.
+- `## Section` headings. No `###` or deeper.
+- Paragraphs, `-` bullet lists and `1.` numbered lists, one level only.
+- `**bold**`, `` `inline code` `` and links: `[text](https://...)` for the web, `[text](manual:slug)` for another Manual page, and `[text](hub:updates)`, `[text](hub:settings/layout)` or `[text](hub:apps)` for a Hub page.
+- Fenced code blocks marked ```` ```sh ````, holding commands the reader can copy: one command per line, with no prompt (`$`) and no output.
+
+Nothing else: no tables, images, HTML, nested lists or blockquotes.
+
+Keep to the differences: only where RedFoxOS differs from ordinary Linux or from other image-based systems. Each page should take under two minutes to read. Check every fact against the recipes and `files/`, and don't name a tool the image doesn't ship.
 
 ## Still to do
 
