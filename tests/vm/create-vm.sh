@@ -18,6 +18,8 @@ SSH_PORT="${VM_SSH_PORT:-2223}"
 MEMORY_MB="${VM_MEMORY_MB:-8192}"
 VCPUS="${VM_VCPUS:-6}"
 DISK_GB="${VM_DISK_GB:-80}"
+# 1: no autologin or passwordless sudo, as on a real install.
+FRESH="${VM_FRESH:-0}"
 KEY="${HOME}/.ssh/redfox-test"
 ISO="${1:-$(ls -1 "${HOME}"/Downloads/Fedora-Silverblue-ostree-x86_64-*.iso 2>/dev/null | sort -V | tail -n1)}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -49,6 +51,9 @@ sed -e "s|@IMAGE@|${IMAGE}|g" \
     -e "s|@PASSWORD@|${VM_PASSWORD}|g" \
     -e "s|@SSHKEY@|$(cat "${KEY}.pub")|g" \
     "${HERE}/redfox-test.ks.in" > "${WORK}/ks.cfg"
+if [ "${FRESH}" = 1 ]; then
+    sed -i "/^# begin test only/,/^# end test only/d" "${WORK}/ks.cfg"
+fi
 # Anaconda reads ks.cfg on its own from a volume labelled OEMDRV. The VM
 # keeps both CD drives afterwards, so this ISO lives next to its disk.
 OEMDRV="${HOME}/.local/share/libvirt/images/${NAME}-oemdrv.iso"
@@ -73,9 +78,17 @@ virt-install \
     --noautoconsole \
     --wait -1
 
-cat <<MSG
+if [ "${FRESH}" = 1 ]; then
+    cat <<MSG
+Installed. The VM reboots to the login screen (${VM_USER}, password ${VM_PASSWORD}).
+  SSH:         VM_NAME=${NAME} VM_SSH_PORT=${SSH_PORT} VM_USER=root tests/vm/vm ssh (or VM_USER=${VM_USER})
+  Screenshot:  VM_NAME=${NAME} tests/vm/vm shot
+MSG
+else
+    cat <<MSG
 Installed. The VM reboots into Bazzite and logs in as ${VM_USER} automatically.
   SSH:         ssh -i ${KEY} -p ${SSH_PORT} ${VM_USER}@127.0.0.1
   Screenshot:  virsh -c qemu:///session screenshot ${NAME} /tmp/${NAME}.png
   GUI:         virt-manager, connection "QEMU/KVM User session"
 MSG
+fi

@@ -71,6 +71,20 @@ VM_NAME=redfox-bluefin VM_IMAGE=ghcr.io/ublue-os/bluefin:stable VM_SSH_PORT=2224
 VM_NAME=redfox-bluefin VM_SSH_PORT=2224 tests/vm/vm rebase-local
 ```
 
+
+### A fresh install, as a new user sees it
+
+`VM_FRESH=1` leaves out autologin and passwordless sudo. The account is like the one Bazzite's installer makes (in `wheel`, with a password), so first login goes through the login screen. Root can SSH in with the same key (`VM_USER=root tests/vm/vm ssh`), for system changes without a sudo password:
+
+```bash
+VM_NAME=redfox-fresh VM_IMAGE=ghcr.io/snakeeyes021/redfox-os:unstable VM_SSH_PORT=2225 \
+    VM_MEMORY_MB=6144 VM_FRESH=1 VM_USER=alex tests/vm/create-vm.sh
+```
+
+GNOME Initial Setup isn't part of this: Bazzite (and so RedFoxOS) doesn't ship `gnome-initial-setup`, and its installer creates the account instead. With no account at all, first boot stops at a login screen nobody can get past.
+
+Two things differ from a real install: the kickstart boots without `rhgb quiet`, so there is no boot splash (add them with `rpm-ostree kargs --append=rhgb --append=quiet`), and the image is tracked as `ostree-unverified-registry` rather than signed.
+
 ### Bluefin → RedFox (tested 2026-11-01)
 
 Bluefin stable (F44, GNOME 50.6), rebased onto a local build of `feat/layout-modes`:
