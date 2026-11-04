@@ -1,20 +1,14 @@
 """Settings: the layout picker, apps at login, and the MIDI archive."""
 
-import shutil
-
-from gi.repository import Adw, Gio, Gtk
+from gi.repository import Adw, Gio, GLib, Gtk
 
 from . import host
+from .paths import LAYOUTS
 from .window import Section
 
+# The layout helper extension's settings, read and written with the host's
+# gsettings (a Flatpak can't see the host's schemas).
 RFL = "org.gnome.shell.extensions.redfox-layouts"
-
-
-def settings_for(schema_id):
-    source = Gio.SettingsSchemaSource.get_default()
-    if source and source.lookup(schema_id, True):
-        return Gio.Settings.new(schema_id)
-    return None
 
 
 class SettingsSection(Section):
@@ -40,35 +34,36 @@ class SettingsSection(Section):
         self.login_rows = []
         page.add(self.login_group)
 
-        # Midikeep records everything played on a MIDI keyboard.
-        self.midi_row = None
-        if shutil.which("midikeep"):
-            midi = Adw.PreferencesGroup(
-                title="MIDI Archive",
-                description="Midikeep records everything you play on a MIDI keyboard. "
-                            "Pianola opens the same archive.")
-            self.midi_row = Adw.ActionRow(title="Archive Folder", subtitle="…")
-            self.midi_row.add_css_class("property")
-            choose = Gtk.Button(label="Choose…", valign=Gtk.Align.CENTER)
-            choose.connect("clicked", self._on_choose_midi)
-            self.midi_row.add_suffix(choose)
-            midi.add(self.midi_row)
-            page.add(midi)
+        # Midikeep records everything played on a MIDI keyboard. The group
+        # shows once `midikeep data-dir` answers.
+        self.midi_group = Adw.PreferencesGroup(
+            title="MIDI Archive", visible=False,
+            description="Midikeep records everything you play on a MIDI keyboard. "
+                        "Pianola opens the same archive.")
+        self.midi_row = Adw.ActionRow(title="Archive Folder", subtitle="…")
+        self.midi_row.add_css_class("property")
+        choose = Gtk.Button(label="Choose…", valign=Gtk.Align.CENTER)
+        choose.connect("clicked", self._on_choose_midi)
+        self.midi_row.add_suffix(choose)
+        self.midi_group.add(self.midi_row)
+        page.add(self.midi_group)
+        self.midi_dir = None
 
     def shown(self):
         host.run_json(["redfox-autostart", "list", "--json"], self._on_autostart)
-        if self.midi_row:
-            host.run_json(["midikeep", "data-dir", "--json"], self._on_midi)
+        host.run_json(["midikeep", "data-dir", "--json"], self._on_midi)
 
     # MIDI archive
 
     def _on_midi(self, data, error):
-        self.midi_row.set_subtitle(error or data["data_dir"])
-        self.midi_dir = None if error else data["data_dir"]
+        self.midi_group.set_visible(not error)
+        if not error:
+            self.midi_row.set_subtitle(data["data_dir"])
+            self.midi_dir = data["data_dir"]
 
     def _on_choose_midi(self, _button):
         dialog = Gtk.FileDialog(title="Choose the MIDI Archive Folder", modal=True)
-        if getattr(self, "midi_dir", None):
+        if self.midi_dir:
             dialog.set_initial_folder(Gio.File.new_for_path(self.midi_dir))
         dialog.select_folder(self.window, None, self._on_midi_chosen)
 
@@ -142,7 +137,7 @@ class LayoutCard(Gtk.FlowBoxChild):
         self.layout_id = layout["id"]
         self.add_css_class("layout-card")
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        picture = Gtk.Picture.new_for_filename(layout["preview"])
+        picture = Gtk.Picture.new_for_filename(str(LAYOUTS / f"{layout['id']}.svg"))
         picture.set_can_shrink(True)
         picture.set_content_fit(Gtk.ContentFit.CONTAIN)
         picture.set_size_request(160, 100)
@@ -194,28 +189,31 @@ class LayoutPage(Adw.NavigationPage):
             wrap=True, xalign=0)
         intro.add_css_class("dim-label")
 
-        self.rfl = settings_for(RFL)
-        options = Adw.PreferencesGroup(title="Floating Dock")
-        self.options = options
-        if self.rfl:
-            gap = Adw.SpinRow.new_with_range(0, 64, 1)
-            gap.set_title("Gap to the Screen Edge")
-            gap.set_subtitle("For the RedFox and Cal layouts, in pixels")
-            self.rfl.bind("floating-dock-gap", gap, "value", Gio.SettingsBindFlags.DEFAULT)
-            options.add(gap)
-            width = Adw.SpinRow.new_with_range(0, 10000, 10)
-            width.set_title("Dock on Screens at Least")
-            width.set_subtitle("The RedFox layout uses the plain GNOME dash on smaller "
-                               "screens. Logical pixels wide.")
-            self.rfl.bind("auto-dock-min-width", width, "value", Gio.SettingsBindFlags.DEFAULT)
-            options.add(width)
+        # Shown once the host's gsettings has answered for both keys.
+        self.options = Adw.PreferencesGroup(title="Floating Dock", visible=False)
+        self.option_rows = {}
+        self._pending = {}
+        for key, low, high, step, title, subtitle in (
+                ("floating-dock-gap", 0, 64, 1, "Gap to the Screen Edge",
+                 "For the RedFox and Cal layouts, in pixels"),
+                ("auto-dock-min-width", 0, 10000, 10, "Dock on Screens at Least",
+                 "The RedFox layout uses the plain GNOME dash on smaller screens. "
+                 "Logical pixels wide.")):
+            row = Adw.SpinRow.new_with_range(low, high, step)
+            row.set_title(title)
+            row.set_subtitle(subtitle)
+            row.set_sensitive(False)
+            row.connect("notify::value", self._on_option, key)
+            self.options.add(row)
+            self.option_rows[key] = row
+            host.run(["gsettings", "get", RFL, key],
+                     on_done=lambda rc, out, k=key: self._on_option_read(k, rc, out))
 
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18,
                       margin_top=24, margin_bottom=24, margin_start=12, margin_end=12)
         box.append(intro)
         box.append(self.flow)
-        if self.rfl:
-            box.append(options)
+        box.append(self.options)
         clamp = Adw.Clamp(maximum_size=820, child=box)
         scroller = Gtk.ScrolledWindow(child=clamp, hscrollbar_policy=Gtk.PolicyType.NEVER)
 
@@ -232,6 +230,32 @@ class LayoutPage(Adw.NavigationPage):
             breakpoint.add_setter(self.flow, "max-children-per-line", per_line)
             section.window.add_breakpoint(breakpoint)
         self.reload()
+
+    def _on_option_read(self, key, returncode, output):
+        row = self.option_rows[key]
+        try:
+            value = int(output.split()[-1])
+        except (ValueError, IndexError):
+            return
+        if returncode != 0:
+            return
+        row.set_value(value)
+        row.set_sensitive(True)
+        self.options.set_visible(True)
+
+    def _on_option(self, row, _param, key):
+        if not row.get_sensitive():
+            return  # still the value read from the host
+        # Write once the value has settled, not on every step of a drag.
+        if key in self._pending:
+            GLib.source_remove(self._pending[key])
+
+        def write():
+            self._pending.pop(key, None)
+            host.run(["gsettings", "set", RFL, key, str(int(row.get_value()))])
+            return GLib.SOURCE_REMOVE
+
+        self._pending[key] = GLib.timeout_add(400, write)
 
     def reload(self):
         host.run_json(["redfox-layout", "list", "--json"], self._on_list)

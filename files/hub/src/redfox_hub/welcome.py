@@ -9,18 +9,14 @@ At first login /usr/libexec/redfox-hub-first-login runs `redfox-hub
 ~/.local/state/redfox/).
 """
 
-import os
-from pathlib import Path
-
 from gi.repository import Adw, Gtk
 
+from .paths import LAYOUTS, host_state_dir
 from .window import Section
 
-STATE = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state")) / "redfox"
+STATE = host_state_dir()
 MARKER = STATE / "welcome-seen"
-# /usr/share/redfox/layouts, next to Hub's own folder.
-LAYOUTS = Path(__file__).resolve().parents[2] / "layouts"
-FOX = "redfox-logo"
+FOX = "tech.redfoxlabs.Hub"  # the fox, as Hub's own icon
 
 
 def seen():

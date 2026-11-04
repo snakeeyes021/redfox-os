@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>tech.redfoxlabs.Hub</id>
+  <name>RedFox Hub</name>
+  <summary>Welcome, apps, updates, settings and help for RedFoxOS</summary>
+  <developer id="tech.redfoxlabs">
+    <name>RedFox Labs</name>
+  </developer>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>Apache-2.0</project_license>
+  <launchable type="desktop-id">tech.redfoxlabs.Hub.desktop</launchable>
+  <url type="homepage">https://github.com/snakeeyes021/redfox-os</url>
+  <url type="bugtracker">https://github.com/snakeeyes021/redfox-os/issues</url>
+  <description>
+    <p>RedFox Hub is RedFoxOS's own app: a short welcome tour, RedFox's packs of
+    favourite apps, the state of updates and rolling back, the desktop layouts
+    and other settings, and a short manual.</p>
+  </description>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.1.0" date="2026-11-04"/>
+  </releases>
+</component>

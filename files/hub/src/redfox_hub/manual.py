@@ -1,4 +1,4 @@
-"""Manual: short help pages, from Markdown files in /usr/share/redfox/manual.
+"""Manual: short help pages, from the Markdown files in Hub's data/manual.
 
 The pages use a small subset of Markdown (see docs/redfox-apps-design.md,
 "Manual"): a `# Title` line, a one-sentence summary, `## Section` headings,
@@ -8,15 +8,12 @@ page; `hub:updates` and the like open a part of Hub.
 """
 
 import html
-import os
 import re
-from pathlib import Path
 
 from gi.repository import Adw, Gdk, Gtk
 
+from .paths import MANUAL as MANUAL_DIR
 from .window import Section
-
-MANUAL_DIR = Path(os.environ.get("REDFOX_MANUAL_DIR", "/usr/share/redfox/manual"))
 
 
 class ManualPage:

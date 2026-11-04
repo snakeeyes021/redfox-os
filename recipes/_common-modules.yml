@@ -124,5 +124,6 @@ modules:
       - install-speedtest.sh
       - fix-tilix-vte.sh
       - install-smooth-overview.sh
+      - install-redfox-hub.sh
       - install-antigravity.sh
       - branding.sh # last: RedFoxOS names, image-info, and the boot splash (rebuilds the initramfs)

@@ -1,7 +1,6 @@
 """RedFox Hub: the application."""
 
 import sys
-from pathlib import Path
 
 import gi
 
@@ -9,10 +8,9 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Adw, Gdk, Gio, GLib, Gtk  # noqa: E402
 
-from . import VERSION  # noqa: E402
+from .paths import STYLE, VERSION  # noqa: E402
 
 APP_ID = "tech.redfoxlabs.Hub"
-DATA = Path(__file__).resolve().parent.parent
 
 
 class HubApplication(Adw.Application):
@@ -36,12 +34,10 @@ class HubApplication(Adw.Application):
     def do_startup(self):
         Adw.Application.do_startup(self)
         css = Gtk.CssProvider()
-        css.load_from_path(str(DATA / "style.css"))
+        css.load_from_path(str(STYLE))
         Gtk.StyleContext.add_provider_for_display(
             Gdk.Display.get_default(), css,
             Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
-        Gtk.IconTheme.get_for_display(Gdk.Display.get_default()).add_search_path(
-            str(DATA / "icons"))
 
         for name, callback, accels in (
                 ("about", self.on_about, []),
@@ -110,7 +106,7 @@ class HubApplication(Adw.Application):
     def on_about(self, *_):
         about = Adw.AboutDialog(
             application_name="RedFox Hub",
-            application_icon="redfox-logo",
+            application_icon=APP_ID,
             developer_name="RedFox Labs",
             version=VERSION,
             website="https://github.com/snakeeyes021/redfox-os",

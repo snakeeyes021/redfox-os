@@ -1,0 +1,3 @@
+# Written by meson at build time.
+PKGDATADIR = "@PKGDATADIR@"
+VERSION = "@VERSION@"

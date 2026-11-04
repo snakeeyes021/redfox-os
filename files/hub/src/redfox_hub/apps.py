@@ -4,10 +4,12 @@ A front end to redfox-software, which reads the catalog in
 /usr/share/redfox/software.yaml (the same lists the install-* recipes use).
 """
 
-from gi.repository import Adw, Gio, Gtk
+from gi.repository import Adw, Gtk
 
 from . import host
 from .window import Section
+
+BAZAAR = "io.github.kolunmi.Bazaar"
 
 
 class AppsSection(Section):
@@ -35,18 +37,20 @@ class AppsSection(Section):
         self.stack.add_named(self.page, "list")
         self.groups = []
 
-        bazaar = Gio.DesktopAppInfo.new("io.github.kolunmi.Bazaar.desktop")
-        if bazaar:
-            more = Adw.PreferencesGroup()
-            row = Adw.ActionRow(title="Find More Apps in Bazaar",
-                                subtitle="Thousands of apps from Flathub", activatable=True)
-            icon = Gtk.Image(gicon=bazaar.get_icon(), pixel_size=32)
-            icon.add_css_class("lowres-icon")
-            row.add_prefix(icon)
-            row.add_suffix(Gtk.Image(icon_name="adw-external-link-symbolic"))
-            row.connect("activated", lambda *_: bazaar.launch([], None))
-            more.add(row)
-            self.page.add(more)
+        # Bazaar, if the host has it (asked through the host, so this works
+        # from a Flatpak too).
+        more = Adw.PreferencesGroup(visible=False)
+        row = Adw.ActionRow(title="Find More Apps in Bazaar",
+                            subtitle="Thousands of apps from Flathub", activatable=True)
+        icon = Gtk.Image(icon_name=BAZAAR, pixel_size=32)
+        icon.add_css_class("lowres-icon")
+        row.add_prefix(icon)
+        row.add_suffix(Gtk.Image(icon_name="adw-external-link-symbolic"))
+        row.connect("activated", lambda *_: host.run(["flatpak", "run", BAZAAR]))
+        more.add(row)
+        self.page.add(more)
+        host.run(["flatpak", "info", "--show-ref", BAZAAR],
+                 on_done=lambda rc, _out: more.set_visible(rc == 0))
 
         self.summary = Gtk.Label(xalign=0, hexpand=True)
         self.apply_button = Gtk.Button(label="Apply")

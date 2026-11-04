@@ -411,10 +411,6 @@ def main():
 
     if args.command == "list" and args.json:
         current = current_layout()
-        # /usr/share/redfox/layouts, found next to this script so a copy run
-        # from elsewhere (a test VM's /tmp) finds its own previews.
-        previews = os.path.normpath(os.path.join(
-            os.path.dirname(os.path.realpath(__file__)), "..", "share", "redfox", "layouts"))
         json.dump({
             "version": 1,
             "current": current,
@@ -422,7 +418,6 @@ def main():
                 "id": name,
                 "title": layout["title"],
                 "description": layout["description"],
-                "preview": f"{previews}/{name}.svg",
             } for name, layout in LAYOUTS.items()],
         }, sys.stdout)
         print()

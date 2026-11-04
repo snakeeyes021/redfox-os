@@ -16,10 +16,10 @@ gi.require_version("Pango", "1.0")
 from gi.repository import Pango  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "files/system/usr/share/redfox/hub"))
+sys.path.insert(0, str(ROOT / "files/hub/src"))
 from redfox_hub import manual  # noqa: E402
 
-MANUAL = ROOT / "files/system/usr/share/redfox/manual"
+MANUAL = ROOT / "files/hub/data/manual"
 HUB_PAGES = {"welcome", "apps", "updates", "settings", "settings/layout", "manual"}
 
 
