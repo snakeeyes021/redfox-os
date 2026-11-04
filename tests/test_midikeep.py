@@ -651,6 +651,30 @@ class TestDataDirConfig(unittest.TestCase):
         paths = midikeep_cli.get_default_paths()
         self.assertEqual(paths["data_dir"], self.root / "xdg-data" / "midikeep")
 
+    def test_data_dir_command_sets_folder_and_keeps_the_rest(self):
+        self.config_path.write_text(
+            "# mine\nsilence_threshold_seconds: 300\ndata_dir: '$ARCHIVE_ROOT/piano'\n",
+            encoding="utf-8")
+        target = self.root / "elsewhere" / "midi"
+        args = unittest.mock.Mock(path=str(target), json=False)
+        with unittest.mock.patch.object(midikeep_cli.subprocess, "run") as run:
+            self.assertEqual(midikeep_cli.cmd_data_dir(args, midikeep_cli.get_default_paths()), 0)
+        run.assert_called_once()
+        self.assertTrue(target.is_dir())
+        text = self.config_path.read_text(encoding="utf-8")
+        self.assertIn("# mine\nsilence_threshold_seconds: 300\n", text)
+        self.assertEqual(text.count("data_dir:"), 1)
+        self.assertEqual(midikeep_cli.get_default_paths()["data_dir"], target)
+        self.assertEqual(daemon.resolve_data_dir(daemon.load_config(self.config_path)), target)
+
+    def test_data_dir_command_adds_the_key(self):
+        self.config_path.write_text("silence_threshold_seconds: 300\n", encoding="utf-8")
+        target = self.root / "new"
+        args = unittest.mock.Mock(path=str(target), json=False)
+        with unittest.mock.patch.object(midikeep_cli.subprocess, "run"):
+            midikeep_cli.cmd_data_dir(args, midikeep_cli.get_default_paths())
+        self.assertEqual(midikeep_cli.get_default_paths()["data_dir"], target)
+
 
 if __name__ == "__main__":
     unittest.main()

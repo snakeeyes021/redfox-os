@@ -211,9 +211,12 @@ def main():
     if args.command == "now":
         return update_now()
     if args.command == "auto":
-        # systemctl asks the desktop's polkit agent (or the terminal) for a password.
-        verb = ["enable", "--now"] if args.state == "on" else ["disable", "--now"]
-        return subprocess.call(["systemctl", *verb, "uupd.timer"])
+        helper = "/usr/libexec/redfox-updates-auto"
+        if os.geteuid() == 0:
+            return subprocess.call([helper, args.state])
+        # pkexec asks for the password, in the desktop's dialog or on the
+        # terminal (polkit action tech.redfoxlabs.hub.automatic-updates).
+        return subprocess.call(["pkexec", helper, args.state])
     if args.command == "restart":
         return subprocess.call(["systemctl", "reboot"])
     return 1

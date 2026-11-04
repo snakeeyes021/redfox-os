@@ -1,0 +1,10 @@
+#!/usr/bin/bash
+# Turn RedFoxOS's automatic updates (uupd.timer) on or off. Run as root, by
+# `redfox-updates auto on|off` through pkexec; the polkit action
+# tech.redfoxlabs.hub.automatic-updates gives the password dialog its words.
+set -euo pipefail
+case "${1:-}" in
+    on) exec systemctl enable --now uupd.timer ;;
+    off) exec systemctl disable --now uupd.timer ;;
+    *) echo "Usage: $0 on|off" >&2; exit 2 ;;
+esac

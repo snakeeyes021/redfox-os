@@ -1,4 +1,6 @@
-"""Settings: the layout picker, desktop options, and apps at login."""
+"""Settings: the layout picker, apps at login, and the MIDI archive."""
+
+import shutil
 
 from gi.repository import Adw, Gio, Gtk
 
@@ -38,8 +40,53 @@ class SettingsSection(Section):
         self.login_rows = []
         page.add(self.login_group)
 
+        # Midikeep records everything played on a MIDI keyboard.
+        self.midi_row = None
+        if shutil.which("midikeep"):
+            midi = Adw.PreferencesGroup(
+                title="MIDI Archive",
+                description="Midikeep records everything you play on a MIDI keyboard. "
+                            "Pianola opens the same archive.")
+            self.midi_row = Adw.ActionRow(title="Archive Folder", subtitle="…")
+            self.midi_row.add_css_class("property")
+            choose = Gtk.Button(label="Choose…", valign=Gtk.Align.CENTER)
+            choose.connect("clicked", self._on_choose_midi)
+            self.midi_row.add_suffix(choose)
+            midi.add(self.midi_row)
+            page.add(midi)
+
     def shown(self):
         host.run_json(["redfox-autostart", "list", "--json"], self._on_autostart)
+        if self.midi_row:
+            host.run_json(["midikeep", "data-dir", "--json"], self._on_midi)
+
+    # MIDI archive
+
+    def _on_midi(self, data, error):
+        self.midi_row.set_subtitle(error or data["data_dir"])
+        self.midi_dir = None if error else data["data_dir"]
+
+    def _on_choose_midi(self, _button):
+        dialog = Gtk.FileDialog(title="Choose the MIDI Archive Folder", modal=True)
+        if getattr(self, "midi_dir", None):
+            dialog.set_initial_folder(Gio.File.new_for_path(self.midi_dir))
+        dialog.select_folder(self.window, None, self._on_midi_chosen)
+
+    def _on_midi_chosen(self, dialog, result):
+        try:
+            folder = dialog.select_folder_finish(result)
+        except Exception:  # cancelled
+            return
+        if not folder or not folder.get_path():
+            return
+
+        def done(returncode, output):
+            lines = output.strip().splitlines()
+            self.window.toast(lines[-1] if lines else
+                              ("Folder changed" if returncode == 0 else "That didn't work"))
+            self.shown()
+
+        host.run(["midikeep", "data-dir", folder.get_path()], on_done=done)
 
     def open(self, subpath):
         if subpath == "layout":

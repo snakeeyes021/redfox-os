@@ -10,6 +10,7 @@ import time
 import signal
 import sqlite3
 import argparse
+import json
 import subprocess
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
@@ -417,6 +418,59 @@ def cmd_export(args, paths):
     print(f"Exported Session #{row['id']} ({row['device_name']}, {row['note_count']} notes) -> {dest_path}")
 
 
+def home_relative(path: Path) -> str:
+    """~/... for paths under the home directory, as midikeep-daemon writes."""
+    try:
+        return "~/" + str(Path(path).relative_to(Path.home()))
+    except ValueError:
+        return str(path)
+
+
+def write_data_dir(config_path: Path, value: str):
+    """Set data_dir in config.yaml, keeping the rest of the file (and its
+    comments) as it is."""
+    line = "data_dir: " + json.dumps(value)
+    try:
+        lines = config_path.read_text(encoding="utf-8").splitlines()
+    except FileNotFoundError:
+        lines = []
+    for i, existing in enumerate(lines):
+        if existing.startswith("data_dir:"):
+            lines[i] = line
+            break
+    else:
+        lines.append(line)
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = config_path.with_suffix(".yaml.tmp")
+    tmp.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    tmp.replace(config_path)
+
+
+def cmd_data_dir(args, paths):
+    """Show or set the archive folder (data_dir in config.yaml)."""
+    if args.path is None:
+        if args.json:
+            print(json.dumps({
+                "data_dir": str(paths["data_dir"]),
+                "configured": bool(read_configured_data_dir(paths["config_path"])),
+                "config_path": str(paths["config_path"]),
+            }))
+        else:
+            print(paths["data_dir"])
+        return 0
+    folder = expand_path(args.path).resolve()
+    if folder.exists() and not folder.is_dir():
+        print(f"{folder} isn't a folder.", file=sys.stderr)
+        return 1
+    folder.mkdir(parents=True, exist_ok=True)
+    write_data_dir(paths["config_path"], home_relative(folder))
+    print(f"New takes will be saved in {folder}. Earlier takes stay in {paths['data_dir']}.")
+    # The daemon reads the folder when it starts.
+    subprocess.run(["systemctl", "--user", "try-restart", "midikeep.service"],
+                   stdin=subprocess.DEVNULL, check=False)
+    return 0
+
+
 # ---------------------------------------------------------------------------
 # CLI Argument Parser
 # ---------------------------------------------------------------------------
@@ -458,6 +512,11 @@ def main():
     sub_export.add_argument("--latest", action="store_true", help="Export the latest recorded session")
     sub_export.add_argument("-o", "--output", required=True, help="Destination .mid file path")
 
+    # data-dir
+    sub_data = subparsers.add_parser("data-dir", help="Show or set the folder takes are saved in")
+    sub_data.add_argument("path", nargs="?", default=None, help="New folder (created if needed)")
+    sub_data.add_argument("--json", action="store_true", help="Print JSON (for RedFox Hub)")
+
     args = parser.parse_args()
     paths = get_default_paths()
 
@@ -473,6 +532,8 @@ def main():
         cmd_star(args, paths)
     elif args.command == "export":
         cmd_export(args, paths)
+    elif args.command == "data-dir":
+        sys.exit(cmd_data_dir(args, paths))
     else:
         parser.print_help()
 
