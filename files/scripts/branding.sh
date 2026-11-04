@@ -37,7 +37,13 @@ set_os_release ID_LIKE "bazzite fedora"
 FEDORA_BUILD="$(sed -n 's/^BUILD_ID=.*(\(.*\)).*/\1/p' "$OS_RELEASE")"
 BASE_VERSION="$(sed -n 's/^OSTREE_VERSION=.\([^"'\'']*\).*/\1/p' "$OS_RELEASE")"
 set_os_release NAME "RedFoxOS"
-set_os_release PRETTY_NAME "RedFoxOS"
+# ostree titles each boot menu entry "PRETTY_NAME (ostree:N)", so with a
+# plain "RedFoxOS" the current and the previous system looked the same. The
+# build's date and time (UTC) tell them apart; Bazzite's version date can't,
+# since RedFox builds several times on one Bazzite base. About and fastfetch
+# show it too.
+BUILD_STAMP="$(date -u '+%Y-%m-%d %H:%M')"
+set_os_release PRETTY_NAME "RedFoxOS ${BUILD_STAMP}"
 set_os_release LOGO "redfox-logo"
 set_os_release ANSI_COLOR "0;38;2;178;34;52"
 set_os_release DEFAULT_HOSTNAME "redfox"
@@ -64,6 +70,11 @@ if [ -f "$IMAGE_INFO" ]; then
     cat "$IMAGE_INFO"
 fi
 
+# --- Bazzite's hardware setup renames a machine whose hostname is over 20
+# characters to "bazzite" (for Distrobox); make that "redfox". ---
+sed -i 's/hostnamectl set-hostname bazzite$/hostnamectl set-hostname redfox/' /usr/libexec/bazzite-hardware-setup
+grep -q 'set-hostname redfox' /usr/libexec/bazzite-hardware-setup || echo "branding: bazzite-hardware-setup's hostname fallback wasn't found"
+
 # --- Terminal banner: Bazzite's tips (gaming, and links to Bazzite's docs);
 # RedFox ships its own in tips/20-redfox.md ---
 rm -f /usr/share/ublue-os/motd/tips/10-ublue.md /usr/share/ublue-os/motd/tips/20-bazzite.md \
@@ -73,6 +84,30 @@ rm -f /usr/share/ublue-os/motd/tips/10-ublue.md /usr/share/ublue-os/motd/tips/20
 if [ -f /usr/share/ublue-os/motd/template.sv.md ]; then
     ln -sf template.md /usr/share/ublue-os/motd/template.sv.md
 fi
+
+# --- Wallpapers: Bazzite's and Universal Blue's (Steam Deck logos, VGUI2,
+# Troll, Bazzite blue and glass, uBlue, convergence, giants, penguins). The
+# GNOME and Fedora ones, which come from their packages, stay. RedFox's own
+# entry is 00-redfox.xml so it sorts first. ---
+for xml in /usr/share/gnome-background-properties/*.xml; do
+    [ -e "$xml" ] || continue
+    case "$(basename "$xml")" in 00-redfox.xml) continue ;; esac
+    rpm -qf "$xml" >/dev/null 2>&1 && ! rpm -qf "$xml" | grep -q '^steamdeck-backgrounds' && continue
+    rm -f -- "$xml"
+done
+rm -rf -- /usr/share/backgrounds/steamdeck
+rm -f -- /usr/share/backgrounds/bazzite-blue.png /usr/share/backgrounds/bazzite-glass.png \
+      /usr/share/backgrounds/ublue.png /usr/share/backgrounds/giants.jxl \
+      /usr/share/backgrounds/penguins.jxl /usr/share/backgrounds/convergence.jxl \
+      /usr/share/backgrounds/convergence-dynamic.xml
+rm -rf -- /usr/share/backgrounds/convergence
+echo "Wallpapers in the picker:"
+ls /usr/share/gnome-background-properties/
+
+# --- Login notifications: Bazzite's announcements (Fcitx5 on Bazzite,
+# Sunshine through Brew, ...). The mechanism stays for RedFox's own later;
+# Bazzite's messages go. ---
+rm -f -- /usr/share/ublue-os/announcements/*.msg.json
 
 # --- Icons: pick up redfox-logo ---
 gtk-update-icon-cache -f -t /usr/share/icons/hicolor || true

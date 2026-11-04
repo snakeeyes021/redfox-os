@@ -241,9 +241,36 @@ Any order works for 2–5 and for 8–9.
 - **Compare:** https://github.com/snakeeyes021/redfox-os/compare/unstable...fix/update-lock-wait
 - **Look at:** `files/system/usr/libexec/redfox-wait-for-system-update`, `files/system/usr/lib/systemd/system/uupd.service.d/50-redfox-wait.conf`, `files/system/usr/share/ublue-os/topgrade.toml`.
 
+## 16. `feat/redfox-hub` (ready for review)
+
+- **What it is:** RedFox Hub (`tech.redfoxlabs.Hub`), built into the image, with the five sections Matt chose: Welcome, Apps, Updates, Settings and Manual. Design: `docs/redfox-apps-design.md`, with each rule marked as Matt's decision or a proposal.
+- **Preview** (real screenshots from a built image, light and dark, with the questions): https://redmax.taila6a47f.ts.net:8413/
+- **What's in it:**
+  - Welcome: a five-page tour in GNOME Tour's manner, shown once per user at first login, after Bazzite Portal closes.
+  - Updates: the RedFox updater (Matt, 11-04). Status, update now with its output, automatic updates on/off, restart, the channel, go back, and other builds.
+  - Apps: RedFox's packs from one catalog, `/usr/share/redfox/software.yaml`, read by the new `redfox-software`; every `install-*` recipe now calls it.
+  - Settings: the layout picker; "start in the tray at login" switches (`redfox-autostart`); the MIDI archive folder (`midikeep data-dir`).
+  - Manual: seven pages, no `ujust`.
+  - The old RedFox Updater launcher opens Hub › Updates and is hidden from the app grid; the terminal tips point at Hub.
+- **Tested** on an image built from the branch, in the VM: the first-login Welcome shows once; update now ran topgrade to the end; going back and forth; the password prompts for automatic updates and for switching channel, and cancelling them; a layout switch from Hub; installing an app from Apps. 53 unit tests pass (`tests/test_hub_*.py`, `tests/test_redfox_software.py`, `tests/test_midikeep.py`).
+- **Compare:** https://github.com/snakeeyes021/redfox-os/compare/unstable...feat/redfox-hub
+- **Look at:** `files/hub/` (the app, a meson project), `files/system/usr/bin/redfox-updates`, `redfox-autostart`, `redfox-software`, `files/system/usr/share/redfox/software.yaml`, `files/scripts/install-redfox-hub.sh`.
+- **Questions for Matt:** on the preview page. In short: Welcome's words; hiding the old updater launcher; renamed packs; dropping the automatic tray step from `configure-matt`; keeping Bazzite Portal; existing users seeing the tour once; the two `ujust` lines in the terminal banner.
+
+## 17. First 15 minutes on a fresh install (merged fixes)
+
+Walked on a fresh `:unstable` install; findings in `docs/first-15-minutes.md`, screenshots in `/var/home/matt/previews/first-15/`. Four clear bug fixes were merged, each tested in the VM:
+- `fix/libvirt-secrets-dir` (fc43ec4): libvirt never started on a fresh install.
+- `fix/topgrade-missing-include` (75e106f): every `ujust update` began with an error about a missing `/etc/ublue-os/topgrade.toml` on the Fedora 45 base.
+- `fix/motd-layout-tip` (98e7103): a terminal tip used the old layout names.
+- `fix/motd-swedish-template` (87c211f): Swedish users got Bazzite's terminal banner.
+
+The rest (Steam autostart, Portal, announcements, the dock, the default layout, wallpapers, and more) is listed in the doc for Matt.
+
 ---
 
 ## Also waiting for Matt (not branches)
 
-- RedFox Hub (`docs/redfox-apps-design.md`): Welcome's words and pages. (Decided 2026-11-03: rebuild GNOME Tour's look in Python/libadwaita, don't fork it.)
+- RedFox Hub: see 16.
+- The first-15-minutes findings for Matt: see 17.
 - Not building a GNOME front end for Mailspring (`docs/mailspring-gnome-frontend.md`): agree or not.
