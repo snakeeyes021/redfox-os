@@ -62,3 +62,7 @@
 .manual-summary {
   font-size: 1.1em;
 }
+
+.hub-action-bar > revealer > box {
+  padding: 6px 12px;
+}

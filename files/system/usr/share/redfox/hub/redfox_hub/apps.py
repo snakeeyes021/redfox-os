@@ -56,6 +56,7 @@ class AppsSection(Section):
         reset.connect("clicked", lambda *_: self.reset())
         self.reset_button = reset
         bar = Gtk.ActionBar()
+        bar.add_css_class("hub-action-bar")
         bar.pack_start(self.summary)
         bar.pack_end(self.apply_button)
         bar.pack_end(reset)
