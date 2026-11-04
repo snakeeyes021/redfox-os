@@ -69,10 +69,12 @@ if command -v cursor &> /dev/null; then
         fi
     fi
 
-    # Cursor Mandatory Extensions
+    # Cursor Mandatory Extensions. Cursor swaps Microsoft's remote extensions
+    # for its own (anysphere.*), so ask for those: asking for Microsoft's ids
+    # never found them installed and reinstalled both at every login.
     CURSOR_EXTENSIONS=(
-        "ms-vscode-remote.remote-containers"
-        "ms-vscode-remote.remote-ssh"
+        "anysphere.remote-containers"
+        "anysphere.remote-ssh"
         "ms-azuretools.vscode-containers"
         "RedFoxLabs.dewy"
         "RedFoxLabs.sloppy"
@@ -107,10 +109,10 @@ if [ -x "/usr/lib/antigravity-ide/bin/antigravity-ide" ]; then
         fi
     fi
 
-    # Antigravity IDE Mandatory Extensions
+    # Antigravity IDE Mandatory Extensions. Antigravity installs from Open VSX,
+    # where Microsoft doesn't publish its Dev Containers and Remote - SSH
+    # extensions, so asking for them failed (404) at every login.
     ANTIGRAVITY_EXTENSIONS=(
-        "ms-vscode-remote.remote-containers"
-        "ms-vscode-remote.remote-ssh"
         "ms-azuretools.vscode-containers"
         "RedFoxLabs.dewy"
         "RedFoxLabs.sloppy"
