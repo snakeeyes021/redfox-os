@@ -252,7 +252,7 @@ Any order works for 2–5 and for 8–9.
   - Settings: the layout picker; "start in the tray at login" switches (`redfox-autostart`); the MIDI archive folder (`midikeep data-dir`).
   - Manual: seven pages, no `ujust`.
   - The old RedFox Updater launcher opens Hub › Updates and is hidden from the app grid; the terminal tips point at Hub.
-- **Tested** on an image built from the branch, in the VM: the first-login Welcome shows once; update now ran topgrade to the end; going back and forth; the password prompts for automatic updates and for switching channel, and cancelling them; a layout switch from Hub; installing an app from Apps. 54 unit tests pass (`tests/test_hub_*.py`, `tests/test_redfox_software.py`, `tests/test_midikeep.py`).
+- **Tested** on an image built from the branch, in the VM: the first-login Welcome shows once; update now ran topgrade to the end; going back and forth; the password prompts for automatic updates and for switching channel, and cancelling them; a layout switch from Hub; installing an app from Apps. 53 unit tests pass (`tests/test_hub_*.py`, `tests/test_redfox_software.py`, `tests/test_midikeep.py`).
 - **Compare:** https://github.com/snakeeyes021/redfox-os/compare/unstable...feat/redfox-hub
 - **Look at:** `files/hub/` (the app, a meson project), `files/system/usr/bin/redfox-updates`, `redfox-autostart`, `redfox-software`, `files/system/usr/share/redfox/software.yaml`, `files/scripts/install-redfox-hub.sh`.
 - **Questions for Matt:** on the preview page. In short: Welcome's words; hiding the old updater launcher; renamed packs; dropping the automatic tray step from `configure-matt`; keeping Bazzite Portal; existing users seeing the tour once; the two `ujust` lines in the terminal banner.
