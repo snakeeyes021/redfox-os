@@ -106,6 +106,10 @@ def status():
     # A finished update that is waiting for a restart: a staged deployment,
     # or (after `rpm-ostree rollback`) a different first deployment.
     pending = bool(staged) or bool(deployments and not deployments[0].get("booted"))
+    # What the restart brings: a new system (staged), or, after a rollback,
+    # the one before (an older deployment moved to the front).
+    restart_for = "update" if staged else ("rollback" if pending else None)
+    next_boot = staged or (deployments[0] if pending else None)
 
     timer = unit_props("uupd.timer", "UnitFileState", "ActiveState",
                        "LastTriggerUSec", "NextElapseUSecRealtime")
@@ -136,6 +140,8 @@ def status():
         },
         "busy": auto_running or bool(top.strip()) or ostree.get("transaction") is not None,
         "restart_pending": pending,
+        "restart_for": restart_for,
+        "next_boot": deployment(next_boot),
         "booted": deployment(booted),
         "staged": deployment(staged),
         "rollback": deployment(rollback),
@@ -159,8 +165,10 @@ def print_status(s):
     if a["enabled"]:
         print(f"  next run:        {when(a['next'])}")
     print(f"Last update now:   {when(s['now']['last_run'])}")
-    if s["restart_pending"]:
+    if s["restart_for"] == "update":
         print("An update is ready: restart to finish it.")
+    elif s["restart_for"] == "rollback":
+        print("Going back to the previous system: restart to use it.")
     if s["rollback"]:
         r = s["rollback"]
         print(f"Previous system:   {r.get('image')}:{r.get('tag')} ({r.get('version')})")

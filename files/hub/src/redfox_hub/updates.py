@@ -54,6 +54,14 @@ def _when(ts):
     return time.strftime("%-d %B %Y", then)
 
 
+def long_date(iso):
+    """2026-11-01 -> 1 November 2026"""
+    try:
+        return time.strftime("%-d %B %Y", time.strptime(iso, "%Y-%m-%d"))
+    except (TypeError, ValueError):
+        return iso or ""
+
+
 def system_name(d):
     if not d:
         return "Unknown"
@@ -227,6 +235,10 @@ class UpdatesSection(Section):
         elif status["busy"]:
             self.show_state(None, "Updating in the Background…",
                             "An automatic update is running. You can keep working.")
+        elif status.get("restart_for") == "rollback":
+            self.show_state("system-reboot-symbolic", "Restart to Go Back",
+                            "The computer starts the previous system next time. "
+                            "Your files and apps stay as they are.")
         elif status["restart_pending"]:
             staged = status.get("staged") or {}
             version = staged.get("version")
@@ -374,7 +386,7 @@ class UpdatesSection(Section):
     def on_restart(self, _button):
         dialog = Adw.AlertDialog(
             heading="Restart Now?",
-            body="Save your work first. The computer restarts into the updated system.")
+            body="Save your work first. The computer restarts into the new system.")
         dialog.add_response("cancel", "Cancel")
         dialog.add_response("restart", "Restart")
         dialog.set_response_appearance("restart", Adw.ResponseAppearance.SUGGESTED)
@@ -518,9 +530,11 @@ class BuildsPage(Adw.NavigationPage):
             return
         booted_tag = ((self.section.status or {}).get("booted") or {}).get("tag")
         for build in data.get("builds", []):
-            row = Adw.ActionRow(title=GLib.markup_escape_text(build["message"]),
-                                subtitle=f"{build['date']} · {build['commit']}")
-            row.set_title_lines(2)
+            # The date is what most people go by; the change is the detail.
+            row = Adw.ActionRow(title=long_date(build["date"]),
+                                subtitle=GLib.markup_escape_text(
+                                    f"{build['message']} · {build['commit']}"))
+            row.set_subtitle_lines(2)
             if build["tag"] == booted_tag:
                 row.add_suffix(Gtk.Label(label="Running now", css_classes=["dim-label"]))
             else:
@@ -534,7 +548,7 @@ class BuildsPage(Adw.NavigationPage):
     def _on_switch(self, _button, build):
         dialog = Adw.AlertDialog(
             heading="Switch to This Build?",
-            body=f"{build['message']}\n{build['date']} · {build['commit']}\n\n"
+            body=f"{long_date(build['date'])}: {build['message']} ({build['commit']})\n\n"
                  "It starts the next time you restart, and stays on this build "
                  "until you choose a channel again in Updates.")
         dialog.add_response("cancel", "Cancel")
@@ -544,7 +558,7 @@ class BuildsPage(Adw.NavigationPage):
         def response(_d, r):
             if r == "switch":
                 self.section.view.pop()
-                self.section.rebase(build["commit"], f"the build of {build['date']}")
+                self.section.rebase(build["commit"], f"the build of {long_date(build['date'])}")
 
         dialog.connect("response", response)
         dialog.present(self.section.window)
