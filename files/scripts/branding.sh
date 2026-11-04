@@ -87,11 +87,10 @@ fi
 
 # --- Wallpapers: Bazzite's and Universal Blue's (Steam Deck logos, VGUI2,
 # Troll, Bazzite blue and glass, uBlue, convergence, giants, penguins). The
-# GNOME and Fedora ones, which come from their packages, stay. RedFox's own
-# entry is 00-redfox.xml so it sorts first. ---
+# GNOME and Fedora ones, which come from their packages, stay. ---
 for xml in /usr/share/gnome-background-properties/*.xml; do
     [ -e "$xml" ] || continue
-    case "$(basename "$xml")" in 00-redfox.xml) continue ;; esac
+    case "$(basename "$xml")" in redfox.xml) continue ;; esac
     rpm -qf "$xml" >/dev/null 2>&1 && ! rpm -qf "$xml" | grep -q '^steamdeck-backgrounds' && continue
     rm -f -- "$xml"
 done
@@ -101,6 +100,10 @@ rm -f -- /usr/share/backgrounds/bazzite-blue.png /usr/share/backgrounds/bazzite-
       /usr/share/backgrounds/penguins.jxl /usr/share/backgrounds/convergence.jxl \
       /usr/share/backgrounds/convergence-dynamic.xml
 rm -rf -- /usr/share/backgrounds/convergence
+# Settings lists wallpapers by name, with the one called "Default Background"
+# first. That's RedFox's on RedFoxOS (redfox.xml), so GNOME's is "Adwaita".
+sed -i 's|<name>Default Background</name>|<name>Adwaita</name>|' \
+    /usr/share/gnome-background-properties/adwaita.xml
 echo "Wallpapers in the picker:"
 ls /usr/share/gnome-background-properties/
 
