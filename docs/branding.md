@@ -9,7 +9,7 @@ The name is **RedFoxOS** (as in the README and the wordmark); the short name is 
 | Where | How | Notes |
 | --- | --- | --- |
 | `/usr/lib/os-release` (`NAME`, `PRETTY_NAME`, `LOGO`, URLs, `DEFAULT_HOSTNAME`, `BOOTLOADER_NAME`, `IMAGE_ID`, `ANSI_COLOR`) | `files/scripts/branding.sh` | Feeds Settings → About, `hostnamectl`, fastfetch's OS line, and the boot menu. |
-| Boot menu (GRUB) entries | `PRETTY_NAME` | ostree writes "RedFoxOS (ostree:0)" when it creates a deployment, so the old entries keep their old titles until they are replaced. |
+| Boot menu (GRUB) entries | `PRETTY_NAME`, "RedFoxOS 2026-11-04 19:13" (the build's date and time, UTC) | ostree titles each entry "PRETTY_NAME (ostree:N)" when it creates the deployment, so the current and previous systems can be told apart. Old entries keep their old titles until they're replaced. About and fastfetch show the same name. |
 | Settings → About logo | `LOGO=redfox-logo`, icons in `/usr/share/icons/hicolor` | About looks for `redfox-logo-text-dark` (dark mode), `redfox-logo-text`, then `redfox-logo`. |
 | Default hostname | `/etc/hostname` and `DEFAULT_HOSTNAME` = `redfox` | Only applies where no hostname has been set. |
 | Login screen (GDM) | `/usr/share/pixmaps/fedora-gdm-logo.png` | Light lettering, since GDM's background is dark. |
