@@ -3,7 +3,8 @@
 
     python3 assets/layouts/make-previews.py
 
-Writes assets/layouts/<layout id>.svg, one per layout in redfox-layout, and
+Writes assets/layouts/<layout id>.svg, one per layout in redfox-layout (and a
+copy in files/system/usr/share/redfox/layouts/ for RedFox Hub), and
 picker.html, a mock-up of the layout picker that shows them.
 Each is a sketch, not a screenshot: wallpaper, bars, dock and one window,
 in the places that layout puts them.
@@ -12,6 +13,7 @@ import os
 
 W, H = 240, 150
 HERE = os.path.dirname(os.path.abspath(__file__))
+IMAGE_COPY = os.path.join(HERE, "..", "..", "files", "system", "usr", "share", "redfox", "layouts")
 
 BAR = "#3d3d40"
 WINDOW = "#fbfbfb"
@@ -194,9 +196,12 @@ PICKER = """<!DOCTYPE html>
 def main():
     cards = []
     for layout, (name, description, draw) in LAYOUTS.items():
-        with open(os.path.join(HERE, f"{layout}.svg"), "w") as f:
-            f.write(svg([*wallpaper(), *draw()]))
-        print(f"wrote assets/layouts/{layout}.svg")
+        drawing = svg([*wallpaper(), *draw()])
+        os.makedirs(IMAGE_COPY, exist_ok=True)
+        for folder in (HERE, IMAGE_COPY):
+            with open(os.path.join(folder, f"{layout}.svg"), "w") as f:
+                f.write(drawing)
+        print(f"wrote assets/layouts/{layout}.svg (and the image's copy)")
         selected = " selected" if layout == "redfox" else ""
         cards.append(f'<div class="card{selected}" tabindex="0"><img src="{layout}.svg" alt="">'
                      f'<div class="name">{name}</div><div class="desc">{description}</div></div>')

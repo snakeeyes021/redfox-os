@@ -270,62 +270,11 @@ update-appimages:
 
 # Start Signal and Joplin in the tray at login, if they're installed. Opened any other way, they open normally.
 configure-autostart-tray:
-    #!/usr/bin/bash
-    set -euo pipefail
-    AUTOSTART="${XDG_CONFIG_HOME:-$HOME/.config}/autostart"
-    APPS="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
-    mkdir -p "$AUTOSTART"
-    exported() {
-        for dir in "${XDG_DATA_HOME:-$HOME/.local/share}/flatpak/exports/share/applications" /var/lib/flatpak/exports/share/applications; do
-            if [ -f "$dir/$1.desktop" ]; then echo "$dir/$1.desktop"; return 0; fi
-        done
-        return 0
-    }
-    # The Flatpak's own launcher, used as TryExec: if the app is uninstalled
-    # later, GNOME skips these entries instead of failing or showing a broken icon.
-    launcher() {
-        for dir in "${XDG_DATA_HOME:-$HOME/.local/share}/flatpak/exports/bin" /var/lib/flatpak/exports/bin; do
-            if [ -x "$dir/$1" ]; then echo "$dir/$1"; return 0; fi
-        done
-        echo "/var/lib/flatpak/exports/bin/$1"
-    }
-    if flatpak info org.signal.Signal >/dev/null 2>&1; then
-        printf '%s\n' '[Desktop Entry]' 'Type=Application' 'Name=Signal' 'Icon=org.signal.Signal' \
-            "TryExec=$(launcher org.signal.Signal)" \
-            'Exec=flatpak run org.signal.Signal --use-tray-icon --start-in-tray' \
-            'X-Flatpak=org.signal.Signal' 'X-GNOME-Autostart-Delay=5' > "$AUTOSTART/org.signal.Signal.desktop"
-        echo "Signal will start in the tray at login."
-    else
-        echo "Signal isn't installed; skipping it."
-    fi
-    if flatpak info net.cozic.joplin_desktop >/dev/null 2>&1; then
-        printf '%s\n' '[Desktop Entry]' 'Type=Application' 'Name=Joplin' 'Icon=net.cozic.joplin_desktop' \
-            "TryExec=$(launcher net.cozic.joplin_desktop)" \
-            'Exec=/usr/libexec/redfox-joplin-launch --tray' \
-            'X-Flatpak=net.cozic.joplin_desktop' 'X-GNOME-Autostart-Delay=5' > "$AUTOSTART/net.cozic.joplin_desktop.desktop"
-        # Joplin has no tray flag, so its normal launcher goes through the same
-        # wrapper, which switches "start minimised" back off before it starts.
-        SRC="$(exported net.cozic.joplin_desktop)"
-        if [ -n "$SRC" ]; then
-            mkdir -p "$APPS"
-            sed -E -e '/^TryExec=/d' -e 's|^Exec=.*|Exec=/usr/libexec/redfox-joplin-launch %u|' \
-                -e "/^\[Desktop Entry\]/a TryExec=$(launcher net.cozic.joplin_desktop)" \
-                "$SRC" > "$APPS/net.cozic.joplin_desktop.desktop"
-        fi
-        echo "Joplin will start in the tray at login."
-    else
-        echo "Joplin isn't installed; skipping it."
-    fi
+    /usr/bin/redfox-autostart on org.signal.Signal net.cozic.joplin_desktop
 
 # Undo configure-autostart-tray
 reset-autostart-tray:
-    #!/usr/bin/bash
-    AUTOSTART="${XDG_CONFIG_HOME:-$HOME/.config}/autostart"
-    APPS="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
-    grep -qs 'start-in-tray' "$AUTOSTART/org.signal.Signal.desktop" && rm -f "$AUTOSTART/org.signal.Signal.desktop"
-    grep -qs 'redfox-joplin-launch' "$AUTOSTART/net.cozic.joplin_desktop.desktop" && rm -f "$AUTOSTART/net.cozic.joplin_desktop.desktop"
-    grep -qs 'redfox-joplin-launch' "$APPS/net.cozic.joplin_desktop.desktop" && rm -f "$APPS/net.cozic.joplin_desktop.desktop"
-    echo "Signal and Joplin no longer start at login."
+    /usr/bin/redfox-autostart off org.signal.Signal net.cozic.joplin_desktop
 
 # UI/UX Atoms
 fix-flatpak-theming:

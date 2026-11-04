@@ -1,0 +1,23 @@
+#!/usr/bin/bash
+# Show RedFox Hub's welcome tour once, at a user's first login.
+#
+# Run by /etc/xdg/autostart/tech.redfoxlabs.Hub.welcome.desktop. Bazzite
+# Portal can open at first login too (Bazzite's Flatpak manager starts it),
+# so wait for it to close first, then show the tour. `redfox-hub
+# --first-login` does nothing once the tour has been seen
+# (~/.local/state/redfox/welcome-seen).
+
+state="${XDG_STATE_HOME:-$HOME/.local/state}/redfox"
+[ -e "$state/welcome-seen" ] && exit 0
+
+portal_open() { pgrep -u "$(id -u)" -f 'yafti_gtk' >/dev/null; }
+
+# Give the session, and the Portal, a moment to start.
+sleep "${REDFOX_WELCOME_DELAY:-8}"
+waited=0
+while portal_open && [ "$waited" -lt 3600 ]; do
+    sleep 5
+    waited=$((waited + 5))
+done
+
+exec /usr/bin/redfox-hub --first-login

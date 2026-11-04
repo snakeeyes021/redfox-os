@@ -401,13 +401,32 @@ def main():
         prog="redfox-layout",
         description="Switch the desktop layout live, without logging out.")
     sub = parser.add_subparsers(dest="command", required=True)
-    sub.add_parser("list", help="list the layouts")
+    list_parser = sub.add_parser("list", help="list the layouts")
+    list_parser.add_argument("--json", action="store_true",
+                             help="print JSON (for RedFox Hub)")
     sub.add_parser("get", help="print the current layout")
     set_parser = sub.add_parser("set", help="apply a layout")
     set_parser.add_argument("layout", choices=LAYOUTS)
     args = parser.parse_args()
 
-    if args.command == "list":
+    if args.command == "list" and args.json:
+        current = current_layout()
+        # /usr/share/redfox/layouts, found next to this script so a copy run
+        # from elsewhere (a test VM's /tmp) finds its own previews.
+        previews = os.path.normpath(os.path.join(
+            os.path.dirname(os.path.realpath(__file__)), "..", "share", "redfox", "layouts"))
+        json.dump({
+            "version": 1,
+            "current": current,
+            "layouts": [{
+                "id": name,
+                "title": layout["title"],
+                "description": layout["description"],
+                "preview": f"{previews}/{name}.svg",
+            } for name, layout in LAYOUTS.items()],
+        }, sys.stdout)
+        print()
+    elif args.command == "list":
         current = current_layout()
         for name, layout in LAYOUTS.items():
             mark = "*" if name == current else " "

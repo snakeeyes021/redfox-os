@@ -36,6 +36,7 @@ Usage: $(basename "$0") [COMMAND] [ARGUMENTS]
                         redfox-os-nvidia:latest            another image (IMAGE:TAG)
                         ostree-image-signed:docker://...   a full reference
   -y, --yes           don't ask before rebasing or rolling back
+  --json              with list: print JSON (for RedFox Hub)
 
 Images: ${IMAGES[*]}
 EOF
@@ -44,6 +45,7 @@ EOF
 die() { echo "${red}$*${normal}" >&2; exit 1; }
 
 ASSUME_YES=false
+JSON=false
 confirm() {
     $ASSUME_YES && return 0
     local reply
@@ -146,6 +148,16 @@ list_builds() {
 show_list() {
     local channel="${1:-$(current_channel)}" count="${2:-15}" image
     image="$(current_image)"
+    if $JSON; then
+        # For RedFox Hub: [{"tag","commit","date","message"}], newest first.
+        list_builds "$image" "$channel" "$count" | jq -R -s -c \
+            --arg image "$image" --arg channel "$channel" '
+            {version: 1, image: $image, channel: $channel,
+             builds: [split("\n")[] | select(length > 0) | split("\t")
+                      | {tag: .[0], commit: (.[0] | sub("-[0-9]+$"; "")),
+                         date: .[1], message: .[2]}]}' || exit 1
+        return 0
+    fi
     echo "${bold}Recent ${channel} builds of ${image}${normal} (newest first):"
     local builds
     builds="$(list_builds "$image" "$channel" "$count")" || exit 1
@@ -250,6 +262,7 @@ ARGS=()
 for arg in "$@"; do
     case "$arg" in
         -y|--yes) ASSUME_YES=true ;;
+        --json) JSON=true ;;
         -h|--help) usage; exit 0 ;;
         *) ARGS+=("$arg") ;;
     esac

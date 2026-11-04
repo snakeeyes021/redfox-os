@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=RedFox Hub Welcome
+Comment=Shows the welcome tour once, at your first login
+Exec=/usr/libexec/redfox-hub-first-login
+Icon=redfox-logo
+NoDisplay=true
+X-GNOME-Autostart-Phase=Application

@@ -1,0 +1,223 @@
+#!/usr/bin/env python3
+"""redfox-updates: the state of RedFoxOS's updates, and update now.
+
+RedFoxOS has two updaters that wait for each other
+(/usr/libexec/redfox-wait-for-system-update):
+
+- uupd, the automatic one: uupd.timer runs it daily (and at startup if a run
+  was missed). It updates the system image, Flatpaks, Homebrew and distrobox;
+  a new image is applied at the next restart.
+- topgrade, "update now": the same things plus firmware and RedFox's own
+  apps, run with RedFox's /usr/share/ublue-os/topgrade.toml.
+
+Commands:
+  status [--json]     automatic updates, last run, restart pending, channel,
+                      and the booted, staged and rollback systems
+  now                 update everything now (topgrade), then report
+  auto on|off         turn the automatic updates on or off (asks for a password)
+  restart             restart to finish an update
+
+RedFox Hub (Updates) is a front end to this command.
+"""
+
+import argparse
+import json
+import os
+import re
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+VERSION = "1"
+TOPGRADE_CONFIG = "/usr/share/ublue-os/topgrade.toml"
+IMAGE_INFO = Path("/usr/share/ublue-os/image-info.json")
+STATE_DIR = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state")) / "redfox"
+LAST_MANUAL = STATE_DIR / "last-update-now.json"
+
+
+def sh(*argv):
+    try:
+        proc = subprocess.run(argv, capture_output=True, text=True,
+                              stdin=subprocess.DEVNULL)
+    except OSError:
+        return 127, ""
+    return proc.returncode, proc.stdout
+
+
+def unit_props(unit, *props):
+    _, out = sh("systemctl", "show", unit, "--timestamp=unix",
+                "-p", ",".join(props))
+    values = {}
+    for line in out.splitlines():
+        key, _, value = line.partition("=")
+        values[key] = value
+    return values
+
+
+def unix(value):
+    """systemd's '@1730000000' (with --timestamp=unix) to an int, or None."""
+    match = re.fullmatch(r"@(\d+)", (value or "").strip())
+    return int(match.group(1)) if match and int(match.group(1)) > 0 else None
+
+
+def short_ref(ref):
+    """ostree-image-signed:docker://ghcr.io/x/redfox-os:latest -> redfox-os:latest"""
+    ref = re.sub(r"^ostree-[a-z-]+(:[a-z-]+)?:(docker://)?", "", ref or "")
+    return ref.rsplit("/", 1)[-1]
+
+
+def channel_of(ref):
+    tag = short_ref(ref).rpartition(":")[2]
+    if tag == "unstable" or tag.startswith("br-unstable-"):
+        return "unstable"
+    if tag in ("latest", "stable", ""):
+        return "latest"
+    # A pinned build: a date (stable) or a commit tag; it doesn't follow a channel.
+    return "pinned"
+
+
+def deployment(d):
+    if not d:
+        return None
+    ref = d.get("container-image-reference", "")
+    return {
+        "ref": ref,
+        "image": short_ref(ref).partition(":")[0] or None,
+        "tag": short_ref(ref).rpartition(":")[2] or None,
+        "channel": channel_of(ref),
+        "version": d.get("version"),
+        "timestamp": d.get("timestamp"),
+        "pinned": bool(d.get("pinned")),
+    }
+
+
+def status():
+    rc, out = sh("rpm-ostree", "status", "--json")
+    try:
+        ostree = json.loads(out) if rc == 0 else {}
+    except ValueError:
+        ostree = {}
+    deployments = ostree.get("deployments", [])
+    booted = next((d for d in deployments if d.get("booted")), None)
+    staged = next((d for d in deployments if d.get("staged")), None)
+    rollback = next((d for d in deployments
+                     if not d.get("booted") and not d.get("staged")), None)
+    # A finished update that is waiting for a restart: a staged deployment,
+    # or (after `rpm-ostree rollback`) a different first deployment.
+    pending = bool(staged) or bool(deployments and not deployments[0].get("booted"))
+
+    timer = unit_props("uupd.timer", "UnitFileState", "ActiveState",
+                       "LastTriggerUSec", "NextElapseUSecRealtime")
+    service = unit_props("uupd.service", "ActiveState", "Result",
+                         "ExecMainExitTimestamp", "ExecMainStartTimestamp")
+    auto_running = service.get("ActiveState") in ("active", "activating")
+    _, top = sh("pgrep", "-x", "topgrade")
+    manual = None
+    try:
+        manual = json.loads(LAST_MANUAL.read_text())
+    except (OSError, ValueError):
+        pass
+
+    return {
+        "version": 1,
+        "auto": {
+            "enabled": timer.get("UnitFileState") == "enabled",
+            "running": auto_running,
+            "next": unix(timer.get("NextElapseUSecRealtime")),
+            "last_run": unix(service.get("ExecMainExitTimestamp"))
+                        or unix(timer.get("LastTriggerUSec")),
+            "last_result": service.get("Result") or None,
+        },
+        "now": {
+            "running": bool(top.strip()),
+            "last_run": manual.get("finished") if manual else None,
+            "last_ok": manual.get("ok") if manual else None,
+        },
+        "busy": auto_running or bool(top.strip()) or ostree.get("transaction") is not None,
+        "restart_pending": pending,
+        "booted": deployment(booted),
+        "staged": deployment(staged),
+        "rollback": deployment(rollback),
+    }
+
+
+def when(ts):
+    if not ts:
+        return "never"
+    return time.strftime("%a %d %b %H:%M", time.localtime(ts))
+
+
+def print_status(s):
+    a = s["auto"]
+    b = s["booted"] or {}
+    print(f"System:            {b.get('image')}:{b.get('tag')} ({b.get('version')})")
+    print(f"Channel:           {b.get('channel')}")
+    print(f"Automatic updates: {'on' if a['enabled'] else 'off'}"
+          f"{' (running now)' if a['running'] else ''}")
+    print(f"  last run:        {when(a['last_run'])} ({a['last_result'] or 'n/a'})")
+    if a["enabled"]:
+        print(f"  next run:        {when(a['next'])}")
+    print(f"Last update now:   {when(s['now']['last_run'])}")
+    if s["restart_pending"]:
+        print("An update is ready: restart to finish it.")
+    if s["rollback"]:
+        r = s["rollback"]
+        print(f"Previous system:   {r.get('image')}:{r.get('tag')} ({r.get('version')})")
+
+
+def update_now():
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    started = int(time.time())
+    try:
+        rc = subprocess.call(["topgrade", "--config", TOPGRADE_CONFIG])
+    except OSError as error:
+        print(f"Couldn't run topgrade: {error.strerror}", file=sys.stderr)
+        rc = 127
+    LAST_MANUAL.write_text(json.dumps(
+        {"started": started, "finished": int(time.time()), "ok": rc == 0}))
+    s = status()
+    print()
+    if s["restart_pending"]:
+        print("Update finished. Restart to start the new system.")
+    elif rc == 0:
+        print("Everything is up to date.")
+    else:
+        print(f"The update finished with problems (topgrade exit status {rc}).")
+    return rc
+
+
+def main():
+    parser = argparse.ArgumentParser(prog="redfox-updates",
+                                     description="RedFoxOS updates.")
+    parser.add_argument("--version", action="version", version=VERSION)
+    sub = parser.add_subparsers(dest="command")
+    p = sub.add_parser("status", help="show the state of updates")
+    p.add_argument("--json", action="store_true")
+    sub.add_parser("now", help="update everything now")
+    p = sub.add_parser("auto", help="turn automatic updates on or off")
+    p.add_argument("state", choices=["on", "off"])
+    sub.add_parser("restart", help="restart to finish an update")
+    args = parser.parse_args()
+
+    if args.command in (None, "status"):
+        s = status()
+        if getattr(args, "json", False):
+            json.dump(s, sys.stdout)
+            print()
+        else:
+            print_status(s)
+        return 0
+    if args.command == "now":
+        return update_now()
+    if args.command == "auto":
+        # systemctl asks the desktop's polkit agent (or the terminal) for a password.
+        verb = ["enable", "--now"] if args.state == "on" else ["disable", "--now"]
+        return subprocess.call(["systemctl", *verb, "uupd.timer"])
+    if args.command == "restart":
+        return subprocess.call(["systemctl", "reboot"])
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

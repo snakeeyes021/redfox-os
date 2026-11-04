@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=RedFox Hub
+GenericName=Welcome, Apps and Updates
+Comment=Welcome, apps, updates, settings and help for RedFoxOS
+Exec=redfox-hub
+Icon=redfox-logo
+Terminal=false
+Categories=GNOME;GTK;System;Settings;
+Keywords=RedFox;RedFoxOS;welcome;tour;updates;layout;dock;manual;help;apps;software;
+StartupNotify=true
+DBusActivatable=false

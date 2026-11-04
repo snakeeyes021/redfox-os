@@ -1,0 +1,59 @@
+/* RedFox Hub */
+
+.welcome-disc {
+  border-radius: 9999px;
+  background-color: alpha(var(--accent-bg-color), 0.14);
+  color: var(--accent-color);
+}
+
+.welcome-body {
+  font-size: 1.1em;
+}
+
+.welcome-link {
+  min-width: 240px;
+}
+
+.welcome-arrow {
+  min-width: 40px;
+  min-height: 40px;
+}
+
+.layout-preview {
+  border-radius: 6px;
+}
+
+.layout-card {
+  padding: 10px;
+  border-radius: 12px;
+  transition: background-color 150ms, box-shadow 150ms;
+}
+
+.layout-card:hover {
+  background-color: alpha(currentColor, 0.05);
+  box-shadow: 0 2px 8px alpha(black, 0.12);
+}
+
+.layout-card.current {
+  background-color: alpha(var(--accent-bg-color), 0.12);
+}
+
+.layout-check {
+  background-color: var(--accent-bg-color);
+  color: var(--accent-fg-color);
+  border-radius: 9999px;
+  padding: 4px;
+}
+
+.hub-log {
+  font-size: 0.85em;
+  background: transparent;
+}
+
+.manual-code {
+  padding: 6px 6px 6px 12px;
+}
+
+.manual-summary {
+  font-size: 1.1em;
+}
