@@ -37,7 +37,13 @@ set_os_release ID_LIKE "bazzite fedora"
 FEDORA_BUILD="$(sed -n 's/^BUILD_ID=.*(\(.*\)).*/\1/p' "$OS_RELEASE")"
 BASE_VERSION="$(sed -n 's/^OSTREE_VERSION=.\([^"'\'']*\).*/\1/p' "$OS_RELEASE")"
 set_os_release NAME "RedFoxOS"
-set_os_release PRETTY_NAME "RedFoxOS"
+# ostree titles each boot menu entry "PRETTY_NAME (ostree:N)", so with a
+# plain "RedFoxOS" the current and the previous system looked the same. The
+# build's date and time (UTC) tell them apart; Bazzite's version date can't,
+# since RedFox builds several times on one Bazzite base. About and fastfetch
+# show it too.
+BUILD_STAMP="$(date -u '+%Y-%m-%d %H:%M')"
+set_os_release PRETTY_NAME "RedFoxOS ${BUILD_STAMP}"
 set_os_release LOGO "redfox-logo"
 set_os_release ANSI_COLOR "0;38;2;178;34;52"
 set_os_release DEFAULT_HOSTNAME "redfox"
