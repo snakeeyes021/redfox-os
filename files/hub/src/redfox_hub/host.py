@@ -7,10 +7,12 @@ the image, so it runs them directly. Commands run in a worker thread;
 callbacks come back on the GTK main loop.
 """
 
+import codecs
 import json
 import os
 import subprocess
 import threading
+import time
 
 from gi.repository import GLib
 
@@ -22,12 +24,14 @@ def _env():
     return env
 
 
-def run(argv, on_done=None, on_line=None):
+def run(argv, on_done=None, on_line=None, on_partial=None):
     """Run argv in a thread.
 
-    on_line(line) is called for each line of output (stdout and stderr
-    together), on_done(returncode, output) once at the end. Both run on the
-    main loop. Returns the thread.
+    on_line(line) is called for each finished line of output (stdout and
+    stderr together), on_done(returncode, output) once at the end. Progress
+    bars redraw one line with carriage returns; on_partial(text) gets that
+    line as it's redrawn (at most a few times a second), and None once it's
+    finished. All callbacks run on the main loop. Returns the thread.
     """
 
     def worker():
@@ -35,17 +39,44 @@ def run(argv, on_done=None, on_line=None):
         try:
             proc = subprocess.Popen(
                 argv, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                stdin=subprocess.DEVNULL, text=True, bufsize=1, env=_env())
+                stdin=subprocess.DEVNULL, bufsize=0, env=_env())
         except OSError as error:
             message = f"Couldn't run {argv[0]}: {error.strerror}"
             if on_done:
                 GLib.idle_add(on_done, 127, message)
             return
-        for line in proc.stdout:
-            line = line.rstrip("\n")
+        decoder = codecs.getincrementaldecoder("utf-8")("replace")
+        pending = ""
+        partial_shown = False
+        last_partial = 0.0
+        while True:
+            chunk = os.read(proc.stdout.fileno(), 4096)
+            if not chunk:
+                break
+            pending += decoder.decode(chunk)
+            *finished, pending = pending.split("\n")
+            for line in finished:
+                # What's left after the last redraw is what the line says.
+                line = line.rstrip("\r").rsplit("\r", 1)[-1]
+                lines.append(line)
+                if partial_shown and on_partial:
+                    GLib.idle_add(on_partial, None)
+                    partial_shown = False
+                if on_line:
+                    GLib.idle_add(on_line, line)
+            if on_partial and "\r" in pending and time.monotonic() - last_partial > 0.25:
+                current = pending.rstrip("\r").rsplit("\r", 1)[-1]
+                if current.strip():
+                    GLib.idle_add(on_partial, current)
+                    partial_shown = True
+                    last_partial = time.monotonic()
+        if pending.strip():
+            line = pending.rstrip("\r").rsplit("\r", 1)[-1]
             lines.append(line)
             if on_line:
                 GLib.idle_add(on_line, line)
+        if partial_shown and on_partial:
+            GLib.idle_add(on_partial, None)
         proc.wait()
         if on_done:
             GLib.idle_add(on_done, proc.returncode, "\n".join(lines))

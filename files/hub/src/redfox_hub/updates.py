@@ -6,7 +6,7 @@ redfox-rollback-helper (channel, rollback, other builds).
 
 import time
 
-from gi.repository import Adw, GLib, Gtk
+from gi.repository import Adw, Gio, GLib, Gtk
 
 from . import host
 from .window import Section
@@ -26,6 +26,15 @@ def when(ts, capital=True):
     return text
 
 
+def clock():
+    """strftime for a time of day, following GNOME's 12h/24h setting."""
+    try:
+        twelve = Gio.Settings.new("org.gnome.desktop.interface").get_string("clock-format") == "12h"
+    except Exception:
+        twelve = False
+    return "%-I:%M %p" if twelve else "%H:%M"
+
+
 def _when(ts):
     if not ts:
         return "Never"
@@ -33,15 +42,15 @@ def _when(ts):
     now = time.localtime()
     day_diff = (time.mktime((now.tm_year, now.tm_mon, now.tm_mday, 0, 0, 0, 0, 0, -1)) -
                 time.mktime((then.tm_year, then.tm_mon, then.tm_mday, 0, 0, 0, 0, 0, -1))) // 86400
-    clock = time.strftime("%H:%M", then)
+    clock_text = time.strftime(clock(), then)
     if day_diff == 0:
-        return f"Today at {clock}"
+        return f"Today at {clock_text}"
     if day_diff == 1:
-        return f"Yesterday at {clock}"
+        return f"Yesterday at {clock_text}"
     if day_diff == -1:
-        return f"Tomorrow at {clock}"
+        return f"Tomorrow at {clock_text}"
     if abs(day_diff) < 7:
-        return time.strftime("%A at %H:%M", then)
+        return time.strftime(f"%A at {clock()}", then)
     return time.strftime("%-d %B %Y", then)
 
 
@@ -104,6 +113,7 @@ class UpdatesSection(Section):
                                       max_content_height=220)
         scroller.add_css_class("card")
         self.log_scroller = scroller
+        scroller.set_margin_top(6)
         self.log_expander = Gtk.Expander(label="Details", child=scroller,
                                          margin_top=12, visible=False)
         status_box.append(self.log_expander)
@@ -297,14 +307,37 @@ class UpdatesSection(Section):
         self.show_state(None, "Updating…", "The system, apps and firmware. "
                         "You can keep working; this can take a while.")
         host.run(["redfox-updates", "now"], on_done=self._on_updated,
-                 on_line=self._append_log)
+                 on_line=self._append_log, on_partial=self._partial_log)
+
+    ANSI = GLib.Regex.new(r"\x1b\[[0-9;?]*[A-Za-z]", 0, 0)
+
+    def _clean(self, text):
+        return self.ANSI.replace(text, -1, 0, "", 0)  # topgrade's colours
+
+    def _clear_partial(self):
+        buffer = self.log.get_buffer()
+        mark = buffer.get_mark("partial")
+        if mark:
+            buffer.delete(buffer.get_iter_at_mark(mark), buffer.get_end_iter())
+            buffer.delete_mark(mark)
 
     def _append_log(self, line):
+        self._clear_partial()
         buffer = self.log.get_buffer()
-        # topgrade draws progress with carriage returns and colours.
-        line = GLib.Regex.new(r"\x1b\[[0-9;?]*[A-Za-z]", 0, 0).replace(line, -1, 0, "", 0)
-        line = line.rsplit("\r", 1)[-1]
-        buffer.insert(buffer.get_end_iter(), line + "\n")
+        buffer.insert(buffer.get_end_iter(), self._clean(line) + "\n")
+        self._scroll_log()
+
+    def _partial_log(self, text):
+        """The line a progress bar is redrawing, shown as the log's last line."""
+        self._clear_partial()
+        if text is None:
+            return
+        buffer = self.log.get_buffer()
+        buffer.create_mark("partial", buffer.get_end_iter(), True)
+        buffer.insert(buffer.get_end_iter(), self._clean(text))
+        self._scroll_log()
+
+    def _scroll_log(self):
         adj = self.log_scroller.get_vadjustment()
         GLib.idle_add(lambda: adj.set_value(adj.get_upper()) and False)
 
@@ -395,7 +428,7 @@ class UpdatesSection(Section):
             self.refresh()
 
         host.run(["redfox-rollback-helper", "--yes", "rebase", target],
-                 on_done=done, on_line=self._append_log)
+                 on_done=done, on_line=self._append_log, on_partial=self._partial_log)
 
     # Rollback
 
