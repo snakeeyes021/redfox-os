@@ -145,14 +145,10 @@ class LayoutCard(Gtk.FlowBoxChild):
         picture = Gtk.Picture.new_for_filename(layout["preview"])
         picture.set_can_shrink(True)
         picture.set_content_fit(Gtk.ContentFit.CONTAIN)
-        picture.set_size_request(200, 125)
+        picture.set_size_request(160, 100)
         picture.add_css_class("layout-preview")
         overlay = Gtk.Overlay(child=picture)
-        self.check = Gtk.Image(icon_name="object-select-symbolic", halign=Gtk.Align.END,
-                               valign=Gtk.Align.END, margin_end=8, margin_bottom=8,
-                               visible=False)
-        self.check.add_css_class("layout-check")
-        overlay.add_overlay(self.check)
+        self.current = False
         self.spinner = Adw.Spinner(halign=Gtk.Align.CENTER, valign=Gtk.Align.CENTER,
                                    width_request=32, height_request=32, visible=False)
         overlay.add_overlay(self.spinner)
@@ -170,7 +166,7 @@ class LayoutCard(Gtk.FlowBoxChild):
                              [f"{layout['title']}: {layout['description']}"])
 
     def set_current(self, current):
-        self.check.set_visible(current)
+        self.current = current
         if current:
             self.add_css_class("current")
         else:
@@ -258,7 +254,7 @@ class LayoutPage(Adw.NavigationPage):
             card.set_current(layout_id == current)
 
     def _on_card(self, _flow, card):
-        if self.busy or card.check.get_visible():
+        if self.busy or card.current:
             return
         self.busy = True
         card.set_busy(True)

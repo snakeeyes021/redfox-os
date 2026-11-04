@@ -23,7 +23,7 @@ brew install gh
 brew search ripgrep
 ```
 
-The RedFox Updater keeps Homebrew tools up to date along with everything else.
+RedFoxOS's updates, automatic or from [Hub › Updates](hub:updates), keep Homebrew tools up to date along with everything else.
 
 ## Anything else: Distrobox
 

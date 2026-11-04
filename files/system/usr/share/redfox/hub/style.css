@@ -23,26 +23,31 @@
   border-radius: 6px;
 }
 
+/* The layout picker, as in assets/layouts/picker.html: the picture lifts on
+   hover, and the current layout has an accent outline. */
 .layout-card {
-  padding: 10px;
+  padding: 6px;
   border-radius: 12px;
-  transition: background-color 150ms, box-shadow 150ms;
+  background: none;
 }
 
-.layout-card:hover {
-  background-color: alpha(currentColor, 0.05);
-  box-shadow: 0 2px 8px alpha(black, 0.12);
+.layout-card .layout-preview {
+  transition: transform 160ms ease, box-shadow 160ms ease;
 }
 
-.layout-card.current {
-  background-color: alpha(var(--accent-bg-color), 0.12);
+.layout-card:hover .layout-preview,
+.layout-card:focus-visible .layout-preview {
+  transform: translateY(-3px) scale(1.03);
+  box-shadow: 0 6px 18px alpha(black, 0.22);
 }
 
-.layout-check {
-  background-color: var(--accent-bg-color);
-  color: var(--accent-fg-color);
-  border-radius: 9999px;
-  padding: 4px;
+.layout-card.current .layout-preview {
+  outline: 3px solid var(--accent-bg-color);
+  outline-offset: 3px;
+}
+
+.layout-card:focus-visible {
+  outline: none;
 }
 
 .hub-log {

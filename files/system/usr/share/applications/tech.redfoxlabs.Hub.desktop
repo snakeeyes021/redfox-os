@@ -6,7 +6,20 @@ Comment=Welcome, apps, updates, settings and help for RedFoxOS
 Exec=redfox-hub
 Icon=redfox-logo
 Terminal=false
-Categories=GNOME;GTK;System;Settings;
+Categories=GNOME;GTK;Settings;
 Keywords=RedFox;RedFoxOS;welcome;tour;updates;layout;dock;manual;help;apps;software;
 StartupNotify=true
 DBusActivatable=false
+Actions=updates;layout;manual;
+
+[Desktop Action updates]
+Name=Updates
+Exec=redfox-hub --page updates
+
+[Desktop Action layout]
+Name=Choose a Layout
+Exec=redfox-hub --page settings/layout
+
+[Desktop Action manual]
+Name=Manual
+Exec=redfox-hub --page manual
