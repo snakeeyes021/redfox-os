@@ -87,7 +87,8 @@ done
 rm -rf -- /usr/share/backgrounds/steamdeck
 rm -f -- /usr/share/backgrounds/bazzite-blue.png /usr/share/backgrounds/bazzite-glass.png \
       /usr/share/backgrounds/ublue.png /usr/share/backgrounds/giants.jxl \
-      /usr/share/backgrounds/penguins.jxl /usr/share/backgrounds/convergence-dynamic.xml
+      /usr/share/backgrounds/penguins.jxl /usr/share/backgrounds/convergence.jxl \
+      /usr/share/backgrounds/convergence-dynamic.xml
 rm -rf -- /usr/share/backgrounds/convergence
 echo "Wallpapers in the picker:"
 ls /usr/share/gnome-background-properties/
