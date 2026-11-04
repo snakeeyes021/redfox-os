@@ -131,16 +131,28 @@ class SettingsSection(Section):
         host.run(["redfox-autostart", verb, app_id], on_done=done)
 
 
+class Preview(Gtk.Picture):
+    """A layout preview whose height always follows its width (8:5, like
+    the drawings), so every card's picture is the same size however much
+    text is under it."""
+
+    RATIO = 150 / 240
+
+    def do_measure(self, orientation, for_size):
+        if orientation == Gtk.Orientation.HORIZONTAL:
+            return 160, 240, -1, -1
+        height = round(for_size * self.RATIO) if for_size > 0 else 150
+        return height, height, -1, -1
+
+
 class LayoutCard(Gtk.FlowBoxChild):
     def __init__(self, layout):
         super().__init__()
         self.layout_id = layout["id"]
         self.add_css_class("layout-card")
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        picture = Gtk.Picture.new_for_filename(str(LAYOUTS / f"{layout['id']}.svg"))
-        picture.set_can_shrink(True)
-        picture.set_content_fit(Gtk.ContentFit.CONTAIN)
-        picture.set_size_request(160, 100)
+        picture = Preview(file=Gio.File.new_for_path(str(LAYOUTS / f"{layout['id']}.svg")),
+                          can_shrink=True, content_fit=Gtk.ContentFit.FILL)
         picture.add_css_class("layout-preview")
         overlay = Gtk.Overlay(child=picture)
         self.current = False
