@@ -1,0 +1,442 @@
+#!/usr/bin/python3
+"""redfox-software: list, install and remove the software packs in RedFoxOS's catalog.
+
+The catalog is /usr/share/redfox/software.yaml (or $REDFOX_SOFTWARE_CATALOG).
+The `ujust install-*` recipes call this, and so does RedFox Hub, which relies on
+the JSON printed by `list --json` and `install|remove --json`:
+
+  list --json      {"version": 1, "packs": [{"id", "name", "description",
+                    "hidden", "includes": [...], "items": [{"id", "kind",
+                    "name", "summary", "installed", "icon"}]}]}
+  install|remove --json ID...
+                   one JSON object per line:
+                     {"event": "start", "id": ...}
+                     {"event": "log", "id": ..., "line": ...}
+                     {"event": "done", "id": ..., "ok": true|false}
+                     {"event": "finished", "ok": true|false}
+
+IDs are pack ids or item ids. The exit status is non-zero if anything failed.
+"""
+
+import argparse
+import json
+import os
+import shutil
+import subprocess
+import sys
+
+import yaml
+
+VERSION = "1.0.0"
+CONTRACT_VERSION = 1
+DEFAULT_CATALOG = "/usr/share/redfox/software.yaml"
+KINDS = ("flatpak", "redfox-app", "recipe")
+REDFOX_APPS_UPDATER = "/usr/bin/update-redfox-apps"
+FLATHUB = "flathub"
+
+
+class CatalogError(Exception):
+    pass
+
+
+class Catalog:
+    def __init__(self, data):
+        if not isinstance(data, dict):
+            raise CatalogError("the catalog must be a mapping")
+        self.items = {}
+        for item in data.get("items") or []:
+            iid = item.get("id")
+            if not iid:
+                raise CatalogError(f"an item has no id: {item!r}")
+            if iid in self.items:
+                raise CatalogError(f"duplicate item id: {iid}")
+            kind = item.get("kind")
+            if kind not in KINDS:
+                raise CatalogError(f"{iid}: unknown kind {kind!r}")
+            for key in ("name", "summary"):
+                if not item.get(key):
+                    raise CatalogError(f"{iid}: missing {key}")
+            if kind == "recipe":
+                for key in ("install", "remove", "check"):
+                    if not item.get(key):
+                        raise CatalogError(f"{iid}: a recipe needs {key}")
+            self.items[iid] = item
+
+        self.packs = []
+        self.pack_by_id = {}
+        for pack in data.get("packs") or []:
+            pid = pack.get("id")
+            if not pid:
+                raise CatalogError(f"a pack has no id: {pack!r}")
+            if pid in self.pack_by_id:
+                raise CatalogError(f"duplicate pack id: {pid}")
+            if pid in self.items:
+                raise CatalogError(f"{pid} is both a pack id and an item id")
+            for key in ("name", "description"):
+                if not pack.get(key):
+                    raise CatalogError(f"pack {pid}: missing {key}")
+            pack.setdefault("includes", [])
+            pack.setdefault("items", [])
+            pack["hidden"] = bool(pack.get("hidden", False))
+            for iid in pack["items"]:
+                if iid not in self.items:
+                    raise CatalogError(f"pack {pid}: unknown item {iid}")
+            self.packs.append(pack)
+            self.pack_by_id[pid] = pack
+        for pack in self.packs:
+            for inc in pack["includes"]:
+                if inc not in self.pack_by_id:
+                    raise CatalogError(f"pack {pack['id']}: unknown included pack {inc}")
+            self.resolve(pack["id"])  # raises on cycles
+
+    def resolve(self, pack_id, _stack=()):
+        """Item ids a pack installs: its included packs' items first, then its own, each once."""
+        if pack_id in _stack:
+            raise CatalogError("packs include each other: " + " -> ".join(_stack + (pack_id,)))
+        pack = self.pack_by_id[pack_id]
+        out = []
+        for inc in pack["includes"]:
+            out.extend(self.resolve(inc, _stack + (pack_id,)))
+        out.extend(pack["items"])
+        return list(dict.fromkeys(out))
+
+    def expand(self, ids):
+        """Turn pack and item ids into a de-duplicated list of item ids."""
+        out = []
+        unknown = []
+        for i in ids:
+            if i in self.pack_by_id:
+                out.extend(self.resolve(i))
+            elif i in self.items:
+                out.append(i)
+            else:
+                unknown.append(i)
+        if unknown:
+            raise CatalogError("unknown pack or item: " + ", ".join(unknown))
+        return list(dict.fromkeys(out))
+
+
+def catalog_path():
+    return os.environ.get("REDFOX_SOFTWARE_CATALOG") or DEFAULT_CATALOG
+
+
+def load_catalog(path=None):
+    with open(path or catalog_path(), encoding="utf-8") as f:
+        return Catalog(yaml.safe_load(f))
+
+
+# --- System state -----------------------------------------------------------
+
+
+def installed_flatpaks():
+    """App ids of every installed Flatpak app, system and user, in one call."""
+    try:
+        res = subprocess.run(
+            ["flatpak", "list", "--app", "--columns=application"],
+            capture_output=True, text=True, check=False,
+        )
+    except FileNotFoundError:
+        return set()
+    if res.returncode != 0:
+        return set()
+    return {line.strip() for line in res.stdout.splitlines() if line.strip()}
+
+
+def recipe_installed(item):
+    try:
+        res = subprocess.run(
+            ["bash", "-c", item["check"]],
+            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            check=False,
+        )
+    except FileNotFoundError:
+        return False
+    return res.returncode == 0
+
+
+def is_installed(item, flatpaks):
+    if item["kind"] in ("flatpak", "redfox-app"):
+        return item["id"] in flatpaks
+    return recipe_installed(item)
+
+
+def item_icon(item, installed):
+    if not installed:
+        return None
+    if item["kind"] in ("flatpak", "redfox-app"):
+        return item["id"]
+    icon = item.get("icon")
+    if not icon:
+        return None
+    icon = os.path.expanduser(os.path.expandvars(icon))
+    if "/" in icon:
+        return icon if os.path.exists(icon) else None
+    return icon
+
+
+# --- Output -----------------------------------------------------------------
+
+
+class Reporter:
+    def __init__(self, catalog, json_mode, verb):
+        self.catalog = catalog
+        self.json = json_mode
+        self.verb = verb  # "install" or "remove"
+
+    def _name(self, iid):
+        return self.catalog.items[iid]["name"] if iid in self.catalog.items else iid
+
+    def _emit(self, obj):
+        sys.stdout.write(json.dumps(obj) + "\n")
+        sys.stdout.flush()
+
+    def start(self, iid):
+        if self.json:
+            self._emit({"event": "start", "id": iid})
+        else:
+            word = "Installing" if self.verb == "install" else "Removing"
+            print(f"==> {word} {self._name(iid)}", flush=True)
+
+    def log(self, iid, line):
+        if self.json:
+            self._emit({"event": "log", "id": iid, "line": line})
+        else:
+            print(f"    {line}", flush=True)
+
+    def done(self, iid, ok):
+        if self.json:
+            self._emit({"event": "done", "id": iid, "ok": ok})
+        else:
+            word = "installed" if self.verb == "install" else "removed"
+            mark = f"✓ {self._name(iid)} {word}" if ok else f"✗ {self._name(iid)} failed"
+            print(f"    {mark}", flush=True)
+
+    def finished(self, ok, failed):
+        if self.json:
+            self._emit({"event": "finished", "ok": ok})
+        elif ok:
+            print("All done.", flush=True)
+        else:
+            names = ", ".join(self._name(i) for i in failed)
+            print(f"Finished with failures: {names}", flush=True)
+
+    def run(self, argv, iid, batch=None):
+        """Run a command and return its exit status.
+
+        In JSON mode its output becomes log events (stdin is closed, so nothing
+        can wait for an answer). A line naming one of `batch` switches the log
+        to that item. In text mode it uses the terminal directly.
+        """
+        if not self.json:
+            try:
+                return subprocess.run(argv, check=False).returncode
+            except FileNotFoundError as e:
+                print(f"    {e}", flush=True)
+                return 127
+        current = iid
+        try:
+            proc = subprocess.Popen(
+                argv, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT, text=True, errors="replace", bufsize=1,
+            )
+        except FileNotFoundError as e:
+            self.log(iid, str(e))
+            return 127
+        for raw in proc.stdout:
+            line = raw.rstrip("\n")
+            if not line.strip():
+                continue
+            if batch:
+                for b in batch:
+                    if b in line:
+                        current = b
+                        break
+            self.log(current, line)
+        return proc.wait()
+
+
+# --- Install and remove -----------------------------------------------------
+
+
+def bash(cmd):
+    return ["bash", "-euo", "pipefail", "-c", cmd]
+
+
+def tag_file(app_id):
+    base = os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share")
+    return os.path.join(base, "redfox-apps", f"{app_id}.tag")
+
+
+def flatpak_batch(rep, verb, ids):
+    """Install or remove Flatpaks in one flatpak call, retrying one by one if it fails."""
+    results = {}
+    if not ids:
+        return results
+    for iid in ids:
+        rep.start(iid)
+    if verb == "install":
+        base = ["flatpak", "install", "--system", "--noninteractive", "-y", FLATHUB]
+    else:
+        base = ["flatpak", "uninstall", "--noninteractive", "-y"]
+    status = rep.run(base + ids, ids[0], batch=ids)
+    present = installed_flatpaks()
+    want = (lambda i: i in present) if verb == "install" else (lambda i: i not in present)
+    left = [i for i in ids if not want(i)]
+    if status != 0 and len(ids) > 1 and left:
+        # One bad app stops the whole transaction; give the rest their own try.
+        for iid in left:
+            rep.log(iid, f"Retrying {iid} on its own")
+            rep.run(base + [iid], iid)
+        present = installed_flatpaks()
+    for iid in ids:
+        ok = want(iid)
+        results[iid] = ok
+        rep.done(iid, ok)
+    return results
+
+
+def install_one(rep, item):
+    iid = item["id"]
+    rep.start(iid)
+    if item["kind"] == "redfox-app":
+        rep.run([REDFOX_APPS_UPDATER, iid], iid)
+        ok = iid in installed_flatpaks()
+    else:
+        status = rep.run(bash(item["install"]), iid)
+        ok = status == 0 and recipe_installed(item)
+    rep.done(iid, ok)
+    return ok
+
+
+def remove_one(rep, item):
+    iid = item["id"]
+    rep.start(iid)
+    if item["kind"] == "redfox-app":
+        rep.run(["flatpak", "uninstall", "--user", "--noninteractive", "-y", iid], iid)
+        ok = iid not in installed_flatpaks()
+        if ok:
+            try:
+                os.remove(tag_file(iid))
+            except FileNotFoundError:
+                pass
+    else:
+        rep.run(bash(item["remove"]), iid)
+        ok = not recipe_installed(item)
+    rep.done(iid, ok)
+    return ok
+
+
+def apply(catalog, verb, ids, json_mode):
+    rep = Reporter(catalog, json_mode, verb)
+    item_ids = catalog.expand(ids)
+    flatpaks = installed_flatpaks()
+    results = {}
+
+    pending = []
+    for iid in item_ids:
+        item = catalog.items[iid]
+        installed = is_installed(item, flatpaks)
+        if (verb == "install") == installed:
+            rep.start(iid)
+            rep.log(iid, f"{item['name']} is {'already' if installed else 'not'} installed")
+            rep.done(iid, True)
+            results[iid] = True
+        else:
+            pending.append(item)
+
+    batch = [i["id"] for i in pending if i["kind"] == "flatpak"]
+    results.update(flatpak_batch(rep, verb, batch))
+    for item in pending:
+        if item["kind"] == "flatpak":
+            continue
+        results[item["id"]] = (install_one if verb == "install" else remove_one)(rep, item)
+
+    failed = [i for i in item_ids if not results.get(i)]
+    rep.finished(not failed, failed)
+    return 0 if not failed else 1
+
+
+def list_packs(catalog):
+    flatpaks = installed_flatpaks()
+    state = {}
+    for iid, item in catalog.items.items():
+        installed = is_installed(item, flatpaks)
+        state[iid] = {
+            "id": iid,
+            "kind": item["kind"],
+            "name": item["name"],
+            "summary": item["summary"],
+            "installed": installed,
+            "icon": item_icon(item, installed),
+        }
+    packs = []
+    for pack in catalog.packs:
+        packs.append({
+            "id": pack["id"],
+            "name": pack["name"],
+            "description": pack["description"],
+            "hidden": pack["hidden"],
+            "includes": list(pack["includes"]),
+            "items": [dict(state[i]) for i in pack["items"]],
+        })
+    return {"version": CONTRACT_VERSION, "packs": packs}
+
+
+def print_list(data, show_hidden):
+    for pack in data["packs"]:
+        if pack["hidden"] and not show_hidden:
+            continue
+        hidden = " (hidden)" if pack["hidden"] else ""
+        print(f"{pack['id']}: {pack['name']}{hidden}")
+        print(f"    {pack['description']}")
+        if pack["includes"]:
+            print(f"    includes: {', '.join(pack['includes'])}")
+        for item in pack["items"]:
+            mark = "✓" if item["installed"] else " "
+            print(f"  [{mark}] {item['name']} ({item['id']}): {item['summary']}")
+        print()
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(prog="redfox-software", description="RedFoxOS software packs.")
+    parser.add_argument("--version", action="version", version=f"redfox-software {VERSION}")
+    sub = parser.add_subparsers(dest="command", required=True)
+    p_list = sub.add_parser("list", help="list packs and whether their apps are installed")
+    p_list.add_argument("--json", action="store_true")
+    p_list.add_argument("--all", action="store_true", help="include hidden packs")
+    for verb in ("install", "remove"):
+        p = sub.add_parser(verb, help=f"{verb} packs or single items")
+        p.add_argument("--json", action="store_true")
+        p.add_argument("ids", nargs="+", metavar="ID")
+    args = parser.parse_args(argv)
+
+    try:
+        catalog = load_catalog()
+    except (OSError, yaml.YAMLError, CatalogError) as e:
+        print(f"redfox-software: can't load the catalog {catalog_path()}: {e}", file=sys.stderr)
+        return 2
+
+    if args.command == "list":
+        data = list_packs(catalog)
+        if args.json:
+            print(json.dumps(data))
+        else:
+            print_list(data, args.all)
+        return 0
+
+    try:
+        catalog.expand(args.ids)
+    except CatalogError as e:
+        print(f"redfox-software: {e}", file=sys.stderr)
+        return 2
+    if shutil.which("flatpak") is None:
+        print("redfox-software: flatpak isn't installed", file=sys.stderr)
+        return 2
+    try:
+        return apply(catalog, args.command, args.ids, args.json)
+    except KeyboardInterrupt:
+        return 130
+
+
+if __name__ == "__main__":
+    sys.exit(main())
