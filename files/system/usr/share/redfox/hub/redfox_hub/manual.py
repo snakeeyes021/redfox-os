@@ -46,14 +46,14 @@ def inline(text):
     """The inline subset to Pango markup."""
     out = []
     pos = 0
-    pattern = re.compile(r"`([^`]+)`|\*\*([^*]+)\*\*|\[([^\]]+)\]\(([^)\s]+)\)")
+    pattern = re.compile(r"`([^`]+)`|\*\*(.+?)\*\*|\[([^\]]+)\]\(([^)\s]+)\)")
     for match in pattern.finditer(text):
         out.append(html.escape(text[pos:match.start()], quote=False))
         code, bold, link_text, url = match.groups()
         if code is not None:
             out.append(f"<tt>{html.escape(code, quote=False)}</tt>")
         elif bold is not None:
-            out.append(f"<b>{html.escape(bold, quote=False)}</b>")
+            out.append(f"<b>{inline(bold)}</b>")  # bold can hold a link or code
         else:
             out.append(f'<a href="{html.escape(url)}">{html.escape(link_text, quote=False)}</a>')
         pos = match.end()
