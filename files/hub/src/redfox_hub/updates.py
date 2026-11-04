@@ -54,6 +54,13 @@ def _when(ts):
     return time.strftime("%-d %B %Y", then)
 
 
+def cancelled(output):
+    """Whether a command failed because the password dialog was cancelled."""
+    return any(text in output for text in (
+        "not allowed for user", "Not authorized", "Request dismissed",
+        "Error executing command as another user"))
+
+
 def long_date(iso):
     """2026-11-01 -> 1 November 2026"""
     try:
@@ -376,7 +383,9 @@ class UpdatesSection(Section):
 
         def done(returncode, output):
             if returncode != 0:
-                self.window.toast("Automatic updates weren't changed")
+                self.window.toast("Nothing changed: the password was cancelled"
+                                  if cancelled(output) or returncode in (126, 127)
+                                  else "Automatic updates weren't changed")
             self.refresh()
 
         host.run(["redfox-updates", "auto", state], on_done=done)
@@ -409,7 +418,8 @@ class UpdatesSection(Section):
                   if channel_id == "unstable" else
                   "The computer downloads the newest stable build and starts it "
                   "the next time you restart. If it's older than what you have, "
-                  "some apps or settings may go back a version."))
+                  "parts of the system go back a version. Your apps and files "
+                  "stay as they are."))
         dialog.add_response("cancel", "Cancel")
         dialog.add_response("switch", "Switch")
         dialog.set_response_appearance("switch", Adw.ResponseAppearance.SUGGESTED)
@@ -430,10 +440,12 @@ class UpdatesSection(Section):
         self.log.get_buffer().set_text("")
         self.log_expander.set_visible(True)
 
-        def done(returncode, _output):
+        def done(returncode, output):
             self.updating = False
             if returncode == 0:
                 self.window.toast("Done. Restart to start the new build.")
+            elif cancelled(output):
+                self.window.toast("Nothing changed: the password was cancelled")
             else:
                 self.window.toast("That didn't work; see Details")
                 self.log_expander.set_expanded(True)
