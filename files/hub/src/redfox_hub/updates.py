@@ -259,17 +259,21 @@ class UpdatesSection(Section):
                             "warning")
         else:
             # The most recent update, automatic or "update now", and whether it worked.
-            runs = [(auto["last_run"], auto.get("last_result") in (None, "success")),
-                    (status["now"]["last_run"], status["now"].get("last_ok") is not False)]
+            # The most recent update, automatic or "update now", and whether it
+            # worked. The header says which it was, so it doesn't read as a
+            # contradiction of "Last Automatic Update" below.
+            runs = [(auto["last_run"], auto.get("last_result") in (None, "success"), "automatically"),
+                    (status["now"]["last_run"], status["now"].get("last_ok") is not False,
+                     "with Update Now")]
             runs = [r for r in runs if r[0]]
-            last, ok = max(runs) if runs else (None, True)
+            last, ok, how = max(runs) if runs else (None, True, "")
             if not ok:
                 self.show_state("dialog-warning-symbolic", "The Last Update Didn't Finish",
-                                f"{when(last)}. It will try again by itself, or you "
-                                "can update now.", "warning")
+                                f"Started {how} {when(last, capital=False)}. It will try "
+                                "again by itself, or you can update now.", "warning")
             else:
                 self.show_state("object-select-symbolic", "Updates Are Automatic",
-                                f"Last updated {when(last, capital=False)}."
+                                f"Last updated {how}, {when(last, capital=False)}."
                                 if last else "The first update will run soon.", "success")
         self.restart_button.set_visible(status["restart_pending"] and not busy)
         self.update_button.set_sensitive(not busy)
