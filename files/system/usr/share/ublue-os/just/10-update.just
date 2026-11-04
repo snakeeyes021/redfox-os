@@ -48,8 +48,13 @@ update:
             echo "    Updates will take full effect after a reboot."
             echo "=================================================="
             echo ""
+            # Offer RedFoxOS's release notes only when there are some.
+            CHOICES="[r]eboot, [d]iff, [q]uit"
+            if /usr/bin/redfox-changelog --check; then
+                CHOICES="[r]eboot, [d]iff, [c]hangelog, [q]uit"
+            fi
             while true; do
-                read -r -p "Choose an action: [r]eboot, [d]iff, [c]hangelog, [q]uit (default: q): " CHOICE < "$TTY_IN" || CHOICE="q"
+                read -r -p "Choose an action: ${CHOICES} (default: q): " CHOICE < "$TTY_IN" || CHOICE="q"
                 case "${CHOICE,,}" in
                     r|reboot)
                         echo "Rebooting..."
@@ -63,7 +68,7 @@ update:
                         ;;
                     c|changelog|changelogs)
                         echo ""
-                        (just changelogs 2>/dev/null || ujust changelogs 2>/dev/null || echo "No changelog available.")
+                        /usr/bin/redfox-changelog || true
                         echo ""
                         ;;
                     q|quit|"")
@@ -71,7 +76,7 @@ update:
                         break
                         ;;
                     *)
-                        echo "Invalid choice. Please enter 'r', 'd', 'c', or 'q'."
+                        echo "Invalid choice. Choose one of: ${CHOICES}."
                         ;;
                 esac
             done
@@ -87,16 +92,12 @@ update:
 
 alias changelog := changelogs
 
-# Show the stable changelog
+# Show RedFoxOS's release notes
 [group("system")]
 changelogs:
-    #!/usr/bin/bash
-    CONTENT=$(curl -s https://api.github.com/repos/ublue-os/bazzite/releases/latest | jq -r '.body')
-      echo "$CONTENT" | glow -
+    /usr/bin/redfox-changelog
 
-# Show the testing (pre-release) changelog
+# Show RedFoxOS's latest pre-release notes, if there are any
 [group("system")]
 changelogs-testing:
-    #!/usr/bin/bash
-    CONTENT=$(curl -s https://api.github.com/repos/ublue-os/bazzite/releases | jq -r 'map(select(.prerelease)) | .[0].body // "No testing changelog available."')
-       echo "$CONTENT" | glow -
+    /usr/bin/redfox-changelog --unstable
