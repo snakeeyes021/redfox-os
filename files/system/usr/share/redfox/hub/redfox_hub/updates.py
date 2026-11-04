@@ -17,8 +17,16 @@ CHANNELS = [
 ]
 
 
-def when(ts):
-    """A friendly time: 'today at 04:12', 'yesterday at 09:30', 'Mon 3 Nov'."""
+def when(ts, capital=True):
+    """A friendly time: 'Today at 04:12', 'Yesterday at 09:30', '3 November
+    2026'. With capital=False, 'today at 04:12', for the middle of a sentence."""
+    text = _when(ts)
+    if not capital and text.split(" ")[0] in ("Today", "Yesterday", "Tomorrow", "Never"):
+        text = text[0].lower() + text[1:]
+    return text
+
+
+def _when(ts):
     if not ts:
         return "Never"
     then = time.localtime(ts)
@@ -218,12 +226,22 @@ class UpdatesSection(Section):
                             "Your files and apps stay as they are.")
         elif not auto["enabled"]:
             self.show_state("dialog-warning-symbolic", "Automatic Updates Are Off",
-                            "Update now and then to get fixes and security updates.")
+                            "Update now and then to get fixes and security updates.",
+                            "warning")
         else:
-            last = max(filter(None, [auto["last_run"], status["now"]["last_run"]]), default=None)
-            self.show_state("object-select-symbolic", "Updates Are Automatic",
-                            f"Last updated: {when(last)}." if last else
-                            "The first update will run soon.")
+            # The most recent update, automatic or "update now", and whether it worked.
+            runs = [(auto["last_run"], auto.get("last_result") in (None, "success")),
+                    (status["now"]["last_run"], status["now"].get("last_ok") is not False)]
+            runs = [r for r in runs if r[0]]
+            last, ok = max(runs) if runs else (None, True)
+            if not ok:
+                self.show_state("dialog-warning-symbolic", "The Last Update Didn't Finish",
+                                f"{when(last)}. It will try again by itself, or you "
+                                "can update now.", "warning")
+            else:
+                self.show_state("object-select-symbolic", "Updates Are Automatic",
+                                f"Last updated {when(last, capital=False)}."
+                                if last else "The first update will run soon.", "success")
         self.restart_button.set_visible(status["restart_pending"] and not busy)
         self.update_button.set_sensitive(not busy)
         self.update_button.set_label("Update Now")
@@ -255,12 +273,15 @@ class UpdatesSection(Section):
 
         self._schedule(5 if busy else 60)
 
-    def show_state(self, icon, headline, detail):
+    def show_state(self, icon, headline, detail, tone=None):
         spinning = icon is None
         self.spinner.set_visible(spinning)
         self.icon.set_visible(not spinning)
         if icon:
             self.icon.set_from_icon_name(icon)
+        for css in ("success", "warning", "accent"):
+            self.icon.remove_css_class(css)
+        self.icon.add_css_class(tone or "accent")
         self.headline.set_label(headline)
         self.detail.set_label(detail)
 

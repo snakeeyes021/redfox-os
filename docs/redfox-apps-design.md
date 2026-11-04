@@ -1,110 +1,101 @@
 # RedFox Hub: design
 
-Status: design. Matt has decided the shape (below); nothing is built yet. Building starts after Matt's review of the open branches.
+Status: first version built on `feat/redfox-hub` (2026-11-04). The words, the illustrations and the looks are waiting for Matt.
 
-This covers the "🧩 RedFox Apps (Flatpak GUIs)" section of the roadmap. The goal is to give RedFox's own tooling (today mostly `ujust` recipes and `redfox-*` scripts) a GUI, the way Thirties and Pianola are GUI apps.
+RedFox Hub gives RedFox's own tooling (`redfox-*` scripts that used to be reached through `ujust` recipes) a GUI. It's for everyone who uses RedFoxOS, not only people at a terminal.
 
-## Decided
+Each rule below is marked **(Matt)** if Matt decided it, or **(proposed)** if an agent proposed it and Matt hasn't confirmed it yet. Per AGENTS.md, only the (Matt) ones are settled.
 
-1. **One app: RedFox Hub** (`tech.redfoxlabs.Hub`), with four sections:
-   - **Welcome**: a short, cheerful introduction to RedFoxOS. It opens by itself at first login.
-   - **Apps**: RedFox's software packs, ticked and installed from a list.
-   - **Settings**: layouts, desktop options, services and this machine.
-   - **Manual**: short help pages on where RedFoxOS differs from other Linux systems.
+## Decided by Matt
 
-   One app means one codebase, one Flatpak, one release and one set of permissions. The sections share the layer that runs commands on the host.
-2. **A Flatpak, released the way Thirties and Pianola are.** Hub lives in its own repo and publishes a `.flatpak` bundle on its GitHub releases. This repo's `update-redfox-apps` lists it and installs and updates it per user, with an `install-redfox-hub` recipe. A RedFox Flatpak remote (a signed OSTree repo) can come later.
-3. **Welcome runs after Bazzite Portal**, once Portal's window has closed, and leaves Portal on. This holds until Matt says otherwise.
-4. **A first-login step fetches Hub.** Per-user bundles from GitHub need the network, and nothing installs them before the first login. So the image ships a small autostart entry: it runs `update-redfox-apps tech.redfoxlabs.Hub`, waits for Portal to close, then opens `tech.redfoxlabs.Hub --welcome`. A marker in `~/.local/state/redfox/` stops it after Welcome has been seen once. If the machine is offline, it tries again at the next login. A remote installed system-wide in the image would remove this step, which is one reason to revisit the remote later.
+1. **One app, RedFox Hub** (`tech.redfoxlabs.Hub`). *(Matt, 11-02)*
+2. **Five sections: Welcome, Apps, Updates, Settings, Manual.** *(Matt, 11-02; Updates added 11-04: "Redfox hub should also have the redfox updater incorporated". Updates being its own section, rather than part of Settings, was the PM's recommendation.)*
+3. **First boot opens a GNOME Tour-style Welcome that ends in links.** The layout picker lives in Settings, not in Welcome. *(Matt)*
+4. **Updates covers:** whether the automatic updates are on and when they last ran, a restart that's waiting, update now, the channel (stable `latest` or `unstable`), and rolling back with `redfox-rollback-helper`. RedFox runs its own updates with topgrade and uupd. "We are not Bazzite." *(Matt, 11-04)*
+5. **No `ujust` in anything a user is shown.** Hub's switches are the long-term home for opt-in features. *(Matt, from the Winboat work)*
+6. **Rebuild GNOME Tour's pattern in Python and libadwaita; don't fork its Rust code.** *(Matt, 11-03)*
+7. **The name is written RedFoxOS, one word.** *(Matt)*
 
-Hub changes the *host*: it runs `ujust`, `redfox-layout`, `flatpak install`, `rpm-ostree` and `gsettings` for the shell. It does that through `flatpak-spawn --host`, which needs `--talk-name=org.freedesktop.Flatpak`. That permission is effectively full access to the host, so the sandbox buys little. It also means Flathub wouldn't take Hub, but it isn't meant for Flathub.
+## Proposed (not yet confirmed)
+
+- **Hub ships in the image, not as a Flatpak.** It's a Python + libadwaita app in `/usr/share/redfox/hub`, started by `/usr/bin/redfox-hub`, with the desktop entry `tech.redfoxlabs.Hub.desktop`. The earlier draft made it a Flatpak released like Thirties and Pianola, fetched at first login. In the image:
+  - it's there at first boot, offline too, so Welcome needs no download step;
+  - it updates with the system, so Hub and the commands it calls always match;
+  - it needs no sandbox escape. A Flatpak would have needed `flatpak-spawn --host` (`--talk-name=org.freedesktop.Flatpak`), which is full access to the host anyway.
+
+  The host already has what it needs: python3-gobject, GTK 4 and libadwaita 1.9. If Matt wants a Flatpak, the app can be repackaged; the code doesn't depend on where it lives.
+- **Welcome shows once, after Bazzite Portal.** `/etc/xdg/autostart/tech.redfoxlabs.Hub.welcome.desktop` runs `/usr/libexec/redfox-hub-first-login`. That waits while Portal (`yafti_gtk`) is open, then runs `redfox-hub --first-login`, which shows the tour unless `~/.local/state/redfox/welcome-seen` exists. Existing users also see it once, after the update that brings Hub.
+- **The pages and words of Welcome** (below).
+- Everything under "Apps", "Settings" and the window layout below.
 
 ## The window
 
-An `Adw.NavigationSplitView`: a sidebar with **Welcome**, **Apps**, **Settings** and **Manual**, and the section on the right. On a narrow window the sidebar folds away, as in GNOME Settings. Each section can be opened directly, so Welcome, `ujust` messages and the Manual can link straight to a page:
+An `Adw.NavigationSplitView`: a sidebar (`Adw.Sidebar`) with Welcome, Apps, Updates, Settings and Manual, and the section on the right. On a narrow window the sidebar folds away, as in GNOME Settings. Every page can be opened directly:
 
 ```
-flatpak run tech.redfoxlabs.Hub --welcome
-flatpak run tech.redfoxlabs.Hub --page settings/layout
-flatpak run tech.redfoxlabs.Hub --page manual/updates
+redfox-hub --welcome              # the tour, in its own window
+redfox-hub --page updates
+redfox-hub --page settings/layout
+redfox-hub --page manual/apps     # a Manual page, by its slug
 ```
 
-There is one launcher in the app grid, **RedFox Hub**. It shouldn't share a name with GNOME's own *Settings* or *Software* apps, which "Hub" doesn't.
+The main menu has *Show the welcome tour* and *About RedFox Hub*.
 
-## Principle: the GUI is a front end, the CLIs stay the source of truth
+## Principle: the GUI is a front end, the commands stay the source of truth
 
-Every action Hub takes goes through a host command that also works in a terminal, and that command can print JSON for the app:
+Every change Hub makes goes through a command that also works in a terminal. Each command prints JSON for Hub:
 
-| Area | Host command | Notes |
+| Area | Command | JSON |
 | --- | --- | --- |
-| Layouts | `redfox-layout list/get/set` | Exists (on `feat/layout-modes`). Add `--json`. |
-| Config | `redfox-config` | Exists. Its future shape depends on the secrets/config discussion. |
-| Apps | `redfox-software list/install/remove` (new) | Reads a catalog file shipped in the image (below). |
-| Recipes | `ujust <recipe>` | For anything not covered above. |
+| Updates | `redfox-updates status/now/auto on\|off/restart` | `status --json` |
+| Channel, rollback, other builds | `redfox-rollback-helper rebase/rollback/list` | `--json list` |
+| Layouts | `redfox-layout list/set` | `list --json` |
+| Apps | `redfox-software list/install/remove` (catalog: `/usr/share/redfox/software.yaml`) | `--json` |
+| Start at login | `redfox-autostart list/on/off` | `list --json` |
+| MIDI archive | `midikeep data-dir [PATH]` | `data-dir --json` |
 
-That keeps `ujust bootstrap-matt` and friends working unchanged and keeps the GUI thin. Hub checks the versions of the commands it calls, so an old image and a newer Hub fail clearly.
+The `ujust` recipes (`install-*`, `configure-autostart-tray`, `preset-dock-*`, `rollback-helper`) call the same commands, so a terminal and Hub always do the same thing.
+
+Passwords: nothing in Hub runs `sudo`. Changes that need root ask through polkit, in GNOME's own password dialog:
+- rolling back needs no password for administrators, as in Bazzite's rpm-ostree rule;
+- changing the channel or the build asks for one;
+- turning automatic updates on or off asks for one, through `pkexec /usr/libexec/redfox-updates-auto` (polkit action `tech.redfoxlabs.hub.automatic-updates`).
 
 ## Stack
 
-The same stack as Thirties and Pianola: Python, GTK 4 and libadwaita, Meson, the `org.gnome.Platform` 50 runtime. It follows the GNOME HIG, and Blueprint can be used for UI files if it helps.
+Python, GTK 4 and libadwaita 1.9 from the host, no build step. Plain Python modules in `files/system/usr/share/redfox/hub/redfox_hub/`, one per section, with `style.css` beside them. Commands run in worker threads (`host.py`) and report back on the main loop.
 
 ## Welcome
 
-A brief, happy, clean introduction in the spirit of GNOME Tour: a few full-window pages, each with one big illustration, a one-line headline and a sentence or two. Arrows and dots move between pages. Then it hands over to the rest of Hub. It doesn't set anything up itself; that's what Apps and Settings are for.
+GNOME Tour's pattern: full-window pages, each with one picture, a headline and a sentence or two. Arrows and dots move between them, and the last page links into Hub. It sets nothing up itself. At first login it opens in its own window; in Hub it's the Welcome section.
 
-Pages (a first draft of the words):
+The words are a first draft for Matt *(proposed)*:
 
-1. **Welcome to RedFoxOS.** The watercolour fox. "A fast, friendly desktop that looks after itself." Buttons: *Take the tour* and *Not now*.
-2. **Updates you never have to think about.** RedFoxOS updates in the background as a whole system, and if an update ever misbehaves, you can go back to yesterday's with one choice at startup.
-3. **Apps for everything.** Get apps from Bazaar (Flathub), with RedFox's packs of favourites a tick away.
-4. **Make it yours.** The six layouts, drawn small (the previews from `assets/layouts/`), changing live.
-5. **Made for making things.** Code, music and writing tools ready to go: VS Code, uv, containers, MIDI capture.
-6. **You're all set.** Three large buttons into the rest of Hub: **Get apps** (Apps), **Choose a layout** (Settings › Layout) and **Read the Manual** (Manual). *Close* finishes Welcome.
+1. **Welcome to RedFoxOS.** The fox. "A fast, friendly desktop that looks after itself." *Take the Tour* / *Not Now*.
+2. **Updates You Never Have to Think About.** "RedFoxOS updates itself in the background, all in one piece. If an update ever misbehaves, go back to the one before, in Hub or from the boot menu."
+3. **Apps for Everything.** "Bazaar has thousands of apps from Flathub. RedFox's packs of favourites are in Hub, a tick away."
+4. **Make It Yours.** Three layout previews. "Six layouts: a dock on the side or at the bottom, or one taskbar. Switch any time; your apps stay open."
+5. **You're All Set.** *Get Apps*, *Choose a Layout*, *Read the Manual*, *Close*.
 
-### Reuse GNOME Tour?
+Pages 2, 3 and 5 use a large symbolic icon on a tinted disc as a stand-in. They're a good brief for the artist being commissioned for the fox.
 
-[GNOME Tour](https://gitlab.gnome.org/GNOME/gnome-tour) is exactly this kind of app. It's licensed **GPL-3.0-or-later** and written in **Rust** (gtk4-rs and libadwaita), and it's small: a window, a paginator and an image-page widget.
+## Updates
 
-- **Forking it** would give us its behaviour exactly. But Hub would then be Rust, unlike Thirties and Pianola, and Hub as a whole would have to be GPL-3.0.
-- **Rebuilding the pattern** in Python is little work, because libadwaita now provides the pieces: `Adw.Carousel` with `Adw.CarouselIndicatorDots`, plus a page of picture, title and text. That's a few hundred lines, keeps one stack, and leaves the licence our choice.
-
-**Decided (Matt, 2026-11-03): rebuild the pattern in Python and libadwaita; don't fork GNOME Tour's Rust code.** Follow its design closely: its page layout, its pacing (about five pages), and its tone. Write the code ourselves rather than copying any, so Hub's licence stays our choice; reusing GNOME Tour's code or artwork would make Hub GPL-3.0.
-
-The illustrations should be RedFox's own, in the watercolour style. They're a good brief for the artist being commissioned for the fox. Until then, the generated fox and the layout previews will do.
+- **Status** at the top: updating (with a spinner), restart to finish, the last update didn't finish, automatic updates are off, or "Updates Are Automatic" with the time of the last update. **Update Now** runs `redfox-updates now` (topgrade with RedFox's config) and shows its output under *Details*. **Restart…** appears when a new system is waiting.
+- **Automatic Updates:** a switch for `uupd.timer`, the last run (and whether it finished), the next run.
+- **Channel:** Stable (`latest`) or Unstable, with a confirmation; a computer on a fixed build says so.
+- **Go Back:** this system, the previous one with **Go Back…** (`rpm-ostree rollback`), and **Other Builds**, the recent builds of either channel from `redfox-rollback-helper --json list`, each with **Switch…**.
 
 ## Apps
 
-A checklist of software grouped into the existing packs (Productivity, Daily, Creative, Music, Dev, Comms, Compatibility, …). Each row shows the app's icon, its name, one line of text, and whether it's installed. Ticking and pressing **Apply** installs or removes; a whole pack can be ticked at once.
-
-For this to work, the software lists move out of the `install-*` recipes into a **catalog file in the image**, for example `/usr/share/redfox/software.yaml`:
-
-```yaml
-packs:
-  productivity:
-    name: Productivity
-    items:
-      - flatpak: org.libreoffice.LibreOffice
-      - flatpak: com.getmailspring.Mailspring
-  dev:
-    name: Development
-    items:
-      - recipe: install-zed          # anything not a plain Flatpak stays a ujust recipe
-      - brew: gh
-```
-
-`redfox-software` reads the file and the `install-*` recipes become one-liners (`redfox-software install productivity`), so the terminal and Hub always install the same things. Flatpak installs show per-app progress from `flatpak install --noninteractive`.
+The packs from the catalog, one group each, with each app's icon, name, a line of text and a tick for "installed". Tick or untick, then **Apply**; **Tick All** ticks a whole pack. Removing asks first. Each app shows a spinner while it's being installed. The personal bundles (Matt's, Dewy's) are hidden in Hub but stay as recipes.
 
 ## Settings
 
-Pages in the style of GNOME Settings:
-
-- **Layout.** The layout picker: six cards, three across, in this order: **RedFox**, **GNOME** and **Ubuntu** on top, then **Cal**, **Wash** and **Nostalgia** ([`docs/layout-names.md`](layout-names.md); previews drawn by `assets/layouts/make-previews.py`, both on `feat/layout-modes`). Each picture has a very light border, so they line up by eye; a card lifts with a drop shadow on hover. `assets/layouts/picker.html` is a mock-up of the look. Picking one applies it live (`redfox-layout set`), so the user sees the real thing behind the window. Below the cards: the floating-dock gap, and the RedFox layout's "dock on screens at least N pixels wide".
-- **Desktop.** Window buttons (`set-window-controls-*`), app grid sorting, tiling presets, square corners, sound theme, XWayland scaling. These are today's "UI/UX atoms", each a switch or a combo row that calls its recipe.
-- **Services.** Tailscale, NordVPN, weekly ClamAV scans and swap, each with on/off and status.
-- **This machine.** Hostname and hardware quirks, read from the `machines:` section of the config.
-- **MIDI archive.** A "MIDI archive folder" row with a folder chooser: it writes `data_dir` to `~/.config/midikeep/config.yaml` (shared with Pianola) and restarts the `midikeep` user service (`midikeep-daemon`).
-- **Setup profile.** Matt, Dewy or someone else (later "plain Fedora"). This picks the defaults that Apps pre-ticks, mirroring the `bootstrap-*` organisms without running them blind.
-- **Config file.** View, import, export, or open `config.yaml` in an editor, with secrets masked. How secrets are stored and edited is the open secrets/config question, so this page waits for that.
+- **Layout:** the six layouts as cards, three across (two or one on a narrow window), in Matt's order, using the previews from `assets/layouts/`. Picking one applies it at once with `redfox-layout set`. Below the cards: the floating dock's gap, and the screen width from which the RedFox layout uses a dock.
+- **Start at Login:** a switch per app (Signal, Joplin) to start it in the tray at login, through `redfox-autostart`. This is the roadmap's per-app tray toggle. `configure-matt` still runs `configure-autostart-tray` until Matt says the automatic step should go.
+- **MIDI Archive:** where Midikeep keeps its recordings, with a folder chooser (`midikeep data-dir`). New takes go to the new folder; earlier ones stay where they were.
+- Still to come *(proposed)*: desktop options (window buttons, app grid, tiling, corners, sounds), services (Tailscale, NordVPN, ClamAV, swap), this machine, setup profile, config file. Window buttons wait on one question: every layout sets them, so a separate switch would fight the layouts.
 
 ## Manual
 
@@ -120,15 +111,16 @@ A very short guide, only where RedFoxOS differs from ordinary Linux (it's immuta
 
 The pages are Markdown files in this repo (`docs/manual/`), so they can be reviewed like code. Hub bundles them at build time, and the same files can be published on the RedFox website.
 
-## Suggested order
+## Still to do
 
-1. **Skeleton and Manual.** The window, the sidebar, deep links, the release pipeline and `update-redfox-apps`. The Manual is mostly writing and useful on its own.
-2. **Settings › Layout.** The CLI exists and the previews are drawn.
-3. **Apps.** The catalog refactor helps the `ujust` side too.
-4. **Welcome and the first-login step.** Mostly illustration and words, and it links into the sections above.
-5. **The rest of Settings.** Leave Config file until the secrets design is settled.
+1. Matt's review of the looks and the Welcome words (previews on the tailnet).
+2. The rest of Settings (above). Leave the config file page until the secrets/config design is settled.
+3. Illustrations for Welcome, from the artist.
 
 ## Open questions for Matt
 
-- Welcome's words and pages: the draft above, or a different story?
-- Welcome and Bazzite Portal: keep "run after Portal", or turn Portal off for RedFox users?
+- Hub in the image rather than as a Flatpak (see "Proposed").
+- Welcome's words and pages.
+- Welcome and Bazzite Portal: keep "after Portal", or turn Portal off for RedFox users?
+- Should existing users see the tour once after the update that brings Hub?
+- `configure-autostart-tray` in `configure-matt`: drop it now that Hub has the switches?
