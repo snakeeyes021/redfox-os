@@ -37,8 +37,7 @@ class AppsSection(Section):
         self.stack.add_named(self.page, "list")
         self.groups = []
 
-        # Bazaar, if the host has it (asked through the host, so this works
-        # from a Flatpak too).
+        # Bazaar, if it's installed.
         more = Adw.PreferencesGroup(visible=False)
         row = Adw.ActionRow(title="Find More Apps in Bazaar",
                             subtitle="Thousands of apps from Flathub", activatable=True)

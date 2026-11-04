@@ -15,16 +15,10 @@ Each rule below is marked **(Matt)** if Matt decided it, or **(proposed)** if an
 5. **No `ujust` in anything a user is shown.** Hub's switches are the long-term home for opt-in features. *(Matt, from the Winboat work)*
 6. **Rebuild GNOME Tour's pattern in Python and libadwaita; don't fork its Rust code.** *(Matt, 11-03)*
 7. **The name is written RedFoxOS, one word.** *(Matt)*
-8. **Packaging: "Flatpak in repo, remote later".** *(Matt, 11-02; building it into the image instead is with him, see below)*
+8. **Hub is built into the image, not a Flatpak:** "It is specific to the OS and wouldn't be helpful to others on a different OS." *(Matt, 11-04; this replaces his 11-02 "Flatpak in repo, remote later" for Hub.)* It's a meson project in `files/hub/`, installed to `/usr` at image build by `files/scripts/install-redfox-hub.sh`, as `tech.redfoxlabs.Hub`. Because it's part of the image, it's there at first boot (offline too, so Welcome needs no download step), it updates with the system, so it always matches the commands it calls, and it runs them directly, with no sandbox.
 
 ## Proposed (not yet confirmed)
 
-- **Packaging: Matt decided "Flatpak in repo, remote later" (11-02).** Building it into the image instead was proposed on 11-04 and has gone to Matt. In the image:
-  - it would be there at first boot, offline too, so Welcome needs no download step;
-  - it would update with the system, so Hub and the commands it calls always match;
-  - it would need no sandbox escape. As a Flatpak it needs `flatpak-spawn --host` (`--talk-name=org.freedesktop.Flatpak`), which is full access to the host anyway.
-
-  Until he answers, Hub is packaging-agnostic: a meson project in `files/hub/` that installs to any prefix, with every host call behind one helper (`host.host_argv()`) that adds `flatpak-spawn --host` only inside a sandbox. For now the image builds it into `/usr` (`files/scripts/install-redfox-hub.sh`), so it can be tested there. Either route then takes a little packaging, not a rewrite; `files/hub/README.md` lists what a Flatpak manifest needs.
 - **Welcome shows once, after Bazzite Portal.** `/etc/xdg/autostart/tech.redfoxlabs.Hub.welcome.desktop` runs `/usr/libexec/redfox-hub-first-login`. That waits while Portal (`yafti_gtk`) is open, then runs `redfox-hub --first-login`, which shows the tour unless `~/.local/state/redfox/welcome-seen` exists. Existing users also see it once, after the update that brings Hub.
 - **The pages and words of Welcome** (below).
 - Everything under "Apps", "Settings" and the window layout below.
@@ -138,7 +132,6 @@ Keep to the differences: only where RedFoxOS differs from ordinary Linux or from
 
 ## Open questions for Matt
 
-- Packaging: keep his 11-02 "Flatpak in repo", or build Hub into the image (see "Proposed"; the PM has asked him).
 - Welcome's words and pages.
 - Welcome and Bazzite Portal: keep "after Portal", or turn Portal off for RedFox users?
 - Should existing users see the tour once after the update that brings Hub?

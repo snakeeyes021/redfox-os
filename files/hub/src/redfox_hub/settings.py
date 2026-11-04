@@ -6,8 +6,8 @@ from . import host
 from .paths import LAYOUTS
 from .window import Section
 
-# The layout helper extension's settings, read and written with the host's
-# gsettings (a Flatpak can't see the host's schemas).
+# The layout helper extension's settings, read and written with gsettings
+# (the command, so Hub needs no compiled schema of its own).
 RFL = "org.gnome.shell.extensions.redfox-layouts"
 
 

@@ -21,12 +21,6 @@ MANUAL = Path(os.environ.get("REDFOX_MANUAL_DIR", DATA / "manual"))
 
 
 def host_state_dir():
-    """~/.local/state/redfox on the host, shared with the host's first-login
-    script. In a Flatpak, XDG_STATE_HOME is the app's own folder, so use
-    HOST_XDG_STATE_HOME (or the default) instead; the manifest grants
-    access to ~/.local/state/redfox."""
-    if os.path.exists("/.flatpak-info"):
-        base = os.environ.get("HOST_XDG_STATE_HOME") or str(Path.home() / ".local/state")
-    else:
-        base = os.environ.get("XDG_STATE_HOME") or str(Path.home() / ".local/state")
+    """~/.local/state/redfox, shared with the first-login script."""
+    base = os.environ.get("XDG_STATE_HOME") or str(Path.home() / ".local/state")
     return Path(base) / "redfox"

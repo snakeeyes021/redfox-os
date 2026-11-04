@@ -20,9 +20,4 @@ while portal_open && [ "$waited" -lt 3600 ]; do
     waited=$((waited + 5))
 done
 
-# Hub installed in the image, or as a Flatpak.
-if command -v redfox-hub >/dev/null; then
-    exec redfox-hub --first-login
-elif flatpak info tech.redfoxlabs.Hub >/dev/null 2>&1; then
-    exec flatpak run tech.redfoxlabs.Hub --first-login
-fi
+exec /usr/bin/redfox-hub --first-login

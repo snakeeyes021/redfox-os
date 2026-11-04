@@ -2,7 +2,7 @@
 
 RedFoxOS's own app: Welcome, Apps, Updates, Settings and Manual. Python, GTK 4 and libadwaita; the design is in [`docs/redfox-apps-design.md`](../../docs/redfox-apps-design.md).
 
-It's a meson project that installs to any prefix:
+It's a meson project:
 
 ```sh
 meson setup build --prefix=/usr
@@ -20,11 +20,4 @@ To try it from the source tree without installing: `python3 -c 'import sys; sys.
 
 ## Packaging
 
-Hub doesn't care where it's installed. The two places that would change for a Flatpak:
-
-- **Host commands** all go through `host.host_argv()`. Installed on the host, Hub runs them directly; in a Flatpak (`/.flatpak-info` exists), through `flatpak-spawn --host`. Nothing else in the app reaches the host.
-- **The welcome marker** is `~/.local/state/redfox/welcome-seen` on the host (`paths.host_state_dir()`), shared with the first-login script in the image.
-
-A Flatpak manifest would need `--talk-name=org.freedesktop.Flatpak` (for `flatpak-spawn --host`), `--filesystem=~/.local/state/redfox:create`, and `--filesystem=/var/lib/flatpak/exports/share/icons:ro` plus `--filesystem=xdg-data/flatpak/exports/share/icons:ro` so app icons show in Apps. Folder choosing and the clipboard go through portals already.
-
-The commands Hub calls are part of the image, not of Hub: `redfox-updates`, `redfox-autostart`, `redfox-layout`, `redfox-software`, `redfox-rollback-helper`, `midikeep`, `gsettings`, `flatpak` and `systemctl`.
+Hub is part of the image, not a Flatpak (Matt, 11-04: "It is specific to the OS and wouldn't be helpful to others on a different OS"). It runs the image's commands directly: `redfox-updates`, `redfox-autostart`, `redfox-layout`, `redfox-software`, `redfox-rollback-helper`, `midikeep`, `gsettings`, `flatpak` and `systemctl`. Those commands belong to the image, not to Hub, and work the same in a terminal.

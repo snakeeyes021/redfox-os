@@ -2,10 +2,8 @@
 
 Hub is a front end: everything it changes goes through a command on the
 host that also works in a terminal (redfox-updates, redfox-layout,
-redfox-software, redfox-rollback-helper, gsettings, ...). Every such call
-goes through host_argv(): installed on the host, Hub runs the command
-directly; in a Flatpak sandbox, through `flatpak-spawn --host` (which needs
---talk-name=org.freedesktop.Flatpak). Commands run in a worker thread;
+redfox-software, redfox-rollback-helper, gsettings, ...). Hub is part of
+the image, so it runs them directly. Commands run in a worker thread;
 callbacks come back on the GTK main loop.
 """
 
@@ -15,16 +13,6 @@ import subprocess
 import threading
 
 from gi.repository import GLib
-
-
-SANDBOXED = os.path.exists("/.flatpak-info")
-
-
-def host_argv(argv):
-    """argv as run on the host, from wherever Hub is running."""
-    if SANDBOXED:
-        return ["flatpak-spawn", "--host", "--env=LC_ALL=C.UTF-8", *argv]
-    return list(argv)
 
 
 def _env():
@@ -46,7 +34,7 @@ def run(argv, on_done=None, on_line=None):
         lines = []
         try:
             proc = subprocess.Popen(
-                host_argv(argv), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                argv, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 stdin=subprocess.DEVNULL, text=True, bufsize=1, env=_env())
         except OSError as error:
             message = f"Couldn't run {argv[0]}: {error.strerror}"
@@ -73,7 +61,7 @@ def run_json(argv, on_done):
     def worker():
         try:
             proc = subprocess.run(
-                host_argv(argv), capture_output=True, text=True, stdin=subprocess.DEVNULL,
+                argv, capture_output=True, text=True, stdin=subprocess.DEVNULL,
                 env=_env(), timeout=120)
         except (OSError, subprocess.TimeoutExpired) as error:
             GLib.idle_add(on_done, None, str(error))
