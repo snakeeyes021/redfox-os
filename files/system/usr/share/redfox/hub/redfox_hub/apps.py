@@ -4,7 +4,7 @@ A front end to redfox-software, which reads the catalog in
 /usr/share/redfox/software.yaml (the same lists the install-* recipes use).
 """
 
-from gi.repository import Adw, Gtk
+from gi.repository import Adw, Gio, Gtk
 
 from . import host
 from .window import Section
@@ -30,11 +30,23 @@ class AppsSection(Section):
         self.stack.add_named(self.error, "error")
 
         self.page = Adw.PreferencesPage(
-            description="Ticked apps are installed. Tick or untick, then Apply. "
-                        "Everything here also comes from Bazaar, where you'll "
-                        "find thousands more.")
+            description="RedFox's packs of favourite apps. Ticked apps are "
+                        "installed: tick or untick, then Apply.")
         self.stack.add_named(self.page, "list")
         self.groups = []
+
+        bazaar = Gio.DesktopAppInfo.new("io.github.kolunmi.Bazaar.desktop")
+        if bazaar:
+            more = Adw.PreferencesGroup()
+            row = Adw.ActionRow(title="Find More Apps in Bazaar",
+                                subtitle="Thousands of apps from Flathub", activatable=True)
+            icon = Gtk.Image(gicon=bazaar.get_icon(), pixel_size=32)
+            icon.add_css_class("lowres-icon")
+            row.add_prefix(icon)
+            row.add_suffix(Gtk.Image(icon_name="adw-external-link-symbolic"))
+            row.connect("activated", lambda *_: bazaar.launch([], None))
+            more.add(row)
+            self.page.add(more)
 
         self.summary = Gtk.Label(xalign=0, hexpand=True)
         self.apply_button = Gtk.Button(label="Apply")
