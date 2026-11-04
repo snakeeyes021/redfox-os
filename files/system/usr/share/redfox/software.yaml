@@ -1,0 +1,548 @@
+# RedFoxOS software catalog.
+#
+# Read by /usr/bin/redfox-software (which the `ujust install-*` recipes and
+# RedFox Hub call). Packs are listed in display order. A pack has its own
+# `items` and may `includes` other packs; installing a pack installs the
+# included packs' items first, then its own, each item once. Hidden packs are
+# personal bundles that a GUI shouldn't offer.
+#
+# Item kinds:
+#   flatpak     a Flathub app id, installed system-wide (the flatpak default)
+#   redfox-app  a RedFox Labs app, installed per user from its GitHub release
+#               bundle by /usr/bin/update-redfox-apps
+#   recipe      anything else: `install`, `remove` and `check` are bash
+#               commands; `check` exits 0 when the item is installed. An
+#               optional `icon` is an icon name or a path ($HOME and ~ are
+#               expanded), reported only while the item is installed.
+
+version: 1
+
+packs:
+  - id: basic
+    name: Basics
+    description: Everyday GNOME apps for calendars, contacts, maps, weather and backups.
+    items:
+      - org.gnome.World.PikaBackup
+      - org.gnome.Calendar
+      - org.gnome.Snapshot
+      - org.gnome.clocks
+      - org.gnome.Contacts
+      - org.gnome.Maps
+      - org.gnome.Weather
+
+  - id: productivity
+    name: Productivity
+    description: Office suite, email, notes, scanning and file transfer.
+    items:
+      - org.gnome.SimpleScan
+      - org.libreoffice.LibreOffice
+      - com.getmailspring.Mailspring
+      - be.alexandervanhee.gradia
+      - net.cozic.joplin_desktop
+      - app.drey.Warp
+
+  - id: comms
+    name: Communication
+    description: Private messaging and Discord.
+    items:
+      - org.signal.Signal
+      - dev.vencord.Vesktop
+
+  - id: daily
+    name: Reading and Listening
+    description: News feeds, the Fediverse, e-books, audiobooks and music.
+    items:
+      - dev.geopjr.Tuba
+      - io.gitlab.news_flash.NewsFlash
+      - com.github.geigi.cozy
+      - com.github.johnfactotum.Foliate
+      - org.gnome.Music
+      - com.spotify.Client
+
+  - id: creative
+    name: Creative Suite
+    description: Every creative pack at once, from audio and graphics to video and writing.
+    includes: [audio, graphics, photos, video, notation, writing]
+
+  - id: audio
+    name: Audio Production
+    description: Recording, editing, sound design, MIDI and audio routing.
+    items:
+      - soundthread
+      - tech.redfoxlabs.Pianola
+      - org.ardour.Ardour
+      - info.puredata.Pd
+      - net.purrdata.PurrData
+      - org.audacityteam.Audacity
+      - net.sourceforge.VMPK
+      - org.pipewire.Helvum
+
+  - id: graphics
+    name: Graphics
+    description: Painting, illustration, 3D and pixel art.
+    items:
+      - org.kde.krita
+      - org.blender.Blender
+      - org.inkscape.Inkscape
+      - org.gimp.GIMP
+      - com.orama_interactive.Pixelorama
+      - nl.hjdskes.gcolor3
+      - net.pixieditor.PixiEditor
+
+  - id: photos
+    name: Photography
+    description: Organise a photo library and develop raw photos.
+    items:
+      - org.kde.digikam
+      - org.darktable.Darktable
+
+  - id: video
+    name: Video Production
+    description: Editing, trimming, compressing, downloading and recording video.
+    items:
+      - org.kde.kdenlive
+      - org.bunkus.mkvtoolnix-gui
+      - org.gnome.gitlab.YaLTeR.VideoTrimmer
+      - com.github.unrud.VideoDownloader
+      - com.obsproject.Studio
+      - io.github.wartybix.Constrict
+
+  - id: notation
+    name: Music Notation
+    description: Write and engrave sheet music.
+    items:
+      - org.musescore.MuseScore
+      - org.frescobaldi.Frescobaldi
+
+  - id: writing
+    name: Writing
+    description: LaTeX documents and long-form fiction.
+    items:
+      - org.cvfosammmm.Setzer
+      - ch.theologeek.Manuskript
+
+  - id: compatibility
+    name: Windows Compatibility
+    description: Run Windows programs.
+    items:
+      - com.usebottles.bottles
+
+  - id: dev
+    name: Development
+    description: Code editors, containers and system inspection tools, plus the GNOME development pack.
+    includes: [gnome-dev]
+    items:
+      - zed
+      - antigravity-cli
+      - io.podman_desktop.PodmanDesktop
+      - org.gnome.dspy
+      - ca.desrt.dconf-editor
+
+  - id: gnome-dev
+    name: GNOME Development
+    description: Build and prototype GNOME apps.
+    items:
+      - org.gnome.Builder
+      - re.sonny.Workbench
+
+  - id: bluefin-dx
+    name: Bluefin DX Extras
+    description: Developer utilities from Bluefin's developer edition.
+    items:
+      - org.freedesktop.Bustle
+      - de.leopoldluley.Clapgrep
+      - io.github.ronniedroid.concessio
+      - me.iepure.devtoolbox
+      - io.github.getnf.embellish
+      - org.pipewire.Helvum
+
+  - id: redfox-app-fleet
+    name: RedFox Apps
+    description: Apps made by RedFox Labs.
+    items:
+      - tech.redfoxlabs.Pianola
+      - tech.redfoxlabs.Thirties
+
+  - id: matt
+    name: Matt's Bundle
+    description: Matt's full set of apps.
+    hidden: true
+    includes: [redfox-app-fleet, dev, bluefin-dx, creative, daily, productivity, compatibility, basic, comms]
+    items:
+      - com.jeffser.Alpaca
+
+  - id: dewy
+    name: Dewy's Bundle
+    description: Dewy's set of apps.
+    hidden: true
+    includes: [comms]
+    items:
+      - zed
+      - org.videolan.VLC
+      - net.pixieditor.PixiEditor
+      - com.spotify.Client
+      - com.bambulab.BambuStudio
+      - org.gnome.SimpleScan
+      - org.libreoffice.LibreOffice
+      - be.alexandervanhee.gradia
+      - net.cozic.joplin_desktop
+      - app.drey.Warp
+      - org.texstudio.TeXstudio
+      - com.brave.Browser
+      - com.slack.Slack
+      - com.dropbox.Client
+      - texlive
+
+  - id: normie
+    name: Everyday Bundle
+    description: A friendly everyday set for most people.
+    hidden: true
+    includes: [basic, daily, productivity, comms]
+
+items:
+  # Basics
+  - id: org.gnome.World.PikaBackup
+    kind: flatpak
+    name: Pika Backup
+    summary: Back up your files to a drive or server, on a schedule.
+  - id: org.gnome.Calendar
+    kind: flatpak
+    name: Calendar
+    summary: Keep track of events, with your online calendars.
+  - id: org.gnome.Snapshot
+    kind: flatpak
+    name: Camera
+    summary: Take photos and videos with your webcam.
+  - id: org.gnome.clocks
+    kind: flatpak
+    name: Clocks
+    summary: World clocks, alarms, a stopwatch and timers.
+  - id: org.gnome.Contacts
+    kind: flatpak
+    name: Contacts
+    summary: Manage your address book.
+  - id: org.gnome.Maps
+    kind: flatpak
+    name: Maps
+    summary: Find places and plan routes.
+  - id: org.gnome.Weather
+    kind: flatpak
+    name: Weather
+    summary: Current conditions and forecasts.
+
+  # Productivity
+  - id: org.gnome.SimpleScan
+    kind: flatpak
+    name: Document Scanner
+    summary: Scan documents and photos to PDF or image files.
+  - id: org.libreoffice.LibreOffice
+    kind: flatpak
+    name: LibreOffice
+    summary: Office suite with a word processor, spreadsheets and presentations.
+  - id: com.getmailspring.Mailspring
+    kind: flatpak
+    name: Mailspring
+    summary: Email client for all your accounts.
+  - id: be.alexandervanhee.gradia
+    kind: flatpak
+    name: Gradia
+    summary: Annotate screenshots and give them a background for sharing.
+  - id: net.cozic.joplin_desktop
+    kind: flatpak
+    name: Joplin
+    summary: Notes and to-do lists in Markdown, synced across devices.
+  - id: app.drey.Warp
+    kind: flatpak
+    name: Warp
+    summary: Send files to another device using a short code.
+
+  # Communication
+  - id: org.signal.Signal
+    kind: flatpak
+    name: Signal
+    summary: Private, end-to-end encrypted messaging.
+  - id: dev.vencord.Vesktop
+    kind: flatpak
+    name: Vesktop
+    summary: Discord client with Vencord built in.
+
+  # Reading and listening
+  - id: dev.geopjr.Tuba
+    kind: flatpak
+    name: Tuba
+    summary: Browse Mastodon and the rest of the Fediverse.
+  - id: io.gitlab.news_flash.NewsFlash
+    kind: flatpak
+    name: Newsflash
+    summary: Follow websites and blogs through their RSS feeds.
+  - id: com.github.geigi.cozy
+    kind: flatpak
+    name: Cozy
+    summary: Listen to audiobooks.
+  - id: com.github.johnfactotum.Foliate
+    kind: flatpak
+    name: Foliate
+    summary: Read e-books.
+  - id: org.gnome.Music
+    kind: flatpak
+    name: Music
+    summary: Play your music collection.
+  - id: com.spotify.Client
+    kind: flatpak
+    name: Spotify
+    summary: Stream music and podcasts.
+
+  # Audio production
+  - id: soundthread
+    kind: recipe
+    name: SoundThread
+    summary: Node-based sound design with the Composers Desktop Project tools.
+    install: /usr/bin/update-soundthread
+    remove: /usr/bin/uninstall-soundthread
+    check: test -d "$HOME/.local/share/SoundThread"
+    icon: $HOME/.local/share/SoundThread/SoundThread.png
+  - id: org.ardour.Ardour
+    kind: flatpak
+    name: Ardour
+    summary: Record, edit and mix audio and MIDI.
+  - id: info.puredata.Pd
+    kind: flatpak
+    name: Pure Data
+    summary: Visual programming for sound and music.
+  - id: net.purrdata.PurrData
+    kind: flatpak
+    name: Purr Data
+    summary: Pure Data with a modern interface and extra libraries.
+  - id: org.audacityteam.Audacity
+    kind: flatpak
+    name: Audacity
+    summary: Record and edit audio.
+  - id: net.sourceforge.VMPK
+    kind: flatpak
+    name: VMPK
+    summary: Play MIDI notes from an on-screen piano keyboard.
+  - id: org.pipewire.Helvum
+    kind: flatpak
+    name: Helvum
+    summary: Patchbay for connecting PipeWire audio and MIDI.
+
+  # Graphics
+  - id: org.kde.krita
+    kind: flatpak
+    name: Krita
+    summary: Digital painting and illustration.
+  - id: org.blender.Blender
+    kind: flatpak
+    name: Blender
+    summary: 3D modelling, animation and rendering.
+  - id: org.inkscape.Inkscape
+    kind: flatpak
+    name: Inkscape
+    summary: Vector graphics editor.
+  - id: org.gimp.GIMP
+    kind: flatpak
+    name: GIMP
+    summary: Image editor for photo retouching and graphics.
+  - id: com.orama_interactive.Pixelorama
+    kind: flatpak
+    name: Pixelorama
+    summary: Pixel art and sprite animation.
+  - id: nl.hjdskes.gcolor3
+    kind: flatpak
+    name: Color Picker
+    summary: Pick colours from anywhere on the screen.
+  - id: net.pixieditor.PixiEditor
+    kind: flatpak
+    name: PixiEditor
+    summary: 2D editor for pixel art, painting and vector graphics.
+
+  # Photography
+  - id: org.kde.digikam
+    kind: flatpak
+    name: digiKam
+    summary: Organise, tag and edit a large photo library.
+  - id: org.darktable.Darktable
+    kind: flatpak
+    name: darktable
+    summary: Develop and edit raw photos.
+
+  # Video production
+  - id: org.kde.kdenlive
+    kind: flatpak
+    name: Kdenlive
+    summary: Video editor with multiple tracks and effects.
+  - id: org.bunkus.mkvtoolnix-gui
+    kind: flatpak
+    name: MKVToolNix
+    summary: Create, split and edit Matroska (MKV) video files.
+  - id: org.gnome.gitlab.YaLTeR.VideoTrimmer
+    kind: flatpak
+    name: Video Trimmer
+    summary: Cut a clip out of a video without re-encoding it.
+  - id: com.github.unrud.VideoDownloader
+    kind: flatpak
+    name: Video Downloader
+    summary: Download videos from YouTube and other websites.
+  - id: com.obsproject.Studio
+    kind: flatpak
+    name: OBS Studio
+    summary: Record and live-stream your screen and cameras.
+  - id: io.github.wartybix.Constrict
+    kind: flatpak
+    name: Constrict
+    summary: Compress videos to a target file size.
+
+  # Music notation
+  - id: org.musescore.MuseScore
+    kind: flatpak
+    name: MuseScore
+    summary: Write, play back and print sheet music.
+  - id: org.frescobaldi.Frescobaldi
+    kind: flatpak
+    name: Frescobaldi
+    summary: Editor for LilyPond sheet music.
+
+  # Writing
+  - id: org.cvfosammmm.Setzer
+    kind: flatpak
+    name: Setzer
+    summary: LaTeX editor.
+  - id: ch.theologeek.Manuskript
+    kind: flatpak
+    name: Manuskript
+    summary: Plan and write novels and other long stories.
+
+  # Windows compatibility
+  - id: com.usebottles.bottles
+    kind: flatpak
+    name: Bottles
+    summary: Run Windows programs and games with Wine.
+
+  # Development
+  - id: zed
+    kind: recipe
+    name: Zed
+    summary: Fast code editor with built-in collaboration and AI.
+    install: curl -f https://zed.dev/install.sh | sh
+    remove: |
+      if command -v zed &> /dev/null; then
+          zed --uninstall
+      elif [ -x "$HOME/.local/bin/zed" ]; then
+          "$HOME/.local/bin/zed" --uninstall
+      else
+          echo "Zed executable not found."
+      fi
+    check: command -v zed &> /dev/null || [ -x "$HOME/.local/bin/zed" ]
+    icon: $HOME/.local/zed.app/share/icons/hicolor/512x512/apps/zed.png
+  - id: antigravity-cli
+    kind: recipe
+    name: Antigravity CLI
+    summary: Google's coding agent for the terminal, run as agy.
+    install: |
+      curl -fsSL https://antigravity.google/cli/install.sh | bash
+      ln -sf "$HOME/.local/bin/agy" "$HOME/.local/bin/antigravity-cli"
+      echo "Antigravity CLI installed as 'agy' (alias 'antigravity-cli')!"
+    remove: |
+      rm -f "$HOME/.local/bin/agy" "$HOME/.local/bin/antigravity-cli"
+      rm -rf "$HOME/.cache/antigravity"
+    check: test -x "$HOME/.local/bin/agy"
+  - id: io.podman_desktop.PodmanDesktop
+    kind: flatpak
+    name: Podman Desktop
+    summary: Manage containers, images and pods.
+  - id: org.gnome.dspy
+    kind: flatpak
+    name: D-Spy
+    summary: Browse D-Bus services and call their methods.
+  - id: ca.desrt.dconf-editor
+    kind: flatpak
+    name: dconf Editor
+    summary: View and change low-level GNOME settings.
+
+  # GNOME development
+  - id: org.gnome.Builder
+    kind: flatpak
+    name: Builder
+    summary: IDE for building GNOME apps.
+  - id: re.sonny.Workbench
+    kind: flatpak
+    name: Workbench
+    summary: Prototype and learn GTK and libadwaita interfaces.
+
+  # Bluefin DX extras
+  - id: org.freedesktop.Bustle
+    kind: flatpak
+    name: Bustle
+    summary: Record and chart D-Bus traffic.
+  - id: de.leopoldluley.Clapgrep
+    kind: flatpak
+    name: Clapgrep
+    summary: Search for text across many files and documents at once.
+  - id: io.github.ronniedroid.concessio
+    kind: flatpak
+    name: Concessio
+    summary: Understand and convert Unix file permissions.
+  - id: me.iepure.devtoolbox
+    kind: flatpak
+    name: Dev Toolbox
+    summary: Converters, encoders, formatters and other developer tools.
+  - id: io.github.getnf.embellish
+    kind: flatpak
+    name: Embellish
+    summary: Install and manage Nerd Fonts.
+
+  # RedFox apps
+  - id: tech.redfoxlabs.Pianola
+    kind: redfox-app
+    name: Pianola
+    summary: View MIDI files and play back your Midikeep recordings.
+  - id: tech.redfoxlabs.Thirties
+    kind: redfox-app
+    name: Thirties
+    summary: Plan your day in half-hour blocks with an AI assistant.
+
+  # Only in personal bundles
+  - id: com.jeffser.Alpaca
+    kind: flatpak
+    name: Alpaca
+    summary: Chat with AI models that run on your own computer.
+  - id: org.videolan.VLC
+    kind: flatpak
+    name: VLC
+    summary: Play almost any video or audio file.
+  - id: com.bambulab.BambuStudio
+    kind: flatpak
+    name: Bambu Studio
+    summary: Prepare 3D models for printing on Bambu Lab printers.
+  - id: org.texstudio.TeXstudio
+    kind: flatpak
+    name: TeXstudio
+    summary: LaTeX editor with live preview.
+  - id: com.brave.Browser
+    kind: flatpak
+    name: Brave
+    summary: Web browser that blocks ads and trackers.
+  - id: com.slack.Slack
+    kind: flatpak
+    name: Slack
+    summary: Team chat.
+  - id: com.dropbox.Client
+    kind: flatpak
+    name: Dropbox
+    summary: Sync files with your Dropbox account.
+  - id: texlive
+    kind: recipe
+    name: TeX Live
+    summary: The TeX Live distribution, so Flatpak LaTeX editors can build documents.
+    install: |
+      echo "Installing latest TexLive extension..."
+      branch=$(flatpak remote-ls flathub --columns=application,branch | grep org.freedesktop.Sdk.Extension.texlive | awk '{print $2}' | sort -V | tail -n 1)
+      flatpak install --system --noninteractive -y flathub "org.freedesktop.Sdk.Extension.texlive//$branch"
+    remove: |
+      refs=$(flatpak list --runtime --columns=ref | grep '^org.freedesktop.Sdk.Extension.texlive/' || true)
+      if [ -n "$refs" ]; then
+          flatpak uninstall --noninteractive -y $refs
+      else
+          echo "TeX Live is not installed."
+      fi
+    check: test -d /var/lib/flatpak/runtime/org.freedesktop.Sdk.Extension.texlive || test -d "$HOME/.local/share/flatpak/runtime/org.freedesktop.Sdk.Extension.texlive"

@@ -168,40 +168,19 @@ theme-text-editor-default:
 
 # Install Zed
 install-zed:
-    echo "Installing Zed..."
-    bash -c "set -euo pipefail; curl -f https://zed.dev/install.sh | sh"
-    echo "Zed installed!"
+    /usr/bin/redfox-software install zed
 
 # Uninstall Zed
 uninstall-zed:
-    echo "Uninstalling Zed..."
-    if command -v zed &> /dev/null; then \
-        zed --uninstall; \
-    elif [ -x "$HOME/.local/bin/zed" ]; then \
-        "$HOME/.local/bin/zed" --uninstall; \
-    else \
-        echo "Zed executable not found."; \
-    fi
-    if ! command -v zed &> /dev/null && [ ! -x "$HOME/.local/bin/zed" ]; then \
-        echo "Zed uninstalled successfully!"; \
-    else \
-        echo "Zed was not removed (possibly cancelled or error)."; \
-    fi
-
+    /usr/bin/redfox-software remove zed
 
 # Install Antigravity CLI
 install-antigravity-cli:
-    echo "Installing Antigravity CLI (agy)..."
-    bash -c "set -euo pipefail; curl -fsSL https://antigravity.google/cli/install.sh | bash"
-    ln -sf "$HOME/.local/bin/agy" "$HOME/.local/bin/antigravity-cli"
-    echo "Antigravity CLI installed as 'agy' (alias 'antigravity-cli')!"
+    /usr/bin/redfox-software install antigravity-cli
 
 # Uninstall Antigravity CLI
 uninstall-antigravity-cli:
-    echo "Uninstalling Antigravity CLI..."
-    rm -f "$HOME/.local/bin/agy" "$HOME/.local/bin/antigravity-cli"
-    rm -rf "$HOME/.cache/antigravity"
-    echo "Antigravity CLI uninstalled!"
+    /usr/bin/redfox-software remove antigravity-cli
 
 # Configure Heroic
 configure-heroic:
@@ -209,51 +188,39 @@ configure-heroic:
 
 # Install SoundThread
 install-soundthread:
-    /usr/bin/update-soundthread
+    /usr/bin/redfox-software install soundthread
 
 # Uninstall SoundThread
 uninstall-soundthread:
-    /usr/bin/uninstall-soundthread
+    /usr/bin/redfox-software remove soundthread
 
 # Update all installed RedFox Labs applications
 update-redfox-apps:
     /usr/bin/update-redfox-apps
 
 # Install RedFox App Fleet (all RedFox Labs Flatpak applications)
-install-redfox-app-fleet: install-pianola install-thirties
+install-redfox-app-fleet:
+    /usr/bin/redfox-software install redfox-app-fleet
 
 # Uninstall RedFox App Fleet
-uninstall-redfox-app-fleet: uninstall-pianola uninstall-thirties
+uninstall-redfox-app-fleet:
+    /usr/bin/redfox-software remove redfox-app-fleet
 
 # Install Pianola (MIDI viewer & archive playback Flatpak)
 install-pianola:
-    /usr/bin/update-redfox-apps tech.redfoxlabs.Pianola
+    /usr/bin/redfox-software install tech.redfoxlabs.Pianola
 
 # Uninstall Pianola
 uninstall-pianola:
-    echo "Uninstalling Pianola..."
-    if flatpak info --user tech.redfoxlabs.Pianola &> /dev/null; then \
-        flatpak uninstall --user -y tech.redfoxlabs.Pianola; \
-        echo "Pianola uninstalled successfully!"; \
-    else \
-        echo "Pianola is not installed."; \
-    fi
-    rm -f "${XDG_DATA_HOME:-$HOME/.local/share}/redfox-apps/tech.redfoxlabs.Pianola.tag"
+    /usr/bin/redfox-software remove tech.redfoxlabs.Pianola
 
 # Install Thirties (half-hour block AI scheduling assistant Flatpak)
 install-thirties:
-    /usr/bin/update-redfox-apps tech.redfoxlabs.Thirties
+    /usr/bin/redfox-software install tech.redfoxlabs.Thirties
 
 # Uninstall Thirties
 uninstall-thirties:
-    echo "Uninstalling Thirties..."
-    if flatpak info --user tech.redfoxlabs.Thirties &> /dev/null; then \
-        flatpak uninstall --user -y tech.redfoxlabs.Thirties; \
-        echo "Thirties uninstalled successfully!"; \
-    else \
-        echo "Thirties is not installed."; \
-    fi
-    rm -f "${XDG_DATA_HOME:-$HOME/.local/share}/redfox-apps/tech.redfoxlabs.Thirties.tag"
+    /usr/bin/redfox-software remove tech.redfoxlabs.Thirties
 
 # Roll back, or move to another RedFoxOS build (latest, unstable, a dated or commit build)
 rollback-helper *ARGS:
@@ -630,154 +597,84 @@ remove-swap:
 
 
 # Level 1.5: Small-ecules (Software packs)
+# The lists live in /usr/share/redfox/software.yaml; `redfox-software list` shows them.
 
 # Install Basic Apps
 install-basic:
-    flatpak install -y flathub \
-        org.gnome.World.PikaBackup \
-        org.gnome.Calendar \
-        org.gnome.Snapshot \
-        org.gnome.clocks \
-        org.gnome.Contacts \
-        org.gnome.Maps \
-        org.gnome.Weather
+    /usr/bin/redfox-software install basic
 
 # Install Productivity Apps
 install-productivity:
-    flatpak install -y flathub \
-        org.gnome.SimpleScan \
-        org.libreoffice.LibreOffice \
-        com.getmailspring.Mailspring \
-        be.alexandervanhee.gradia \
-        net.cozic.joplin_desktop \
-        app.drey.Warp
+    /usr/bin/redfox-software install productivity
 # Consider OnlyOffice for PDF capabilities
 
 # Install Communication Apps
 install-comms:
-    flatpak install -y flathub \
-        org.signal.Signal \
-        dev.vencord.Vesktop
+    /usr/bin/redfox-software install comms
 
 # Install Daily Apps
 install-daily:
-    flatpak install -y flathub \
-        dev.geopjr.Tuba \
-        io.gitlab.news_flash.NewsFlash \
-        com.github.geigi.cozy \
-        com.github.johnfactotum.Foliate \
-        org.gnome.Music \
-        com.spotify.Client
+    /usr/bin/redfox-software install daily
 
 # Install Audio Production Apps
-install-audio: install-soundthread install-pianola
-    flatpak install -y flathub \
-        org.ardour.Ardour \
-        info.puredata.Pd \
-        net.purrdata.PurrData \
-        org.audacityteam.Audacity \
-        net.sourceforge.VMPK \
-        org.pipewire.Helvum
+install-audio:
+    /usr/bin/redfox-software install audio
 # Consider FamiStudio
 
 # Install Graphics Apps
 install-graphics:
-    flatpak install -y flathub \
-        org.kde.krita \
-        org.blender.Blender \
-        org.inkscape.Inkscape \
-        org.gimp.GIMP \
-        com.orama_interactive.Pixelorama \
-        nl.hjdskes.gcolor3 \
-        net.pixieditor.PixiEditor
+    /usr/bin/redfox-software install graphics
 
 # Install Photography Apps
 install-photos:
-    flatpak install -y flathub \
-        org.kde.digikam \
-        org.darktable.Darktable
+    /usr/bin/redfox-software install photos
 
 # Install Video Production Apps
 install-video:
-    flatpak install -y flathub \
-        org.kde.kdenlive \
-        org.bunkus.mkvtoolnix-gui \
-        org.gnome.gitlab.YaLTeR.VideoTrimmer \
-        com.github.unrud.VideoDownloader \
-        com.obsproject.Studio \
-        io.github.wartybix.Constrict
+    /usr/bin/redfox-software install video
 
 # Install Compatibility Tools
 install-compatibility:
-    flatpak install -y flathub \
-        com.usebottles.bottles
+    /usr/bin/redfox-software install compatibility
 
 # Install Music Notation Apps
 install-notation:
-    flatpak install -y flathub \
-        org.musescore.MuseScore \
-        org.frescobaldi.Frescobaldi
+    /usr/bin/redfox-software install notation
 
 # Install Writing Apps
 install-writing:
-    flatpak install -y flathub \
-        org.cvfosammmm.Setzer \
-        ch.theologeek.Manuskript
+    /usr/bin/redfox-software install writing
 
 # Install GNOME Development Apps
 install-gnome-dev:
-    flatpak install -y flathub \
-        org.gnome.Builder \
-        re.sonny.Workbench
+    /usr/bin/redfox-software install gnome-dev
 
 # Install Development Apps
-install-dev: install-gnome-dev install-zed install-antigravity-cli
-    flatpak install -y flathub \
-        io.podman_desktop.PodmanDesktop \
-        org.gnome.dspy \
-        ca.desrt.dconf-editor
+install-dev:
+    /usr/bin/redfox-software install dev
 
 # Install Bluefin DX Extras
 install-bluefin-dx:
-    flatpak install -y flathub \
-        org.freedesktop.Bustle \
-        de.leopoldluley.Clapgrep \
-        io.github.ronniedroid.concessio \
-        me.iepure.devtoolbox \
-        io.github.getnf.embellish \
-        org.pipewire.Helvum
+    /usr/bin/redfox-software install bluefin-dx
 
 # Install Creative Suite
-install-creative: install-audio install-graphics install-photos install-video install-notation install-writing
+install-creative:
+    /usr/bin/redfox-software install creative
 
 
 # Level 2: Molecules (Logical Groups)
 
 # Install Matt's Bundle
-install-matt: install-redfox-app-fleet install-dev install-bluefin-dx install-creative install-daily install-productivity install-compatibility install-basic install-comms
-    flatpak install -y flathub \
-        com.jeffser.Alpaca
+install-matt:
+    /usr/bin/redfox-software install matt
 
 # Install Dewy's Bundle
-install-dewy: install-zed install-comms
-    flatpak install -y flathub \
-        org.videolan.VLC \
-        net.pixieditor.PixiEditor \
-        com.spotify.Client \
-        com.bambulab.BambuStudio \
-        org.gnome.SimpleScan \
-        org.libreoffice.LibreOffice \
-        be.alexandervanhee.gradia \
-        net.cozic.joplin_desktop \
-        app.drey.Warp \
-        org.texstudio.TeXstudio \
-        com.brave.Browser \
-        com.slack.Slack \
-        com.dropbox.Client
-    echo "Installing latest TexLive extension..."
-    flatpak install -y flathub "org.freedesktop.Sdk.Extension.texlive//$(flatpak remote-ls flathub --columns=application,branch | grep org.freedesktop.Sdk.Extension.texlive | awk '{print $2}' | sort -V | tail -n 1)"
+install-dewy:
+    /usr/bin/redfox-software install dewy
+
 # Install Normie Bundle
-install-normie: install-basic install-daily install-productivity install-comms
+install-normie:
+    /usr/bin/redfox-software install normie
 
 
 # Level 3: Organisms (User Bootstraps & Configs)
