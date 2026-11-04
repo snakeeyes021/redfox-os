@@ -95,9 +95,9 @@ alias changelog := changelogs
 # Show RedFoxOS's release notes
 [group("system")]
 changelogs:
-    /usr/bin/redfox-changelog
+    /usr/bin/redfox-changelog || true
 
 # Show RedFoxOS's latest pre-release notes, if there are any
 [group("system")]
 changelogs-testing:
-    /usr/bin/redfox-changelog --unstable
+    /usr/bin/redfox-changelog --unstable || true
