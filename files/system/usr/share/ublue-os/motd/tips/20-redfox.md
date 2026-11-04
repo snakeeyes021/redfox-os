@@ -1,4 +1,4 @@
-*Want a different desktop?* `redfox-layout list` shows the layouts (GNOME, Ubuntu, macOS, Windows, RedFox); `redfox-layout set macos` switches without logging out
+*Want a different desktop?* `redfox-layout list` shows the layouts (RedFox, GNOME, Ubuntu, Cal, Wash, Nostalgia); `redfox-layout set cal` switches without logging out
 It is **always** better to install packages in a Distrobox than to layer them with rpm-ostree. `ujust distrobox` makes it easy
 *Need a Python environment?* `uv` and `pixi` are preinstalled: `uv venv`, or `uv run --with <package>` for a one-off
 *Update break something?* Pick the previous version in the boot menu, or run `rpm-ostree rollback` and reboot
