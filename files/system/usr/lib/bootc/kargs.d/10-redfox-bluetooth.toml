@@ -1,0 +1,5 @@
+# Bazzite's hardware setup (bazzite-hardware-setup.service) adds this
+# argument on every machine at first boot and then reboots to apply it, so
+# a fresh install restarted by itself a few minutes in. Shipping it in the
+# image means it's already there, and the setup has nothing to change.
+kargs = ["bluetooth.disable_ertm=1"]
