@@ -166,6 +166,13 @@ class UpdatesSection(Section):
                                          model=Gtk.StringList.new([]), sensitive=False)
         self.graphics_row.add_prefix(Gtk.Image(icon_name="video-display-symbolic"))
         self.graphics_row.connect("notify::selected", self.on_graphics_changed)
+        # The popover's own items, so "NVIDIA (Recommended)" isn't cut short.
+        factory = Gtk.SignalListItemFactory()
+        factory.connect("setup", self._graphics_item_setup)
+        factory.connect("bind", self._graphics_item_bind)
+        self.graphics_row.set_list_factory(factory)
+        self._graphics_checks = set()
+        self.graphics_row.connect("notify::selected", self._sync_graphics_checks)
         channel.add(self.graphics_row)
         self.channel_checks = {}
         group_check = None
@@ -439,13 +446,36 @@ class UpdatesSection(Section):
         self.booted_image = data["booted"]["image"]
         self.booted_channel = data["booted"]["channel"]
         self._graphics_guard = True
-        self.graphics_row.set_model(Gtk.StringList.new([i["name"] for i in self.images]))
+        # The helper detects the graphics card; an unclear case recommends nothing.
+        recommended = data.get("recommended")
+        self.graphics_row.set_model(Gtk.StringList.new(
+            [i["name"] + (" (Recommended)" if i["id"] == recommended else "")
+             for i in self.images]))
         ids = [i["id"] for i in self.images]
         if self.booted_image in ids:
             self.graphics_row.set_selected(ids.index(self.booted_image))
         self._graphics_guard = False
         self._graphics_subtitle()
         self.graphics_row.set_sensitive(True)
+
+    def _graphics_item_setup(self, _factory, item):
+        box = Gtk.Box(spacing=6)
+        box.append(Gtk.Label(xalign=0, hexpand=True, ellipsize=0))
+        box.append(Gtk.Image(icon_name="object-select-symbolic", visible=False))
+        item.set_child(box)
+
+    def _graphics_item_bind(self, _factory, item):
+        box = item.get_child()
+        label, check = box.get_first_child(), box.get_last_child()
+        label.set_label(item.get_item().get_string())
+        check.position = item.get_position()
+        self._graphics_checks.add(check)
+        self._sync_graphics_checks()
+
+    def _sync_graphics_checks(self, *_args):
+        selected = self.graphics_row.get_selected()
+        for check in self._graphics_checks:
+            check.set_visible(getattr(check, "position", -1) == selected)
 
     def _graphics_subtitle(self):
         index = self.graphics_row.get_selected()

@@ -201,10 +201,55 @@ channel_name() {
     case "$1" in latest) echo "Stable" ;; unstable) echo "Unstable" ;; *) echo "$1" ;; esac
 }
 
+# The image that suits this computer's graphics, from the PCI display
+# devices in sysfs (no root needed). Prints "IMAGE<tab>why", or "<tab>why"
+# when it can't tell; the caller then recommends nothing.
+#   NVIDIA from Turing on (GTX 16xx, RTX 20xx and newer; device id 0x1e00
+#   and up) -> redfox-os-nvidia; older NVIDIA -> redfox-os-nvidia-legacy.
+#   Intel or AMD only -> redfox-os. Intel or AMD plus NVIDIA (a hybrid
+#   laptop) -> the NVIDIA image for the NVIDIA card. Anything else, no
+#   display device, or NVIDIA cards of both kinds -> no recommendation.
+# REDFOX_PCI_ROOT points somewhere else for testing.
+recommend_image() {
+    local root="${REDFOX_PCI_ROOT:-/sys/bus/pci/devices}" dev class vendor device
+    local modern=0 legacy=0 intel_amd=0 other=0
+    for dev in "$root"/*; do
+        [ -r "$dev/class" ] || continue
+        class="$(cat "$dev/class")"
+        case "$class" in 0x03*) ;; *) continue ;; esac   # display controllers
+        vendor="$(cat "$dev/vendor" 2>/dev/null)"
+        device="$(cat "$dev/device" 2>/dev/null)"
+        case "$vendor" in
+            0x10de)
+                if [ $((device)) -ge $((0x1e00)) ]; then modern=$((modern + 1)); else legacy=$((legacy + 1)); fi ;;
+            0x8086|0x1002|0x1022) intel_amd=$((intel_amd + 1)) ;;
+            *) other=$((other + 1)) ;;
+        esac
+    done
+    if [ $((modern + legacy)) -gt 0 ]; then
+        if [ "$modern" -gt 0 ] && [ "$legacy" -gt 0 ]; then
+            printf '|NVIDIA cards of both a current and an older generation\n'
+        elif [ "$modern" -gt 0 ]; then
+            printf 'redfox-os-nvidia|an NVIDIA GTX 16xx, RTX 20xx or newer card%s\n' \
+                "$([ "$intel_amd" -gt 0 ] && echo ", with built-in graphics")"
+        else
+            printf 'redfox-os-nvidia-legacy|an NVIDIA GTX 10xx or older card%s\n' \
+                "$([ "$intel_amd" -gt 0 ] && echo ", with built-in graphics")"
+        fi
+    elif [ "$intel_amd" -gt 0 ] && [ "$other" -eq 0 ]; then
+        printf 'redfox-os|Intel or AMD graphics\n'
+    elif [ "$other" -gt 0 ]; then
+        printf '|graphics it doesn'"'"'t recognise (a virtual machine?)\n'
+    else
+        printf '|no graphics device\n'
+    fi
+}
+
 show_images() {
-    local image channel
+    local image channel recommended why
     image="$(current_image)"
     channel="$(current_channel)"
+    IFS='|' read -r recommended why < <(recommend_image)
     if $JSON; then
         local list=()
         for i in "${IMAGES[@]}"; do
@@ -212,29 +257,49 @@ show_images() {
                 --arg description "$(image_description "$i")" '{id: $id, name: $name, description: $description}')")
         done
         jq -cn --arg image "$image" --arg channel "$channel" --argjson images "[$(IFS=,; echo "${list[*]}")]" \
+            --arg recommended "$recommended" --arg why "$why" \
             '{version: 1, booted: {image: $image, channel: $channel}, images: $images,
+              recommended: (if $recommended == "" then null else $recommended end), detected: $why,
               channels: [{id: "latest", name: "Stable"}, {id: "unstable", name: "Unstable"}]}'
         return 0
     fi
     echo "${bold}RedFoxOS images${normal} (graphics × channel); * is the one you're on:"
     for i in "${IMAGES[@]}"; do
-        echo "  $(image_name "$i") ($(image_description "$i")):"
+        local tag=""
+        [ "$i" = "$recommended" ] && tag=" (Recommended)"
+        echo "  $(image_name "$i")${tag} ($(image_description "$i")):"
         for c in latest unstable; do
             local mark=" "
             [ "$i" = "$image" ] && [ "$c" = "$channel" ] && mark="*"
             printf '    %s %-9s %s:%s\n' "$mark" "$(channel_name "$c")" "$i" "$c"
         done
     done
+    if [ -n "$recommended" ]; then
+        echo "Recommended for this computer: $(image_name "$recommended"), for ${why}."
+    else
+        echo "No recommendation: found ${why}."
+    fi
 }
 
 switch_image() {
     local image="${1:-}" channel="${2:-}"
     if [ -z "$image" ]; then
         echo "Pick the graphics this computer has, then the channel."
-        local picked
-        picked="$(choose "Mainline: Intel and AMD graphics" \
-            "NVIDIA: GTX 16xx, RTX 20xx and newer" \
-            "NVIDIA legacy: GTX 10xx and older" "Cancel")" || exit 0
+        local picked recommended why r1="" r2="" r3=""
+        IFS='|' read -r recommended why < <(recommend_image)
+        case "$recommended" in
+            redfox-os) r1=" (Recommended)" ;;
+            redfox-os-nvidia) r2=" (Recommended)" ;;
+            redfox-os-nvidia-legacy) r3=" (Recommended)" ;;
+        esac
+        if [ -n "$recommended" ]; then
+            echo "This computer has ${why}."
+        else
+            echo "No recommendation: found ${why}."
+        fi
+        picked="$(choose "Mainline${r1}: Intel and AMD graphics" \
+            "NVIDIA${r2}: GTX 16xx, RTX 20xx and newer" \
+            "NVIDIA legacy${r3}: GTX 10xx and older" "Cancel")" || exit 0
         case "$picked" in
             Mainline*) image=redfox-os ;;
             "NVIDIA legacy"*) image=redfox-os-nvidia-legacy ;;
