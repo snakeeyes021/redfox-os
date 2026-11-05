@@ -34,8 +34,8 @@ Usage: $(basename "$0") [COMMAND] [ARGUMENTS]
   switch-image [IMAGE] [CHANNEL]
                       move to another image, e.g. switch-image redfox-os-nvidia latest
                       (with no arguments: asks for the graphics, then the channel)
-  branches            feature branches with a test build (an open pull request
-                      into unstable): unsupported, for developers
+  branches            feature branches with a test build: unsupported, for
+                      developers (sources: /usr/share/redfox/feature-branches.conf)
   rebase TARGET       switch to TARGET next boot. TARGET is one of:
                         latest | unstable                  follow a channel
                         20261101                           a dated stable build
@@ -256,34 +256,105 @@ switch_image() {
     do_rebase "${image}:${channel}"
 }
 
-# Feature branches with a test build. CI builds a branch when it has a pull
-# request into unstable, and tags it pr-<number>-<fedora version>, signed like
-# every other image. A branch is listed while its pull request is open and not
-# a draft, and has a build for this image.
-list_branches() {
-    local image fedora prs tags
-    image="$(current_image)"
-    fedora="$(. /usr/lib/os-release 2>/dev/null; echo "${VERSION_ID:-}")"
-    prs="$(curl -fsSL "${REPO_API}/pulls?state=open&base=unstable&per_page=50" 2>/dev/null)" ||
-        die "Couldn't read the pull requests from GitHub (offline, or rate-limited)."
-    tags="$(registry_tags "$image")" || true
-    [ -n "$tags" ] || die "Couldn't list the tags of ${REGISTRY}/${image}. Are you online?"
-    local rows=() n tag
+# Feature branches with a test build. Where the list comes from is set in
+# /usr/share/redfox/feature-branches.conf (overridden by
+# /etc/redfox/feature-branches.conf), so it can change without touching Hub:
+#   SOURCES="branches prs"   which sources to ask, in this order
+#   PREFIX="feature/"        the branches that count as feature branches
+# Sources:
+#   branches  pushed branches named PREFIX*, built by CI and tagged
+#             br-<branch with / as _>-<fedora> (BlueBuild's tag for a branch).
+#             Named after the branch; described by the first line of a
+#             .redfox-branch file in it, or else its latest commit's subject.
+#   prs       open, non-draft pull requests into unstable, built by CI and
+#             tagged pr-<number>-<fedora>. Named and described by the PR.
+# Every build is signed like the others; a branch is listed only if it has a
+# build for this image. Each row: {kind, id, title, description, branch,
+# updated, url, tag}.
+FEATURE_SOURCES="branches prs"
+FEATURE_PREFIX="feature/"
+for conf in /usr/share/redfox/feature-branches.conf /etc/redfox/feature-branches.conf; do
+    if [ -r "$conf" ]; then
+        # shellcheck disable=SC1090
+        . "$conf"
+        FEATURE_SOURCES="${SOURCES:-$FEATURE_SOURCES}"
+        FEATURE_PREFIX="${PREFIX:-$FEATURE_PREFIX}"
+    fi
+done
+
+# The tag to use: the newest Fedora version the branch was built on (an
+# older one is a stale build from before the base moved on).
+pick_tag() {
+    local base="$1" tags="$2"
+    grep -E "^${base}-[0-9]+$" <<< "$tags" | sort -V | tail -n1
+}
+
+source_branches() {
+    local tags="$1" list name base tag sha commit described
+    list="$(curl -fsSL "${REPO_API}/branches?per_page=100" 2>/dev/null)" || return 1
+    while IFS= read -r name; do
+        base="br-${name//\//_}"
+        tag="$(pick_tag "$base" "$tags")"
+        [ -n "$tag" ] || continue
+        sha="$(jq -r --arg n "$name" '.[] | select(.name == $n) | .commit.sha' <<< "$list")"
+        commit="$(curl -fsSL "${REPO_API}/commits/${sha}" 2>/dev/null)" || commit="{}"
+        described="$(curl -fsSL "https://raw.githubusercontent.com/${REPO_API#https://api.github.com/repos/}/${sha}/.redfox-branch" 2>/dev/null |
+            sed -n '/[^[:space:]]/{p;q}')" || described=""
+        jq -c --arg name "$name" --arg tag "$tag" --arg described "$described" \
+            --arg url "https://github.com/${REPO_API#https://api.github.com/repos/}/tree/${name}" '
+            {kind: "branch", id: $name, title: $name, branch: $name, tag: $tag, url: $url,
+             updated: (.commit.committer.date // "")[0:10],
+             description: (if $described != "" then $described
+                           else ((.commit.message // "") | split("\n")[0]) end)}' <<< "$commit"
+    done < <(jq -r --arg p "$FEATURE_PREFIX" '.[] | .name | select(startswith($p))' <<< "$list")
+}
+
+source_prs() {
+    local tags="$1" prs pr n tag
+    prs="$(curl -fsSL "${REPO_API}/pulls?state=open&base=unstable&per_page=50" 2>/dev/null)" || return 1
     while IFS= read -r pr; do
         n="$(jq -r .number <<< "$pr")"
-        tag="$(grep -m1 -x "pr-${n}-${fedora}" <<< "$tags")" ||
-            tag="$(grep -E "^pr-${n}-[0-9]+$" <<< "$tags" | sort -V | tail -n1)"
+        tag="$(pick_tag "pr-${n}" "$tags")"
         [ -n "$tag" ] || continue
-        rows+=("$(jq -c --arg tag "$tag" '{number, title, branch: .head.ref, author: .user.login,
-            url: .html_url, updated: .updated_at[0:10], tag: $tag,
+        jq -c --arg tag "$tag" '{kind: "pr", id: (.number | tostring),
+            title: "#\(.number) \(.title)", branch: .head.ref, url: .html_url,
+            updated: .updated_at[0:10], tag: $tag,
             description: ((.body // "") | gsub("\r"; "") | split("\n")
                 | map(select(test("\\S") and (test("^\\s*(#|<!--|[-*=]{3})") | not)))
                 | (.[0] // "") | gsub("[*_`]"; "")
-                | if length > 160 then (.[0:160] | sub(" [^ ]*$"; "")) + "…" else . end)}' <<< "$pr")")
+                | if length > 160 then (.[0:160] | sub(" [^ ]*$"; "")) + "…" else . end)}' <<< "$pr"
     done < <(jq -c '.[] | select(.draft | not)' <<< "$prs")
+}
+
+list_branches() {
+    local image tags rows=() source failed=() row seen=" "
+    image="$(current_image)"
+    tags="$(registry_tags "$image")" || true
+    [ -n "$tags" ] || die "Couldn't list the tags of ${REGISTRY}/${image}. Are you online?"
+    for source in $FEATURE_SOURCES; do
+        local out
+        case "$source" in
+            branches) out="$(source_branches "$tags")" || { failed+=("$source"); continue; } ;;
+            prs) out="$(source_prs "$tags")" || { failed+=("$source"); continue; } ;;
+            *) continue ;;
+        esac
+        # A branch with both a pushed build and a pull request is listed once,
+        # as the first source names it.
+        while IFS= read -r row; do
+            [ -n "$row" ] || continue
+            local branch
+            branch="$(jq -r .branch <<< "$row")"
+            case "$seen" in *" $branch "*) continue ;; esac
+            seen+="$branch "
+            rows+=("$row")
+        done <<< "$out"
+    done
+    [ "${#failed[@]}" -gt 0 ] && [ "${#rows[@]}" -eq 0 ] &&
+        die "Couldn't read the feature branches from GitHub (offline, or rate-limited)."
     if $JSON; then
-        jq -cn --arg image "$image" --argjson branches "[$(IFS=,; echo "${rows[*]-}")]" \
-            '{version: 1, image: $image, branches: $branches}'
+        jq -cn --arg image "$image" --arg sources "$FEATURE_SOURCES" \
+            --argjson branches "[$(IFS=,; echo "${rows[*]-}")]" \
+            '{version: 2, image: $image, sources: ($sources | split(" ")), branches: $branches}'
         return 0
     fi
     if [ "${#rows[@]}" -eq 0 ]; then
@@ -292,7 +363,7 @@ list_branches() {
     fi
     echo "${bold}Feature branches with a test build of ${image}${normal} (unsupported):"
     for row in "${rows[@]}"; do
-        jq -r '"  #\(.number) \(.title)\n      \(.branch), \(.updated): rebase \(.tag)"' <<< "$row"
+        jq -r '"  \(.title)\n      \(.description)\n      \(.branch), \(.updated): rebase \(.tag)"' <<< "$row"
     done
 }
 

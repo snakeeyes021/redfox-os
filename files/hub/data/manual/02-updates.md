@@ -70,4 +70,4 @@ Only pick the one that matches your graphics card: the wrong drivers can leave t
 
 ## Feature branches
 
-Developers can try work in progress before it reaches `unstable`. While a branch has an open pull request into `unstable`, its test build is listed under **Advanced › Feature Branches** in [Hub › Updates](hub:updates). These builds are unsupported and don't update. To get back, pick the previous system in the boot menu or use **Go Back**, then choose a channel again.
+Developers can try work in progress before it reaches `unstable`. While a feature branch has a test build, it is listed under **Advanced › Feature Branches** in [Hub › Updates](hub:updates). These builds are unsupported and don't update. To get back, pick the previous system in the boot menu or use **Go Back**, then choose a channel again.

@@ -509,11 +509,14 @@ class UpdatesSection(Section):
             return
         rows = []
         for branch in data["branches"]:
+            # The source decides the title: a branch's name, or "#N" and a
+            # pull request's title (see feature-branches.conf).
+            where = (f"updated {long_date(branch['updated'])}" if branch["title"] == branch["branch"]
+                     else f"{branch['branch']} · updated {long_date(branch['updated'])}")
             row = Adw.ActionRow(
-                title=GLib.markup_escape_text(f"#{branch['number']} {branch['title']}"),
+                title=GLib.markup_escape_text(branch["title"]),
                 subtitle=GLib.markup_escape_text(
-                    f"{branch['branch']} · updated {long_date(branch['updated'])}"
-                    + (f"\n{branch['description']}" if branch.get("description") else "")))
+                    where + (f"\n{branch['description']}" if branch.get("description") else "")))
             row.set_subtitle_lines(3)
             button = Gtk.Button(label="Try…", valign=Gtk.Align.CENTER)
             button.connect("clicked", self._on_try_branch, data["image"], branch)
@@ -522,14 +525,14 @@ class UpdatesSection(Section):
         if not rows:
             rows = [Adw.ActionRow(
                 title="No feature branches right now",
-                subtitle="A branch shows up here while it has an open pull request "
-                         "into unstable with a test build.")]
+                subtitle="A feature branch shows up here while there's a test build of it "
+                         "for this computer's graphics.")]
         self._set_branch_rows(rows)
 
     def _on_try_branch(self, _button, image, branch):
         dialog = Adw.AlertDialog(
             heading="Try a Feature Branch?",
-            body=f"#{branch['number']} {branch['title']}\n\n"
+            body=f"{branch['title']}\n\n"
                  "This is a test build of work in progress. It's unsupported and "
                  "may not work. It doesn't update, and it may disappear when the "
                  "branch is merged or closed.\n\n"
@@ -540,7 +543,7 @@ class UpdatesSection(Section):
         dialog.set_response_appearance("try", Adw.ResponseAppearance.DESTRUCTIVE)
         dialog.set_default_response("cancel")
         dialog.connect("response", lambda _d, r: r == "try" and self.rebase(
-            f"{image}:{branch['tag']}", f"the test build of #{branch['number']}"))
+            f"{image}:{branch['tag']}", f"the test build of {branch['title']}"))
         dialog.present(self.window)
 
     # Channel
