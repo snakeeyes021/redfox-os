@@ -29,6 +29,13 @@ Usage: $(basename "$0") [COMMAND] [ARGUMENTS]
   list [CHANNEL] [N]  the last N builds of a channel: latest (stable) or unstable
                       (default: the channel you are on, 15 builds)
   rollback            boot the previous system next time (rpm-ostree rollback)
+  images              the six images: graphics (mainline, NVIDIA, NVIDIA legacy)
+                      times channel (latest, unstable), and which one is booted
+  switch-image [IMAGE] [CHANNEL]
+                      move to another image, e.g. switch-image redfox-os-nvidia latest
+                      (with no arguments: asks for the graphics, then the channel)
+  branches            feature branches with a test build (an open pull request
+                      into unstable): unsupported, for developers
   rebase TARGET       switch to TARGET next boot. TARGET is one of:
                         latest | unstable                  follow a channel
                         20261101                           a dated stable build
@@ -36,7 +43,7 @@ Usage: $(basename "$0") [COMMAND] [ARGUMENTS]
                         redfox-os-nvidia:latest            another image (IMAGE:TAG)
                         ostree-image-signed:docker://...   a full reference
   -y, --yes           don't ask before rebasing or rolling back
-  --json              with list: print JSON (for RedFox Hub)
+  --json              with list, images and branches: print JSON (for RedFox Hub)
 
 Images: ${IMAGES[*]}
 EOF
@@ -174,6 +181,121 @@ show_list() {
     echo "Switch with: $(basename "$0") rebase <commit or date>"
 }
 
+# What each image is for (README: "Not sure which one to pick?").
+image_name() {
+    case "$1" in
+        redfox-os) echo "Mainline" ;;
+        redfox-os-nvidia) echo "NVIDIA" ;;
+        redfox-os-nvidia-legacy) echo "NVIDIA legacy" ;;
+        *) echo "$1" ;;
+    esac
+}
+image_description() {
+    case "$1" in
+        redfox-os) echo "Intel and AMD graphics" ;;
+        redfox-os-nvidia) echo "NVIDIA GTX 16xx, RTX 20xx and newer" ;;
+        redfox-os-nvidia-legacy) echo "NVIDIA GTX 10xx and older" ;;
+    esac
+}
+channel_name() {
+    case "$1" in latest) echo "Stable" ;; unstable) echo "Unstable" ;; *) echo "$1" ;; esac
+}
+
+show_images() {
+    local image channel
+    image="$(current_image)"
+    channel="$(current_channel)"
+    if $JSON; then
+        local list=()
+        for i in "${IMAGES[@]}"; do
+            list+=("$(jq -cn --arg id "$i" --arg name "$(image_name "$i")" \
+                --arg description "$(image_description "$i")" '{id: $id, name: $name, description: $description}')")
+        done
+        jq -cn --arg image "$image" --arg channel "$channel" --argjson images "[$(IFS=,; echo "${list[*]}")]" \
+            '{version: 1, booted: {image: $image, channel: $channel}, images: $images,
+              channels: [{id: "latest", name: "Stable"}, {id: "unstable", name: "Unstable"}]}'
+        return 0
+    fi
+    echo "${bold}RedFoxOS images${normal} (graphics × channel); * is the one you're on:"
+    for i in "${IMAGES[@]}"; do
+        echo "  $(image_name "$i") ($(image_description "$i")):"
+        for c in latest unstable; do
+            local mark=" "
+            [ "$i" = "$image" ] && [ "$c" = "$channel" ] && mark="*"
+            printf '    %s %-9s %s:%s\n' "$mark" "$(channel_name "$c")" "$i" "$c"
+        done
+    done
+}
+
+switch_image() {
+    local image="${1:-}" channel="${2:-}"
+    if [ -z "$image" ]; then
+        echo "Pick the graphics this computer has, then the channel."
+        local picked
+        picked="$(choose "Mainline: Intel and AMD graphics" \
+            "NVIDIA: GTX 16xx, RTX 20xx and newer" \
+            "NVIDIA legacy: GTX 10xx and older" "Cancel")" || exit 0
+        case "$picked" in
+            Mainline*) image=redfox-os ;;
+            "NVIDIA legacy"*) image=redfox-os-nvidia-legacy ;;
+            NVIDIA*) image=redfox-os-nvidia ;;
+            *) echo "Cancelled."; return 1 ;;
+        esac
+    fi
+    if [ -z "$channel" ]; then
+        local picked
+        picked="$(choose "Stable (latest): tested releases" "Unstable: the newest changes first" "Cancel")" || exit 0
+        case "$picked" in
+            Stable*) channel=latest ;;
+            Unstable*) channel=unstable ;;
+            *) echo "Cancelled."; return 1 ;;
+        esac
+    fi
+    case " ${IMAGES[*]} " in *" $image "*) ;; *) die "Unknown image '$image'. Images: ${IMAGES[*]}" ;; esac
+    case "$channel" in latest|unstable) ;; *) die "Unknown channel '$channel' (latest or unstable)." ;; esac
+    do_rebase "${image}:${channel}"
+}
+
+# Feature branches with a test build. CI builds a branch when it has a pull
+# request into unstable, and tags it pr-<number>-<fedora version>, signed like
+# every other image. A branch is listed while its pull request is open and not
+# a draft, and has a build for this image.
+list_branches() {
+    local image fedora prs tags
+    image="$(current_image)"
+    fedora="$(. /usr/lib/os-release 2>/dev/null; echo "${VERSION_ID:-}")"
+    prs="$(curl -fsSL "${REPO_API}/pulls?state=open&base=unstable&per_page=50" 2>/dev/null)" ||
+        die "Couldn't read the pull requests from GitHub (offline, or rate-limited)."
+    tags="$(registry_tags "$image")" || true
+    [ -n "$tags" ] || die "Couldn't list the tags of ${REGISTRY}/${image}. Are you online?"
+    local rows=() n tag
+    while IFS= read -r pr; do
+        n="$(jq -r .number <<< "$pr")"
+        tag="$(grep -m1 -x "pr-${n}-${fedora}" <<< "$tags")" ||
+            tag="$(grep -E "^pr-${n}-[0-9]+$" <<< "$tags" | sort -V | tail -n1)"
+        [ -n "$tag" ] || continue
+        rows+=("$(jq -c --arg tag "$tag" '{number, title, branch: .head.ref, author: .user.login,
+            url: .html_url, updated: .updated_at[0:10], tag: $tag,
+            description: ((.body // "") | gsub("\r"; "") | split("\n")
+                | map(select(test("\\S") and (test("^\\s*(#|<!--|[-*=]{3})") | not)))
+                | (.[0] // "") | gsub("[*_`]"; "")
+                | if length > 160 then (.[0:160] | sub(" [^ ]*$"; "")) + "…" else . end)}' <<< "$pr")")
+    done < <(jq -c '.[] | select(.draft | not)' <<< "$prs")
+    if $JSON; then
+        jq -cn --arg image "$image" --argjson branches "[$(IFS=,; echo "${rows[*]-}")]" \
+            '{version: 1, image: $image, branches: $branches}'
+        return 0
+    fi
+    if [ "${#rows[@]}" -eq 0 ]; then
+        echo "No feature branches have a test build right now."
+        return 0
+    fi
+    echo "${bold}Feature branches with a test build of ${image}${normal} (unsupported):"
+    for row in "${rows[@]}"; do
+        jq -r '"  #\(.number) \(.title)\n      \(.branch), \(.updated): rebase \(.tag)"' <<< "$row"
+    done
+}
+
 # Turn a TARGET into a full reference.
 resolve_target() {
     local target="$1" image tags
@@ -211,6 +333,12 @@ do_rebase() {
     fi
     case "$(short_ref "$ref")" in
         *:latest|*:unstable) ;;
+        *:pr-*)
+            echo "${red}${bold}This is a feature branch's test build: unsupported, and it may not work.${normal}"
+            echo "${red}It won't update by itself, and it may go away when the branch is merged or closed.${normal}"
+            echo "To go back: pick the previous system in the boot menu, or Updates › Go Back in RedFox Hub,"
+            echo "or $(basename "$0") rollback. To follow a channel again: $(basename "$0") rebase latest (or unstable)."
+            ;;
         *) echo "This build won't update by itself. To follow updates again: $(basename "$0") rebase latest (or unstable)." ;;
     esac
     confirm "Continue?" || { echo "Cancelled."; return 1; }
@@ -241,11 +369,12 @@ menu() {
     show_current
     echo
     local action
-    action="$(choose "Roll back to the previous system" "Switch to another build" "Follow latest (stable)" "Follow unstable" "Cancel")"
+    action="$(choose "Roll back to the previous system" "Switch to another build" "Follow latest (stable)" "Follow unstable" "Switch image (graphics and channel)" "Cancel")"
     case "$action" in
         "Roll back to the previous system") do_rollback ;;
         "Follow latest (stable)") do_rebase latest ;;
         "Follow unstable") do_rebase unstable ;;
+        "Switch image (graphics and channel)") switch_image ;;
         "Switch to another build")
             local channel builds picked
             channel="$(choose latest unstable)" || exit 0
@@ -275,5 +404,8 @@ case "${1:-}" in
     list) show_list "${2:-}" "${3:-15}" ;;
     rollback) do_rollback ;;
     rebase) [ -n "${2:-}" ] || die "rebase needs a TARGET. See --help."; do_rebase "$2" ;;
+    images) show_images ;;
+    switch-image) switch_image "${2:-}" "${3:-}" ;;
+    branches) list_branches ;;
     *) usage; exit 1 ;;
 esac

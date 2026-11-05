@@ -51,3 +51,23 @@ redfox-rollback-helper list
 ```
 
 Then rebase to one of them, for example `redfox-rollback-helper rebase 20261101`. A build picked this way stays put and doesn't update. Rebase to `latest` or `unstable` to follow updates again.
+
+## Graphics
+
+RedFoxOS comes in three images, one for each kind of graphics:
+
+- **Mainline**, for Intel and AMD graphics.
+- **NVIDIA**, for GTX 16xx, RTX 20xx and newer.
+- **NVIDIA legacy**, for GTX 10xx and older.
+
+Each follows either channel. To change image, pick it under **Graphics** in [Hub › Updates](hub:updates), or in a terminal:
+
+```sh
+redfox-rollback-helper switch-image
+```
+
+Only pick the one that matches your graphics card: the wrong drivers can leave the screen blank. If that happens, pick the previous system in the boot menu.
+
+## Feature branches
+
+Developers can try work in progress before it reaches `unstable`. While a branch has an open pull request into `unstable`, its test build is listed under **Advanced › Feature Branches** in [Hub › Updates](hub:updates). These builds are unsupported and don't update. To get back, pick the previous system in the boot menu or use **Go Back**, then choose a channel again.

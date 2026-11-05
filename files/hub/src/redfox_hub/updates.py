@@ -155,10 +155,18 @@ class UpdatesSection(Section):
             auto.add(row)
         page.add(auto)
 
-        # Channel
+        # Image: the graphics (three images) and the channel (two tags of each).
         channel = Adw.PreferencesGroup(
-            title="Channel",
-            description="Which builds of RedFoxOS this computer follows.")
+            title="System Image",
+            description="Which RedFoxOS this computer runs: the graphics drivers "
+                        "it's built for, and the builds it follows.")
+        self.images = []
+        self._graphics_guard = False
+        self.graphics_row = Adw.ComboRow(title="Graphics", subtitle="…",
+                                         model=Gtk.StringList.new([]), sensitive=False)
+        self.graphics_row.add_prefix(Gtk.Image(icon_name="video-display-symbolic"))
+        self.graphics_row.connect("notify::selected", self.on_graphics_changed)
+        channel.add(self.graphics_row)
         self.channel_checks = {}
         group_check = None
         for channel_id, title, subtitle in CHANNELS:
@@ -201,12 +209,25 @@ class UpdatesSection(Section):
             back.add(row)
         page.add(back)
 
+        # Advanced: feature branches' test builds, for developers.
+        advanced = Adw.PreferencesGroup(title="Advanced")
+        self.branches_row = Adw.ExpanderRow(
+            title="Feature Branches",
+            subtitle="Test builds of work in progress, for developers. Unsupported.")
+        self.branches_row.add_prefix(Gtk.Image(icon_name="applications-engineering-symbolic"))
+        self.branches_row.connect("notify::expanded", self._on_branches_expanded)
+        self.branch_rows = []
+        advanced.add(self.branches_row)
+        page.add(advanced)
+
         self.view.connect("destroy", lambda *_: self._stop_refresh())
 
     # Refreshing
 
     def shown(self):
         self.refresh()
+        if not self.images:
+            host.run_json(["redfox-rollback-helper", "--json", "images"], self._on_images)
 
     def _stop_refresh(self):
         if self.refresh_id:
@@ -406,6 +427,120 @@ class UpdatesSection(Section):
         dialog.set_default_response("restart")
         dialog.connect("response", lambda _d, r: r == "restart" and
                        host.run(["redfox-updates", "restart"]))
+        dialog.present(self.window)
+
+    # Graphics
+
+    def _on_images(self, data, error):
+        if error:
+            self.graphics_row.set_subtitle("Couldn't read the images")
+            return
+        self.images = data["images"]
+        self.booted_image = data["booted"]["image"]
+        self.booted_channel = data["booted"]["channel"]
+        self._graphics_guard = True
+        self.graphics_row.set_model(Gtk.StringList.new([i["name"] for i in self.images]))
+        ids = [i["id"] for i in self.images]
+        if self.booted_image in ids:
+            self.graphics_row.set_selected(ids.index(self.booted_image))
+        self._graphics_guard = False
+        self._graphics_subtitle()
+        self.graphics_row.set_sensitive(True)
+
+    def _graphics_subtitle(self):
+        index = self.graphics_row.get_selected()
+        if 0 <= index < len(self.images):
+            self.graphics_row.set_subtitle(self.images[index]["description"])
+
+    def _select_booted_graphics(self):
+        ids = [i["id"] for i in self.images]
+        self._graphics_guard = True
+        if getattr(self, "booted_image", None) in ids:
+            self.graphics_row.set_selected(ids.index(self.booted_image))
+        self._graphics_guard = False
+        self._graphics_subtitle()
+
+    def on_graphics_changed(self, row, _param):
+        if self._graphics_guard or not self.images:
+            return
+        self._graphics_subtitle()
+        image = self.images[row.get_selected()]
+        if image["id"] == self.booted_image:
+            return
+        channel = self.booted_channel if self.booted_channel in ("latest", "unstable") else "latest"
+        dialog = Adw.AlertDialog(
+            heading=f"Switch to {image['name']}?",
+            body=f"For {image['description']}. Only switch if that's the graphics "
+                 "this computer has: the wrong drivers can leave it without a "
+                 "picture. The new image starts the next time you restart, and "
+                 "you can go back to this one from the boot menu or Go Back.")
+        dialog.add_response("cancel", "Cancel")
+        dialog.add_response("switch", "Switch")
+        dialog.set_response_appearance("switch", Adw.ResponseAppearance.DESTRUCTIVE)
+
+        def response(_d, r):
+            if r == "switch":
+                self.rebase(f"{image['id']}:{channel}", f"{image['name']} ({channel})")
+                self.booted_image = image["id"]  # what the next boot will be
+            else:
+                self._select_booted_graphics()
+
+        dialog.connect("response", response)
+        dialog.present(self.window)
+
+    # Feature branches
+
+    def _on_branches_expanded(self, row, _param):
+        if row.get_expanded():
+            self._set_branch_rows([Adw.ActionRow(title="Looking for feature branches…")])
+            host.run_json(["redfox-rollback-helper", "--json", "branches"], self._on_branches)
+
+    def _set_branch_rows(self, rows):
+        for row in self.branch_rows:
+            self.branches_row.remove(row)
+        self.branch_rows = rows
+        for row in rows:
+            self.branches_row.add_row(row)
+
+    def _on_branches(self, data, error):
+        if error:
+            self._set_branch_rows([Adw.ActionRow(title="Couldn't list the feature branches",
+                                                 subtitle=GLib.markup_escape_text(error))])
+            return
+        rows = []
+        for branch in data["branches"]:
+            row = Adw.ActionRow(
+                title=GLib.markup_escape_text(f"#{branch['number']} {branch['title']}"),
+                subtitle=GLib.markup_escape_text(
+                    f"{branch['branch']} · updated {long_date(branch['updated'])}"
+                    + (f"\n{branch['description']}" if branch.get("description") else "")))
+            row.set_subtitle_lines(3)
+            button = Gtk.Button(label="Try…", valign=Gtk.Align.CENTER)
+            button.connect("clicked", self._on_try_branch, data["image"], branch)
+            row.add_suffix(button)
+            rows.append(row)
+        if not rows:
+            rows = [Adw.ActionRow(
+                title="No feature branches right now",
+                subtitle="A branch shows up here while it has an open pull request "
+                         "into unstable with a test build.")]
+        self._set_branch_rows(rows)
+
+    def _on_try_branch(self, _button, image, branch):
+        dialog = Adw.AlertDialog(
+            heading="Try a Feature Branch?",
+            body=f"#{branch['number']} {branch['title']}\n\n"
+                 "This is a test build of work in progress. It's unsupported and "
+                 "may not work. It doesn't update, and it may disappear when the "
+                 "branch is merged or closed.\n\n"
+                 "To get back: pick the previous system in the boot menu, or use "
+                 "Go Back here, then choose a channel to follow updates again.")
+        dialog.add_response("cancel", "Cancel")
+        dialog.add_response("try", "Try It")
+        dialog.set_response_appearance("try", Adw.ResponseAppearance.DESTRUCTIVE)
+        dialog.set_default_response("cancel")
+        dialog.connect("response", lambda _d, r: r == "try" and self.rebase(
+            f"{image}:{branch['tag']}", f"the test build of #{branch['number']}"))
         dialog.present(self.window)
 
     # Channel
