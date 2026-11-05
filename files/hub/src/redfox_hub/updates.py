@@ -9,19 +9,20 @@ import time
 from gi.repository import Adw, Gio, GLib, Gtk
 
 from . import host
+from .strings import HINT_MODE, data as copy_data, s
 from .window import Section
 
 CHANNELS = [
-    ("latest", "Stable", "Tested releases. Recommended for most people."),
-    ("unstable", "Unstable", "The newest changes, a few days early. Things may break."),
+    ("latest", s("H-175"), s("H-176")),
+    ("unstable", s("H-177"), s("H-178")),
 ]
 
 
 def when(ts, capital=True):
     """A friendly time: 'Today at 04:12', 'Yesterday at 09:30', '3 November
     2026'. With capital=False, 'today at 04:12', for the middle of a sentence."""
-    text = _when(ts)
-    if not capital and text.split(" ")[0] in ("Today", "Yesterday", "Tomorrow", "Never"):
+    text, relative = _when(ts)
+    if not capital and relative and not HINT_MODE:
         text = text[0].lower() + text[1:]
     return text
 
@@ -36,22 +37,24 @@ def clock():
 
 
 def _when(ts):
+    """The text, and whether it's a relative phrase (today, never, ...) that
+    goes lower case in the middle of a sentence."""
     if not ts:
-        return "Never"
+        return s("H-162"), True
     then = time.localtime(ts)
     now = time.localtime()
     day_diff = (time.mktime((now.tm_year, now.tm_mon, now.tm_mday, 0, 0, 0, 0, 0, -1)) -
                 time.mktime((then.tm_year, then.tm_mon, then.tm_mday, 0, 0, 0, 0, 0, -1))) // 86400
     clock_text = time.strftime(clock(), then)
     if day_diff == 0:
-        return f"Today at {clock_text}"
+        return s("H-158", time=clock_text), True
     if day_diff == 1:
-        return f"Yesterday at {clock_text}"
+        return s("H-159", time=clock_text), True
     if day_diff == -1:
-        return f"Tomorrow at {clock_text}"
+        return s("H-160", time=clock_text), True
     if abs(day_diff) < 7:
-        return time.strftime(f"%A at {clock()}", then)
-    return time.strftime("%-d %B %Y", then)
+        return s("H-161", weekday=time.strftime("%A", then), time=clock_text), False
+    return time.strftime("%-d %B %Y", then), False
 
 
 def cancelled(output):
@@ -71,11 +74,12 @@ def long_date(iso):
 
 def system_name(d):
     if not d:
-        return "Unknown"
+        return s("H-195")
     version = d.get("version") or ""
     built = time.strftime("%-d %B %Y", time.localtime(d["timestamp"])) if d.get("timestamp") else ""
-    channel = {"latest": "stable", "unstable": "unstable"}.get(d.get("channel"), d.get("tag") or "")
-    parts = [p for p in (f"RedFoxOS {version}".strip(), channel, built and f"built {built}") if p]
+    channel = {"latest": s("H-197"), "unstable": s("H-198")}.get(d.get("channel"), d.get("tag") or "")
+    parts = [p for p in (s("H-196", version=version).strip(), channel,
+                         built and s("H-199", date=built)) if p]
     return " · ".join(parts)
 
 
@@ -88,7 +92,7 @@ class UpdatesSection(Section):
         self._auto_guard = False
 
         page = Adw.PreferencesPage()
-        super().__init__(window, "Updates", page)
+        super().__init__(window, s("H-022"), page)
 
         # Status: icon, headline, a line of detail, the buttons.
         self.icon = Gtk.Image(pixel_size=64, icon_name="software-update-available-symbolic")
@@ -98,10 +102,10 @@ class UpdatesSection(Section):
         self.headline.add_css_class("title-2")
         self.detail = Gtk.Label(wrap=True, justify=Gtk.Justification.CENTER)
         self.detail.add_css_class("dim-label")
-        self.update_button = Gtk.Button(label="Update Now", halign=Gtk.Align.CENTER)
+        self.update_button = Gtk.Button(label=s("H-140"), halign=Gtk.Align.CENTER)
         self.update_button.add_css_class("pill")
         self.update_button.connect("clicked", self.on_update_now)
-        self.restart_button = Gtk.Button(label="Restart…", halign=Gtk.Align.CENTER,
+        self.restart_button = Gtk.Button(label=s("H-141"), halign=Gtk.Align.CENTER,
                                          visible=False)
         self.restart_button.add_css_class("pill")
         self.restart_button.add_css_class("suggested-action")
@@ -129,7 +133,7 @@ class UpdatesSection(Section):
         scroller.add_css_class("card")
         self.log_scroller = scroller
         scroller.set_margin_top(6)
-        self.log_expander = Gtk.Expander(label="Details", child=scroller,
+        self.log_expander = Gtk.Expander(label=s("H-142"), child=scroller,
                                          margin_top=12, visible=False)
         status_box.append(self.log_expander)
 
@@ -139,17 +143,15 @@ class UpdatesSection(Section):
 
         # Automatic updates
         auto = Adw.PreferencesGroup(
-            title="Automatic Updates",
-            description="RedFoxOS updates the system, your Flatpak apps and Homebrew "
-                        "in the background. A new system takes effect the next time "
-                        "you restart.")
+            title=s("H-150"),
+            description=s("H-151"))
         self.auto_row = Adw.SwitchRow(
-            title="Update Automatically",
-            subtitle="Every day, and soon after startup if a day was missed")
+            title=s("H-152"),
+            subtitle=s("H-153"))
         self.auto_row.connect("notify::active", self.on_auto_toggled)
-        self.last_row = Adw.ActionRow(title="Last Automatic Update", subtitle="…")
+        self.last_row = Adw.ActionRow(title=s("H-154"), subtitle="…")
         self.last_row.add_css_class("property")
-        self.next_row = Adw.ActionRow(title="Next Automatic Update", subtitle="…")
+        self.next_row = Adw.ActionRow(title=s("H-155"), subtitle="…")
         self.next_row.add_css_class("property")
         for row in (self.auto_row, self.last_row, self.next_row):
             auto.add(row)
@@ -157,12 +159,11 @@ class UpdatesSection(Section):
 
         # Image: the graphics (three images) and the channel (two tags of each).
         channel = Adw.PreferencesGroup(
-            title="System Image",
-            description="Which RedFoxOS this computer runs: the graphics drivers "
-                        "it's built for, and the builds it follows.")
+            title=s("H-170"),
+            description=s("H-171"))
         self.images = []
         self._graphics_guard = False
-        self.graphics_row = Adw.ComboRow(title="Graphics", subtitle="…",
+        self.graphics_row = Adw.ComboRow(title=s("H-172"), subtitle="…",
                                          model=Gtk.StringList.new([]), sensitive=False)
         self.graphics_row.add_prefix(Gtk.Image(icon_name="video-display-symbolic"))
         self.graphics_row.connect("notify::selected", self.on_graphics_changed)
@@ -185,9 +186,8 @@ class UpdatesSection(Section):
             self.channel_checks[channel_id] = check
             channel.add(row)
         self.pinned_row = Adw.ActionRow(
-            title="Fixed Build",
-            subtitle="This computer is on one particular build and doesn't update "
-                     "the system. Choose a channel to follow updates again.",
+            title=s("H-179"),
+            subtitle=s("H-181"),
             visible=False)
         self.pinned_row.add_prefix(Gtk.Image(icon_name="changes-prevent-symbolic"))
         channel.add(self.pinned_row)
@@ -195,20 +195,18 @@ class UpdatesSection(Section):
 
         # Going back
         back = Adw.PreferencesGroup(
-            title="Go Back",
-            description="If an update misbehaves, go back to the system you had "
-                        "before. You can also pick it in the boot menu when the "
-                        "computer starts.")
-        self.current_row = Adw.ActionRow(title="This System", subtitle="…")
+            title=s("H-190"),
+            description=s("H-191"))
+        self.current_row = Adw.ActionRow(title=s("H-192"), subtitle="…")
         self.current_row.add_css_class("property")
-        self.previous_row = Adw.ActionRow(title="Previous System", subtitle="…")
+        self.previous_row = Adw.ActionRow(title=s("H-193"), subtitle="…")
         self.previous_row.add_css_class("property")
-        self.rollback_button = Gtk.Button(label="Go Back…", valign=Gtk.Align.CENTER)
+        self.rollback_button = Gtk.Button(label=s("H-200"), valign=Gtk.Align.CENTER)
         self.rollback_button.connect("clicked", self.on_rollback)
         self.previous_row.add_suffix(self.rollback_button)
         builds_row = Adw.ActionRow(
-            title="Other Builds",
-            subtitle="Switch to an earlier or later build of RedFoxOS",
+            title=s("H-201"),
+            subtitle=s("H-202"),
             activatable=True)
         builds_row.add_suffix(Gtk.Image(icon_name="go-next-symbolic"))
         builds_row.connect("activated", lambda *_: self.open("builds"))
@@ -217,10 +215,10 @@ class UpdatesSection(Section):
         page.add(back)
 
         # Advanced: feature branches' test builds, for developers.
-        advanced = Adw.PreferencesGroup(title="Advanced")
+        advanced = Adw.PreferencesGroup(title=s("H-210"))
         self.branches_row = Adw.ExpanderRow(
-            title="Feature Branches",
-            subtitle="Test builds of work in progress, for developers. Unsupported.")
+            title=s("H-211"),
+            subtitle=s("H-212"))
         self.branches_row.add_prefix(Gtk.Image(icon_name="applications-engineering-symbolic"))
         self.branches_row.connect("notify::expanded", self._on_branches_expanded)
         self.branch_rows = []
@@ -256,7 +254,7 @@ class UpdatesSection(Section):
 
     def _on_status(self, status, error):
         if error:
-            self.show_state("dialog-warning-symbolic", "Couldn't Read the Update Status", error)
+            self.show_state("dialog-warning-symbolic", s("H-139"), error)
             self._schedule(30)
             return
         self.status = status
@@ -265,55 +263,45 @@ class UpdatesSection(Section):
 
         busy = status["busy"] or self.updating
         if self.updating:
-            self.show_state(None, "Updating…", "The system, apps and firmware. "
-                            "You can keep working; this can take a while.")
+            self.show_state(None, s("H-120"), s("H-121"))
         elif status["busy"]:
-            self.show_state(None, "Updating in the Background…",
-                            "An automatic update is running. You can keep working.")
+            self.show_state(None, s("H-122"), s("H-123"))
         elif status.get("restart_for") == "rollback":
-            self.show_state("system-reboot-symbolic", "Restart to Go Back",
-                            "The computer starts the previous system next time. "
-                            "Your files and apps stay as they are.")
+            self.show_state("system-reboot-symbolic", s("H-124"), s("H-125"))
         elif status["restart_pending"]:
             staged = status.get("staged") or {}
             version = staged.get("version")
-            self.show_state("system-reboot-symbolic", "Restart to Finish Updating",
-                            (f"RedFoxOS {version} is ready. " if version else
-                             "A new system is ready. ") +
-                            "Your files and apps stay as they are.")
+            ready = s("H-127", version=version) if version else s("H-128")
+            self.show_state("system-reboot-symbolic", s("H-126"), f"{ready} {s('H-129')}")
         elif not auto["enabled"]:
-            self.show_state("dialog-warning-symbolic", "Automatic Updates Are Off",
-                            "Update now and then to get fixes and security updates.",
-                            "warning")
+            self.show_state("dialog-warning-symbolic", s("H-130"), s("H-131"), "warning")
         else:
-            # The most recent update, automatic or "update now", and whether it worked.
             # The most recent update, automatic or "update now", and whether it
             # worked. The header says which it was, so it doesn't read as a
             # contradiction of "Last Automatic Update" below.
-            runs = [(auto["last_run"], auto.get("last_result") in (None, "success"), "automatically"),
+            runs = [(auto["last_run"], auto.get("last_result") in (None, "success"), s("H-137")),
                     (status["now"]["last_run"], status["now"].get("last_ok") is not False,
-                     "with Update Now")]
+                     s("H-138"))]
             runs = [r for r in runs if r[0]]
             last, ok, how = max(runs) if runs else (None, True, "")
             if not ok:
-                self.show_state("dialog-warning-symbolic", "The Last Update Didn't Finish",
-                                f"Started {how} {when(last, capital=False)}. It will try "
-                                "again by itself, or you can update now.", "warning")
+                self.show_state("dialog-warning-symbolic", s("H-132"),
+                                s("H-133", how=how, when=when(last, capital=False)), "warning")
             else:
-                self.show_state("object-select-symbolic", "Updates Are Automatic",
-                                f"Last updated {how}, {when(last, capital=False)}."
-                                if last else "The first update will run soon.", "success")
+                self.show_state("object-select-symbolic", s("H-134"),
+                                s("H-135", how=how, when=when(last, capital=False))
+                                if last else s("H-136"), "success")
         self.restart_button.set_visible(status["restart_pending"] and not busy)
         self.update_button.set_sensitive(not busy)
-        self.update_button.set_label("Update Now")
+        self.update_button.set_label(s("H-140"))
 
         self._set_auto(auto["enabled"])
         result = auto.get("last_result")
         last = when(auto["last_run"])
         if auto["last_run"] and result and result != "success":
-            last += " (it didn't finish; it will try again)"
+            last += s("H-156")
         self.last_row.set_subtitle(last)
-        self.next_row.set_subtitle(when(auto["next"]) if auto["enabled"] else "Off")
+        self.next_row.set_subtitle(when(auto["next"]) if auto["enabled"] else s("H-157"))
 
         self._channel_guard = True
         channel = booted.get("channel")
@@ -325,11 +313,11 @@ class UpdatesSection(Section):
         self._channel_guard = False
         self.pinned_row.set_visible(channel == "pinned")
         if channel == "pinned":
-            self.pinned_row.set_title(f"Fixed Build: {booted.get('tag')}")
+            self.pinned_row.set_title(s("H-180", tag=booted.get("tag")))
 
         self.current_row.set_subtitle(system_name(booted))
         rollback = status.get("rollback")
-        self.previous_row.set_subtitle(system_name(rollback) if rollback else "None yet")
+        self.previous_row.set_subtitle(system_name(rollback) if rollback else s("H-194"))
         self.rollback_button.set_sensitive(bool(rollback) and not busy)
 
         self._schedule(5 if busy else 60)
@@ -355,8 +343,7 @@ class UpdatesSection(Section):
         self.log_expander.set_visible(True)
         self.update_button.set_sensitive(False)
         self.restart_button.set_visible(False)
-        self.show_state(None, "Updating…", "The system, apps and firmware. "
-                        "You can keep working; this can take a while.")
+        self.show_state(None, s("H-120"), s("H-121"))
         host.run(["redfox-updates", "now"], on_done=self._on_updated,
                  on_line=self._append_log, on_partial=self._partial_log)
 
@@ -395,9 +382,9 @@ class UpdatesSection(Section):
     def _on_updated(self, returncode, _output):
         self.updating = False
         if returncode == 0:
-            self.window.toast("Update finished")
+            self.window.toast(s("H-225"))
         else:
-            self.window.toast("The update finished with problems; see Details")
+            self.window.toast(s("H-226"))
             self.log_expander.set_expanded(True)
         self.refresh()
 
@@ -415,9 +402,9 @@ class UpdatesSection(Section):
 
         def done(returncode, output):
             if returncode != 0:
-                self.window.toast("Nothing changed: the password was cancelled"
+                self.window.toast(s("H-227")
                                   if cancelled(output) or returncode in (126, 127)
-                                  else "Automatic updates weren't changed")
+                                  else s("H-228"))
             self.refresh()
 
         host.run(["redfox-updates", "auto", state], on_done=done)
@@ -426,10 +413,10 @@ class UpdatesSection(Section):
 
     def on_restart(self, _button):
         dialog = Adw.AlertDialog(
-            heading="Restart Now?",
-            body="Save your work first. The computer restarts into the new system.")
-        dialog.add_response("cancel", "Cancel")
-        dialog.add_response("restart", "Restart")
+            heading=s("H-206"),
+            body=s("H-207"))
+        dialog.add_response("cancel", s("H-188"))
+        dialog.add_response("restart", s("H-208"))
         dialog.set_response_appearance("restart", Adw.ResponseAppearance.SUGGESTED)
         dialog.set_default_response("restart")
         dialog.connect("response", lambda _d, r: r == "restart" and
@@ -440,16 +427,20 @@ class UpdatesSection(Section):
 
     def _on_images(self, data, error):
         if error:
-            self.graphics_row.set_subtitle("Couldn't read the images")
+            self.graphics_row.set_subtitle(s("H-174"))
             return
-        self.images = data["images"]
+        # The image names and what they're for come from redfox-rollback-helper.
+        self.images = [dict(i, name=copy_data("G", f"{i['id']}-name", i["name"], "graphics variant name"),
+                            description=copy_data("G", f"{i['id']}-description", i["description"],
+                                                  "which graphics cards"))
+                       for i in data["images"]]
         self.booted_image = data["booted"]["image"]
         self.booted_channel = data["booted"]["channel"]
         self._graphics_guard = True
         # The helper detects the graphics card; an unclear case recommends nothing.
         recommended = data.get("recommended")
         self.graphics_row.set_model(Gtk.StringList.new(
-            [i["name"] + (" (Recommended)" if i["id"] == recommended else "")
+            [i["name"] + (s("H-173") if i["id"] == recommended else "")
              for i in self.images]))
         ids = [i["id"] for i in self.images]
         if self.booted_image in ids:
@@ -499,18 +490,16 @@ class UpdatesSection(Section):
             return
         channel = self.booted_channel if self.booted_channel in ("latest", "unstable") else "latest"
         dialog = Adw.AlertDialog(
-            heading=f"Switch to {image['name']}?",
-            body=f"For {image['description']}. Only switch if that's the graphics "
-                 "this computer has: the wrong drivers can leave it without a "
-                 "picture. The new image starts the next time you restart, and "
-                 "you can go back to this one from the boot menu or Go Back.")
-        dialog.add_response("cancel", "Cancel")
-        dialog.add_response("switch", "Switch")
+            heading=s("H-182", name=image["name"]),
+            body=s("H-183", description=image["description"]))
+        dialog.add_response("cancel", s("H-188"))
+        dialog.add_response("switch", s("H-187"))
         dialog.set_response_appearance("switch", Adw.ResponseAppearance.DESTRUCTIVE)
 
         def response(_d, r):
             if r == "switch":
-                self.rebase(f"{image['id']}:{channel}", f"{image['name']} ({channel})")
+                channel_name = dict((c, t) for c, t, _ in CHANNELS)[channel]
+                self.rebase(f"{image['id']}:{channel}", f"{image['name']} ({channel_name})")
                 self.booted_image = image["id"]  # what the next boot will be
             else:
                 self._select_booted_graphics()
@@ -522,7 +511,7 @@ class UpdatesSection(Section):
 
     def _on_branches_expanded(self, row, _param):
         if row.get_expanded():
-            self._set_branch_rows([Adw.ActionRow(title="Looking for feature branches…")])
+            self._set_branch_rows([Adw.ActionRow(title=s("H-213"))])
             host.run_json(["redfox-rollback-helper", "--json", "branches"], self._on_branches)
 
     def _set_branch_rows(self, rows):
@@ -534,46 +523,41 @@ class UpdatesSection(Section):
 
     def _on_branches(self, data, error):
         if error:
-            self._set_branch_rows([Adw.ActionRow(title="Couldn't list the feature branches",
+            self._set_branch_rows([Adw.ActionRow(title=s("H-214"),
                                                  subtitle=GLib.markup_escape_text(error))])
             return
         rows = []
         for branch in data["branches"]:
             # The source decides the title: a branch's name, or "#N" and a
             # pull request's title (see feature-branches.conf).
-            where = (f"updated {long_date(branch['updated'])}" if branch["title"] == branch["branch"]
-                     else f"{branch['branch']} · updated {long_date(branch['updated'])}")
+            updated = s("H-217", date=long_date(branch["updated"]))
+            where = (updated if branch["title"] == branch["branch"]
+                     else f"{branch['branch']} · {updated}")
             row = Adw.ActionRow(
                 title=GLib.markup_escape_text(branch["title"]),
                 subtitle=GLib.markup_escape_text(
                     where + (f"\n{branch['description']}" if branch.get("description") else "")))
             row.set_subtitle_lines(3)
-            button = Gtk.Button(label="Try…", valign=Gtk.Align.CENTER)
+            button = Gtk.Button(label=s("H-218"), valign=Gtk.Align.CENTER)
             button.connect("clicked", self._on_try_branch, data["image"], branch)
             row.add_suffix(button)
             rows.append(row)
         if not rows:
             rows = [Adw.ActionRow(
-                title="No feature branches right now",
-                subtitle="A feature branch shows up here while there's a test build of it "
-                         "for this computer's graphics.")]
+                title=s("H-215"),
+                subtitle=s("H-216"))]
         self._set_branch_rows(rows)
 
     def _on_try_branch(self, _button, image, branch):
         dialog = Adw.AlertDialog(
-            heading="Try a Feature Branch?",
-            body=f"{branch['title']}\n\n"
-                 "This is a test build of work in progress. It's unsupported and "
-                 "may not work. It doesn't update, and it may disappear when the "
-                 "branch is merged or closed.\n\n"
-                 "To get back: pick the previous system in the boot menu, or use "
-                 "Go Back here, then choose a channel to follow updates again.")
-        dialog.add_response("cancel", "Cancel")
-        dialog.add_response("try", "Try It")
+            heading=s("H-219"),
+            body=s("H-220", title=branch["title"]))
+        dialog.add_response("cancel", s("H-188"))
+        dialog.add_response("try", s("H-221"))
         dialog.set_response_appearance("try", Adw.ResponseAppearance.DESTRUCTIVE)
         dialog.set_default_response("cancel")
         dialog.connect("response", lambda _d, r: r == "try" and self.rebase(
-            f"{image}:{branch['tag']}", f"the test build of {branch['title']}"))
+            f"{image}:{branch['tag']}", s("H-147", title=branch["title"])))
         dialog.present(self.window)
 
     # Channel
@@ -583,17 +567,10 @@ class UpdatesSection(Section):
             return
         title = dict((c, t) for c, t, _ in CHANNELS)[channel_id]
         dialog = Adw.AlertDialog(
-            heading=f"Switch to {title}?",
-            body=("The computer downloads the newest unstable build and starts it "
-                  "the next time you restart. Unstable gets changes first, and "
-                  "sometimes they break. You can switch back at any time."
-                  if channel_id == "unstable" else
-                  "The computer downloads the newest stable build and starts it "
-                  "the next time you restart. If it's older than what you have, "
-                  "parts of the system go back a version. Your apps and files "
-                  "stay as they are."))
-        dialog.add_response("cancel", "Cancel")
-        dialog.add_response("switch", "Switch")
+            heading=s("H-184", name=title),
+            body=s("H-185") if channel_id == "unstable" else s("H-186"))
+        dialog.add_response("cancel", s("H-188"))
+        dialog.add_response("switch", s("H-187"))
         dialog.set_response_appearance("switch", Adw.ResponseAppearance.SUGGESTED)
         dialog.connect("response", self._on_channel_response, channel_id)
         dialog.present(self.window)
@@ -607,19 +584,18 @@ class UpdatesSection(Section):
     def rebase(self, target, label=None):
         self.updating = True
         self.update_button.set_sensitive(False)
-        self.show_state(None, "Downloading…",
-                        f"Getting {label or 'the new build'}. This can take a while.")
+        self.show_state(None, s("H-143"), s("H-144", label=label or s("H-145")))
         self.log.get_buffer().set_text("")
         self.log_expander.set_visible(True)
 
         def done(returncode, output):
             self.updating = False
             if returncode == 0:
-                self.window.toast("Done. Restart to start the new build.")
+                self.window.toast(s("H-229"))
             elif cancelled(output):
-                self.window.toast("Nothing changed: the password was cancelled")
+                self.window.toast(s("H-227"))
             else:
-                self.window.toast("That didn't work; see Details")
+                self.window.toast(s("H-230"))
                 self.log_expander.set_expanded(True)
             self.refresh()
 
@@ -631,12 +607,10 @@ class UpdatesSection(Section):
     def on_rollback(self, _button):
         rollback = (self.status or {}).get("rollback")
         dialog = Adw.AlertDialog(
-            heading="Go Back to the Previous System?",
-            body=f"{system_name(rollback)}\n\nThe computer starts it the next time "
-                 "you restart. Your files and apps stay as they are. The next "
-                 "update moves you forward again.")
-        dialog.add_response("cancel", "Cancel")
-        dialog.add_response("back", "Go Back")
+            heading=s("H-203"),
+            body=s("H-204", system=system_name(rollback)))
+        dialog.add_response("cancel", s("H-188"))
+        dialog.add_response("back", s("H-205"))
         dialog.set_response_appearance("back", Adw.ResponseAppearance.DESTRUCTIVE)
         dialog.connect("response", self._on_rollback_response)
         dialog.present(self.window)
@@ -647,10 +621,10 @@ class UpdatesSection(Section):
 
         def done(returncode, output):
             if returncode == 0:
-                self.window.toast("Restart to go back to the previous system")
+                self.window.toast(s("H-231"))
             else:
                 self.window.toast(output.strip().splitlines()[-1] if output.strip()
-                                  else "That didn't work")
+                                  else s("H-232"))
             self.refresh()
 
         host.run(["redfox-rollback-helper", "--yes", "rollback"], on_done=done)
@@ -671,9 +645,8 @@ class BuildsPage(Adw.NavigationPage):
 
         self.page = Adw.PreferencesPage()
         self.group = Adw.PreferencesGroup(
-            title="Recent Builds",
-            description="Newest first. A build chosen here stays as it is: it doesn't "
-                        "update until you choose a channel again.")
+            title=s("H-241"),
+            description=s("H-242"))
         toggle = Adw.ToggleGroup(valign=Gtk.Align.CENTER)
         for channel_id, title, _ in CHANNELS:
             toggle.add(Adw.Toggle(name=channel_id, label=title))
@@ -686,13 +659,13 @@ class BuildsPage(Adw.NavigationPage):
         self.stack.add_named(Adw.Spinner(), "loading")
         self.stack.add_named(self.page, "list")
         self.error = Adw.StatusPage(icon_name="network-offline-symbolic",
-                                    title="Couldn't List the Builds")
+                                    title=s("H-245"))
         self.stack.add_named(self.error, "error")
 
         toolbar = Adw.ToolbarView()
         toolbar.add_top_bar(Adw.HeaderBar())
         toolbar.set_content(self.stack)
-        super().__init__(title="Other Builds", child=toolbar, tag="builds")
+        super().__init__(title=s("H-240"), child=toolbar, tag="builds")
         self.load()
 
     def _on_channel(self, toggle, _param):
@@ -720,9 +693,9 @@ class BuildsPage(Adw.NavigationPage):
                                     f"{build['message']} · {build['commit']}"))
             row.set_subtitle_lines(2)
             if build["tag"] == booted_tag:
-                row.add_suffix(Gtk.Label(label="Running now", css_classes=["dim-label"]))
+                row.add_suffix(Gtk.Label(label=s("H-243"), css_classes=["dim-label"]))
             else:
-                button = Gtk.Button(label="Switch…", valign=Gtk.Align.CENTER)
+                button = Gtk.Button(label=s("H-244"), valign=Gtk.Align.CENTER)
                 button.connect("clicked", self._on_switch, build)
                 row.add_suffix(button)
             self.group.add(row)
@@ -731,18 +704,17 @@ class BuildsPage(Adw.NavigationPage):
 
     def _on_switch(self, _button, build):
         dialog = Adw.AlertDialog(
-            heading="Switch to This Build?",
-            body=f"{long_date(build['date'])}: {build['message']} ({build['commit']})\n\n"
-                 "It starts the next time you restart, and stays on this build "
-                 "until you choose a channel again in Updates.")
-        dialog.add_response("cancel", "Cancel")
-        dialog.add_response("switch", "Switch")
+            heading=s("H-246"),
+            body=s("H-247", date=long_date(build["date"]), change=build["message"],
+                   commit=build["commit"]))
+        dialog.add_response("cancel", s("H-188"))
+        dialog.add_response("switch", s("H-187"))
         dialog.set_response_appearance("switch", Adw.ResponseAppearance.SUGGESTED)
 
         def response(_d, r):
             if r == "switch":
                 self.section.view.pop()
-                self.section.rebase(build["commit"], f"the build of {long_date(build['date'])}")
+                self.section.rebase(build["commit"], s("H-146", date=long_date(build["date"])))
 
         dialog.connect("response", response)
         dialog.present(self.section.window)

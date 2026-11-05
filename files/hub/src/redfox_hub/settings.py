@@ -4,6 +4,7 @@ from gi.repository import Adw, Gio, GLib, Gtk
 
 from . import host
 from .paths import LAYOUTS
+from .strings import data as copy_data, s
 from .window import Section
 
 # The layout helper extension's settings, read and written with gsettings
@@ -14,11 +15,11 @@ RFL = "org.gnome.shell.extensions.redfox-layouts"
 class SettingsSection(Section):
     def __init__(self, window):
         page = Adw.PreferencesPage()
-        super().__init__(window, "Settings", page)
+        super().__init__(window, s("H-023"), page)
 
-        desktop = Adw.PreferencesGroup(title="Desktop")
-        layout_row = Adw.ActionRow(title="Layout",
-                                   subtitle="Where the dock, the top bar and the taskbar go",
+        desktop = Adw.PreferencesGroup(title=s("H-250"))
+        layout_row = Adw.ActionRow(title=s("H-251"),
+                                   subtitle=s("H-252"),
                                    activatable=True)
         layout_row.add_prefix(Gtk.Image(icon_name="view-dual-symbolic"))
         layout_row.add_suffix(Gtk.Image(icon_name="go-next-symbolic"))
@@ -28,21 +29,19 @@ class SettingsSection(Section):
         page.add(desktop)
 
         self.login_group = Adw.PreferencesGroup(
-            title="Start at Login",
-            description="Start these apps in the background when you log in, "
-                        "ready in the top bar. Opened any other way, they open normally.")
+            title=s("H-253"),
+            description=s("H-254"))
         self.login_rows = []
         page.add(self.login_group)
 
         # Midikeep records everything played on a MIDI keyboard. The group
         # shows once `midikeep data-dir` answers.
         self.midi_group = Adw.PreferencesGroup(
-            title="MIDI Archive", visible=False,
-            description="Midikeep records everything you play on a MIDI keyboard. "
-                        "Pianola opens the same archive.")
-        self.midi_row = Adw.ActionRow(title="Archive Folder", subtitle="…")
+            title=s("H-257"), visible=False,
+            description=s("H-258"))
+        self.midi_row = Adw.ActionRow(title=s("H-259"), subtitle="…")
         self.midi_row.add_css_class("property")
-        choose = Gtk.Button(label="Choose…", valign=Gtk.Align.CENTER)
+        choose = Gtk.Button(label=s("H-260"), valign=Gtk.Align.CENTER)
         choose.connect("clicked", self._on_choose_midi)
         self.midi_row.add_suffix(choose)
         self.midi_group.add(self.midi_row)
@@ -62,7 +61,7 @@ class SettingsSection(Section):
             self.midi_dir = data["data_dir"]
 
     def _on_choose_midi(self, _button):
-        dialog = Gtk.FileDialog(title="Choose the MIDI Archive Folder", modal=True)
+        dialog = Gtk.FileDialog(title=s("H-261"), modal=True)
         if self.midi_dir:
             dialog.set_initial_folder(Gio.File.new_for_path(self.midi_dir))
         dialog.select_folder(self.window, None, self._on_midi_chosen)
@@ -78,7 +77,7 @@ class SettingsSection(Section):
         def done(returncode, output):
             lines = output.strip().splitlines()
             self.window.toast(lines[-1] if lines else
-                              ("Folder changed" if returncode == 0 else "That didn't work"))
+                              (s("H-262") if returncode == 0 else s("H-232")))
             self.shown()
 
         host.run(["midikeep", "data-dir", folder.get_path()], on_done=done)
@@ -99,7 +98,7 @@ class SettingsSection(Section):
             self.login_group.remove(row)
         self.login_rows = []
         if error:
-            row = Adw.ActionRow(title="Couldn't read the login apps", subtitle=error)
+            row = Adw.ActionRow(title=s("H-256"), subtitle=error)
             self.login_group.add(row)
             self.login_rows.append(row)
             return
@@ -112,7 +111,7 @@ class SettingsSection(Section):
                 row.set_active(app["on"])
             else:
                 row.set_sensitive(False)
-                row.set_subtitle("Not installed")
+                row.set_subtitle(s("H-255"))
             row.connect("notify::active", self._on_login_toggled, app["id"])
             self.login_group.add(row)
             self.login_rows.append(row)
@@ -125,7 +124,7 @@ class SettingsSection(Section):
         def done(returncode, output):
             if returncode != 0:
                 self.window.toast(output.strip().splitlines()[-1] if output.strip()
-                                  else "That didn't work")
+                                  else s("H-232"))
                 self.shown()
 
         host.run(["redfox-autostart", verb, app_id], on_done=done)
@@ -163,7 +162,9 @@ class LayoutCard(Gtk.FlowBoxChild):
         title = Gtk.Label(label=layout["title"], xalign=0)
         title.add_css_class("heading")
         box.append(title)
-        description = Gtk.Label(label=layout["description"], xalign=0, wrap=True,
+        description = Gtk.Label(label=copy_data("L", layout["id"], layout["description"],
+                                                "where this layout puts things"),
+                                xalign=0, wrap=True,
                                 max_width_chars=28, lines=3)
         description.add_css_class("caption")
         description.add_css_class("dim-label")
@@ -196,21 +197,17 @@ class LayoutPage(Adw.NavigationPage):
         self.flow.connect("child-activated", self._on_card)
 
         intro = Gtk.Label(
-            label="Choose where the dock, the top bar and the taskbar go. "
-                  "It changes straight away, and your apps stay open.",
+            label=s("H-270"),
             wrap=True, xalign=0)
         intro.add_css_class("dim-label")
 
         # Shown once the host's gsettings has answered for both keys.
-        self.options = Adw.PreferencesGroup(title="Floating Dock", visible=False)
+        self.options = Adw.PreferencesGroup(title=s("H-271"), visible=False)
         self.option_rows = {}
         self._pending = {}
         for key, low, high, step, title, subtitle in (
-                ("floating-dock-gap", 0, 64, 1, "Gap to the Screen Edge",
-                 "For the RedFox and Cal layouts, in pixels"),
-                ("auto-dock-min-width", 0, 10000, 10, "Dock on Screens at Least",
-                 "The RedFox layout uses the plain GNOME dash on smaller screens. "
-                 "Logical pixels wide.")):
+                ("floating-dock-gap", 0, 64, 1, s("H-272"), s("H-273")),
+                ("auto-dock-min-width", 0, 10000, 10, s("H-274"), s("H-275"))):
             row = Adw.SpinRow.new_with_range(low, high, step)
             row.set_title(title)
             row.set_subtitle(subtitle)
@@ -232,7 +229,7 @@ class LayoutPage(Adw.NavigationPage):
         toolbar = Adw.ToolbarView()
         toolbar.add_top_bar(Adw.HeaderBar())
         toolbar.set_content(scroller)
-        super().__init__(title="Layout", child=toolbar, tag="layout")
+        super().__init__(title=s("H-251"), child=toolbar, tag="layout")
 
         # Three across, fewer on a narrow window.
         for width, per_line in ((720, 2), (520, 1)):
@@ -277,7 +274,7 @@ class LayoutPage(Adw.NavigationPage):
             self._mark(data.get("current") if data else None)
             return
         if error:
-            self.flow.append(Gtk.Label(label=f"Couldn't list the layouts: {error}", wrap=True))
+            self.flow.append(Gtk.Label(label=s("H-276", error=error), wrap=True))
             return
         for layout in data["layouts"]:
             card = LayoutCard(layout)
@@ -302,7 +299,7 @@ class LayoutPage(Adw.NavigationPage):
                 self._mark(card.layout_id)
             else:
                 lines = output.strip().splitlines()
-                self.section.window.toast(lines[-1] if lines else "The layout didn't change")
+                self.section.window.toast(lines[-1] if lines else s("H-277"))
 
         host.run(["redfox-layout", "set", card.layout_id], on_done=done)
 

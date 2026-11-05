@@ -13,6 +13,7 @@ import re
 from gi.repository import Adw, Gdk, Gtk
 
 from .paths import MANUAL as MANUAL_DIR
+from .strings import HINT_MODE, data as copy_data, s
 from .window import Section
 
 
@@ -82,13 +83,13 @@ class Renderer:
         text.add_css_class("monospace")
         box.append(text)
         copy = Gtk.Button(icon_name="edit-copy-symbolic", valign=Gtk.Align.START,
-                          tooltip_text="Copy")
+                          tooltip_text=s("H-295"))
         copy.add_css_class("flat")
 
         def on_copy(button):
             Gdk.Display.get_default().get_clipboard().set(code)
             button.set_icon_name("object-select-symbolic")
-            button.set_tooltip_text("Copied")
+            button.set_tooltip_text(s("H-296"))
 
         copy.connect("clicked", on_copy)
         box.append(copy)
@@ -106,56 +107,84 @@ class Renderer:
 
     def render(self, page):
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
-        title = self.label(html.escape(page.title), ["title-1"])
-        box.append(title)
+        box.append(self.label(prose(page, "title", page.title, escape=True), ["title-1"]))
         if page.summary:
-            box.append(self.label(inline(page.summary), ["manual-summary", "dim-label"]))
-        lines = page.body.splitlines()
-        i = 0
-        paragraph = []
-
-        def flush():
-            if paragraph:
-                box.append(self.label(inline(" ".join(paragraph))))
-                paragraph.clear()
-
-        while i < len(lines):
-            line = lines[i]
-            stripped = line.strip()
-            if stripped.startswith("```"):
-                flush()
-                code = []
-                i += 1
-                while i < len(lines) and not lines[i].strip().startswith("```"):
-                    code.append(lines[i])
-                    i += 1
-                box.append(self.code_block("\n".join(code)))
-            elif stripped.startswith("## "):
-                flush()
-                heading = self.label(inline(stripped[3:]), ["title-4"])
+            box.append(self.label(prose(page, "summary", page.summary),
+                                  ["manual-summary", "dim-label"]))
+        items = None
+        for n, (kind, text, marker) in enumerate(blocks(page.body), 1):
+            if kind != "item":
+                items = None
+            if kind == "code":
+                box.append(self.code_block(text))
+            elif kind == "heading":
+                heading = self.label(prose(page, n, text), ["title-4"])
                 heading.set_margin_top(12)
                 box.append(heading)
-            elif re.match(r"^(-|\d+\.)\s+", stripped):
-                flush()
-                items = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-                while i < len(lines) and re.match(r"^(-|\d+\.)\s+", lines[i].strip()):
-                    marker, rest = re.match(r"^(-|\d+\.)\s+(.*)", lines[i].strip()).groups()
-                    # A list item can wrap onto indented lines.
-                    while (i + 1 < len(lines) and lines[i + 1].startswith("  ")
-                           and lines[i + 1].strip()):
-                        i += 1
-                        rest += " " + lines[i].strip()
-                    items.append(self.list_item("•" if marker == "-" else marker, inline(rest)))
-                    i += 1
-                box.append(items)
-                continue
-            elif not stripped:
-                flush()
+            elif kind == "item":
+                if items is None:
+                    items = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+                    box.append(items)
+                items.append(self.list_item(marker, prose(page, n, text)))
             else:
-                paragraph.append(stripped)
-            i += 1
-        flush()
+                box.append(self.label(prose(page, n, text)))
         return box
+
+
+def blocks(body):
+    """The page body as (kind, text, marker) blocks, in reading order: kind is
+    "heading", "paragraph", "item" (a list item; marker is its bullet or
+    number) or "code" (commands, not prose). The copy pass numbers the
+    blocks in this order, so keep it stable."""
+    lines = body.splitlines()
+    i = 0
+    paragraph = []
+    out = []
+
+    def flush():
+        if paragraph:
+            out.append(("paragraph", " ".join(paragraph), None))
+            paragraph.clear()
+
+    while i < len(lines):
+        stripped = lines[i].strip()
+        if stripped.startswith("```"):
+            flush()
+            code = []
+            i += 1
+            while i < len(lines) and not lines[i].strip().startswith("```"):
+                code.append(lines[i])
+                i += 1
+            out.append(("code", "\n".join(code), None))
+        elif stripped.startswith("## "):
+            flush()
+            out.append(("heading", stripped[3:], None))
+        elif re.match(r"^(-|\d+\.)\s+", stripped):
+            flush()
+            while i < len(lines) and re.match(r"^(-|\d+\.)\s+", lines[i].strip()):
+                marker, rest = re.match(r"^(-|\d+\.)\s+(.*)", lines[i].strip()).groups()
+                # A list item can wrap onto indented lines.
+                while (i + 1 < len(lines) and lines[i + 1].startswith("  ")
+                       and lines[i + 1].strip()):
+                    i += 1
+                    rest += " " + lines[i].strip()
+                out.append(("item", rest, "•" if marker == "-" else marker))
+                i += 1
+            continue
+        elif not stripped:
+            flush()
+        else:
+            paragraph.append(stripped)
+        i += 1
+    flush()
+    return out
+
+
+def prose(page, part, text, escape=False):
+    """A Manual page's text as markup, or its copy-pass hint (H-M-<slug>-<part>)."""
+    if HINT_MODE:
+        return html.escape(copy_data("M", f"{page.slug}-{part}", text, "Manual text"))
+    return html.escape(text) if escape else inline(text)
 
 
 class ManualSection(Section):
@@ -163,14 +192,15 @@ class ManualSection(Section):
         self.pages = load_pages()
         self.renderer = Renderer(self.on_link)
 
-        self.search = Gtk.SearchEntry(placeholder_text="Search the Manual",
+        self.search = Gtk.SearchEntry(placeholder_text=s("H-291"),
                                       hexpand=True)
         self.search.connect("search-changed", self._on_search)
         self.list = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE)
         self.list.add_css_class("boxed-list")
         self.rows = []
         for page in self.pages:
-            row = Adw.ActionRow(title=page.title, subtitle=page.summary, activatable=True)
+            row = Adw.ActionRow(title=prose(page, "title", page.title, escape=True),
+                                subtitle=prose(page, "summary", page.summary), activatable=True)
             row.add_suffix(Gtk.Image(icon_name="go-next-symbolic"))
             row.connect("activated", lambda _r, p=page: self.show(p))
             row.page = page
@@ -178,27 +208,26 @@ class ManualSection(Section):
             self.rows.append(row)
         self.list.set_filter_func(self._filter)
         self.empty = Adw.StatusPage(icon_name="edit-find-symbolic",
-                                    title="No Results", visible=False)
+                                    title=s("H-292"), visible=False)
         self.empty.add_css_class("compact")
 
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18,
                       margin_top=24, margin_bottom=24, margin_start=12, margin_end=12)
         intro = Gtk.Label(
-            label="Short help for where RedFoxOS works differently from other "
-                  "Linux systems.", wrap=True, xalign=0)
+            label=s("H-290"), wrap=True, xalign=0)
         intro.add_css_class("dim-label")
         box.append(intro)
         box.append(self.search)
         box.append(self.list)
         box.append(self.empty)
         if not self.pages:
-            self.empty.set_title("No Manual Pages")
-            self.empty.set_description(f"Nothing found in {MANUAL_DIR}.")
+            self.empty.set_title(s("H-293"))
+            self.empty.set_description(s("H-294", folder=MANUAL_DIR))
             self.empty.set_visible(True)
             self.list.set_visible(False)
         root = Gtk.ScrolledWindow(child=Adw.Clamp(maximum_size=720, child=box),
                                   hscrollbar_policy=Gtk.PolicyType.NEVER)
-        super().__init__(window, "Manual", root)
+        super().__init__(window, s("H-024"), root)
 
     def _filter(self, row):
         query = self.search.get_text().strip().lower()
@@ -218,7 +247,8 @@ class ManualSection(Section):
         content.set_margin_end(12)
         scroller = Gtk.ScrolledWindow(child=Adw.Clamp(maximum_size=720, child=content),
                                       hscrollbar_policy=Gtk.PolicyType.NEVER)
-        self.push(page.title, scroller, tag=f"page-{page.slug}")
+        self.push(copy_data("M", f"{page.slug}-title", page.title, "Manual text"),
+                  scroller, tag=f"page-{page.slug}")
 
     def open(self, subpath):
         for page in self.pages:

@@ -12,6 +12,7 @@ At first login /usr/libexec/redfox-hub-first-login runs `redfox-hub
 from gi.repository import Adw, Gtk
 
 from .paths import LAYOUTS, host_state_dir
+from .strings import s
 from .window import Section
 
 STATE = host_state_dir()
@@ -96,59 +97,49 @@ class Tour(Gtk.Box):
                                      allow_scroll_wheel=True, allow_long_swipes=False)
 
         start = Gtk.Box(spacing=12, halign=Gtk.Align.CENTER)
-        go = Gtk.Button(label="Take the Tour")
+        go = Gtk.Button(label=s("H-043"))
         go.add_css_class("pill")
         go.add_css_class("suggested-action")
         go.connect("clicked", lambda *_: self.next())
         start.append(go)
         if not embedded:
-            later = Gtk.Button(label="Not Now")
+            later = Gtk.Button(label=s("H-044"))
             later.add_css_class("pill")
             later.connect("clicked", lambda *_: self.on_finish(None))
             start.append(later)
 
         links = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12,
                         halign=Gtk.Align.CENTER)
-        for label, icon, page in (("Get Apps", "view-app-grid-symbolic", "apps"),
-                                  ("Choose a Layout", "view-dual-symbolic", "settings/layout"),
-                                  ("Read the Manual", "help-browser-symbolic", "manual")):
+        for label, icon, page in ((s("H-053"), "view-app-grid-symbolic", "apps"),
+                                  (s("H-054"), "view-dual-symbolic", "settings/layout"),
+                                  (s("H-055"), "help-browser-symbolic", "manual")):
             button = Gtk.Button(child=Adw.ButtonContent(label=label, icon_name=icon))
             button.add_css_class("pill")
             button.add_css_class("welcome-link")
             button.connect("clicked", lambda _b, p=page: self.on_finish(p))
             links.append(button)
         if not embedded:
-            done = Gtk.Button(label="Close", halign=Gtk.Align.CENTER, margin_top=6)
+            done = Gtk.Button(label=s("H-056"), halign=Gtk.Align.CENTER, margin_top=6)
             done.add_css_class("flat")
             done.connect("clicked", lambda *_: self.on_finish(None))
             links.append(done)
 
         pages = [
-            TourPage(fox(), "Welcome to RedFoxOS",
-                     "A fast, friendly desktop that looks after itself.", start),
-            TourPage(hero_icon("software-update-available-symbolic"),
-                     "Updates You Never Have to Think About",
-                     "RedFoxOS updates itself in the background, all in one piece. "
-                     "If an update ever misbehaves, go back to the one before, "
-                     "in Hub or from the boot menu."),
-            TourPage(hero_icon("view-app-grid-symbolic"), "Apps for Everything",
-                     "Bazaar has thousands of apps from Flathub. RedFox's packs of "
-                     "favourites are in Hub, a tick away."),
-            TourPage(layout_strip(), "Make It Yours",
-                     "Six layouts: a dock on the side or at the bottom, or one "
-                     "taskbar. Switch any time; your apps stay open."),
-            TourPage(hero_icon("object-select-symbolic"), "You're All Set",
-                     "Here's where to go next.", links),
+            TourPage(fox(), s("H-041"), s("H-042"), start),
+            TourPage(hero_icon("software-update-available-symbolic"), s("H-045"), s("H-046")),
+            TourPage(hero_icon("view-app-grid-symbolic"), s("H-047"), s("H-048")),
+            TourPage(layout_strip(), s("H-049"), s("H-050")),
+            TourPage(hero_icon("object-select-symbolic"), s("H-051"), s("H-052"), links),
         ]
         for page in pages:
             self.carousel.append(page)
 
         self.back = Gtk.Button(icon_name="go-previous-symbolic", valign=Gtk.Align.CENTER,
                                halign=Gtk.Align.START, margin_start=18,
-                               tooltip_text="Previous")
+                               tooltip_text=s("H-057"))
         self.forward = Gtk.Button(icon_name="go-next-symbolic", valign=Gtk.Align.CENTER,
                                   halign=Gtk.Align.END, margin_end=18,
-                                  tooltip_text="Next")
+                                  tooltip_text=s("H-058"))
         for button in (self.back, self.forward):
             button.add_css_class("circular")
             button.add_css_class("welcome-arrow")
@@ -192,7 +183,7 @@ class WelcomeWindow(Adw.ApplicationWindow):
     the menu."""
 
     def __init__(self, first_login=False, **kwargs):
-        super().__init__(title="Welcome to RedFoxOS", default_width=820,
+        super().__init__(title=s("H-040"), default_width=820,
                          default_height=640, **kwargs)
         self.set_size_request(360, 480)
         toolbar = Adw.ToolbarView()
@@ -213,7 +204,7 @@ class WelcomeWindow(Adw.ApplicationWindow):
 class WelcomeSection(Section):
     def __init__(self, window):
         self.tour = Tour(self._finish, embedded=True)
-        super().__init__(window, "Welcome", self.tour)
+        super().__init__(window, s("H-020"), self.tour)
 
     def _finish(self, page):
         if page:

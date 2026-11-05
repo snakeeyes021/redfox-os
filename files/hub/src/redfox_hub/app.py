@@ -9,6 +9,7 @@ gi.require_version("Adw", "1")
 from gi.repository import Adw, Gdk, Gio, GLib, Gtk  # noqa: E402
 
 from .paths import STYLE, VERSION  # noqa: E402
+from .strings import s  # noqa: E402
 
 APP_ID = "tech.redfoxlabs.Hub"
 
@@ -17,7 +18,7 @@ class HubApplication(Adw.Application):
     def __init__(self):
         super().__init__(application_id=APP_ID,
                          flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE)
-        GLib.set_application_name("RedFox Hub")
+        GLib.set_application_name(s("H-001"))
         self.add_main_option("welcome", 0, GLib.OptionFlags.NONE,
                              GLib.OptionArg.NONE, "Show the welcome tour", None)
         self.add_main_option("first-login", 0, GLib.OptionFlags.NONE,
@@ -105,7 +106,7 @@ class HubApplication(Adw.Application):
 
     def on_about(self, *_):
         about = Adw.AboutDialog(
-            application_name="RedFox Hub",
+            application_name=s("H-001"),
             application_icon=APP_ID,
             developer_name="RedFox Labs",
             version=VERSION,

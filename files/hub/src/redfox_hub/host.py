@@ -16,6 +16,8 @@ import time
 
 from gi.repository import GLib
 
+from .strings import s
+
 
 def _env():
     env = dict(os.environ)
@@ -41,7 +43,7 @@ def run(argv, on_done=None, on_line=None, on_partial=None):
                 argv, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 stdin=subprocess.DEVNULL, bufsize=0, env=_env())
         except OSError as error:
-            message = f"Couldn't run {argv[0]}: {error.strerror}"
+            message = s("H-233", command=argv[0], reason=error.strerror)
             if on_done:
                 GLib.idle_add(on_done, 127, message)
             return

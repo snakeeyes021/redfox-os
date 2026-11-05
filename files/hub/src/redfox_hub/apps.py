@@ -7,6 +7,7 @@ A front end to redfox-software, which reads the catalog in
 from gi.repository import Adw, Gtk
 
 from . import host
+from .strings import data as copy_data, s
 from .window import Section
 
 BAZAAR = "io.github.kolunmi.Bazaar"
@@ -24,23 +25,21 @@ class AppsSection(Section):
         self.stack = Gtk.Stack()
         self.stack.add_named(Adw.Spinner(), "loading")
         self.error = Adw.StatusPage(icon_name="dialog-warning-symbolic",
-                                    title="Couldn't List the Apps")
-        retry = Gtk.Button(label="Try Again", halign=Gtk.Align.CENTER)
+                                    title=s("H-096"))
+        retry = Gtk.Button(label=s("H-097"), halign=Gtk.Align.CENTER)
         retry.add_css_class("pill")
         retry.connect("clicked", lambda *_: self.load())
         self.error.set_child(retry)
         self.stack.add_named(self.error, "error")
 
         self.page = Adw.PreferencesPage(
-            description="RedFox's packs of favourite apps. Ticked apps are "
-                        "installed: tick or untick, then Apply.")
+            description=s("H-080"))
         self.stack.add_named(self.page, "list")
         self.groups = []
 
         # Bazaar, if it's installed.
         more = Adw.PreferencesGroup(visible=False)
-        row = Adw.ActionRow(title="Find More Apps in Bazaar",
-                            subtitle="Thousands of apps from Flathub", activatable=True)
+        row = Adw.ActionRow(title=s("H-081"), subtitle=s("H-082"), activatable=True)
         icon = Gtk.Image(icon_name=BAZAAR, pixel_size=32)
         icon.add_css_class("lowres-icon")
         row.add_prefix(icon)
@@ -52,10 +51,10 @@ class AppsSection(Section):
                  on_done=lambda rc, _out: more.set_visible(rc == 0))
 
         self.summary = Gtk.Label(xalign=0, hexpand=True)
-        self.apply_button = Gtk.Button(label="Apply")
+        self.apply_button = Gtk.Button(label=s("H-088"))
         self.apply_button.add_css_class("suggested-action")
         self.apply_button.connect("clicked", self.on_apply)
-        reset = Gtk.Button(label="Undo Changes")
+        reset = Gtk.Button(label=s("H-087"))
         reset.connect("clicked", lambda *_: self.reset())
         self.reset_button = reset
         bar = Gtk.ActionBar()
@@ -70,7 +69,7 @@ class AppsSection(Section):
         self.stack.set_vexpand(True)
         root.append(self.stack)
         root.append(self.bar)
-        super().__init__(window, "Apps", root)
+        super().__init__(window, s("H-021"), root)
         self.loaded = False
 
     def shown(self):
@@ -94,9 +93,12 @@ class AppsSection(Section):
         for pack in data.get("packs", []):
             if pack.get("hidden") or not pack.get("items"):
                 continue
-            group = Adw.PreferencesGroup(title=pack["name"],
-                                         description=pack.get("description"))
-            all_button = Gtk.Button(label="Tick All", valign=Gtk.Align.CENTER)
+            # The catalog's words (software.yaml), with their own IDs.
+            group = Adw.PreferencesGroup(
+                title=copy_data("P", f"{pack['id']}-name", pack["name"], "pack name"),
+                description=copy_data("P", f"{pack['id']}-description",
+                                      pack.get("description"), "what's in the pack"))
+            all_button = Gtk.Button(label=s("H-083"), valign=Gtk.Align.CENTER)
             all_button.add_css_class("flat")
             all_button.connect("clicked", self._on_tick_all, pack)
             group.set_header_suffix(all_button)
@@ -109,7 +111,8 @@ class AppsSection(Section):
 
     def _row(self, item):
         self.items[item["id"]] = item
-        row = Adw.ActionRow(title=item["name"], subtitle=item.get("summary") or "")
+        row = Adw.ActionRow(title=item["name"], subtitle=copy_data(
+            "A", item["id"], item.get("summary") or "", "what the app does"))
         icon_name = item.get("icon")
         if icon_name and icon_name.startswith("/"):
             icon = Gtk.Image.new_from_file(icon_name)
@@ -163,9 +166,9 @@ class AppsSection(Section):
         remove = [i for i, w in self.wanted.items() if not w]
         parts = []
         if add:
-            parts.append(f"Install {len(add)}")
+            parts.append(s("H-084", count=len(add)))
         if remove:
-            parts.append(f"remove {len(remove)}" if add else f"Remove {len(remove)}")
+            parts.append(s("H-086", count=len(remove)) if add else s("H-085", count=len(remove)))
         self.summary.set_label(", ".join(parts))
         self.bar.set_reveal_child(bool(self.wanted) or self.running)
 
@@ -178,10 +181,10 @@ class AppsSection(Section):
             return
         names = ", ".join(self.items[i]["name"] for i in remove)
         dialog = Adw.AlertDialog(
-            heading="Remove Apps?",
-            body=f"{names}\n\nTheir settings and data stay, in case you install them again.")
-        dialog.add_response("cancel", "Cancel")
-        dialog.add_response("remove", "Remove")
+            heading=s("H-091"),
+            body=s("H-092", names=names))
+        dialog.add_response("cancel", s("H-188"))
+        dialog.add_response("remove", s("H-093"))
         dialog.set_response_appearance("remove", Adw.ResponseAppearance.DESTRUCTIVE)
         dialog.connect("response", lambda _d, r: r == "remove" and self._run())
         dialog.present(self.window)
@@ -201,7 +204,7 @@ class AppsSection(Section):
             steps.append(["redfox-software", "install", "--json", *add])
         if remove:
             steps.append(["redfox-software", "remove", "--json", *remove])
-        self.summary.set_label("Working…")
+        self.summary.set_label(s("H-089"))
         self._next_step(steps)
 
     def _next_step(self, steps):
@@ -217,7 +220,7 @@ class AppsSection(Section):
         if kind == "start" and item_id in self.items:
             for spinner in self.spinners.get(item_id, []):
                 spinner.set_visible(True)
-            self.summary.set_label(f"{self.items[item_id]['name']}…")
+            self.summary.set_label(s("H-090", name=self.items[item_id]["name"]))
         elif kind == "done" and item_id in self.items:
             for spinner in self.spinners.get(item_id, []):
                 spinner.set_visible(False)
@@ -243,9 +246,9 @@ class AppsSection(Section):
                 spinner.set_visible(False)
         self._update_bar()
         if self.failed:
-            self.window.toast("Didn't finish: " + ", ".join(self.failed))
+            self.window.toast(s("H-095", names=", ".join(self.failed)))
         else:
-            self.window.toast("Done")
+            self.window.toast(s("H-094"))
         # Refresh icons and states from the system.
         self.loaded = False
         self.load()

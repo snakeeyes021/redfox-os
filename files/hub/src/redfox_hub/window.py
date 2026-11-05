@@ -2,13 +2,15 @@
 
 from gi.repository import Adw, Gio, Gtk
 
+from .strings import s
+
 SECTIONS = [
     # id, title, icon
-    ("welcome", "Welcome", "user-home-symbolic"),
-    ("apps", "Apps", "view-app-grid-symbolic"),
-    ("updates", "Updates", "software-update-available-symbolic"),
-    ("settings", "Settings", "preferences-system-symbolic"),
-    ("manual", "Manual", "help-browser-symbolic"),
+    ("welcome", s("H-020"), "user-home-symbolic"),
+    ("apps", s("H-021"), "view-app-grid-symbolic"),
+    ("updates", s("H-022"), "software-update-available-symbolic"),
+    ("settings", s("H-023"), "preferences-system-symbolic"),
+    ("manual", s("H-024"), "help-browser-symbolic"),
 ]
 
 
@@ -42,7 +44,7 @@ def header_page(title, child, tag=None, header=None):
 
 class HubWindow(Adw.ApplicationWindow):
     def __init__(self, **kwargs):
-        super().__init__(title="RedFox Hub", default_width=1000,
+        super().__init__(title=s("H-001"), default_width=1000,
                          default_height=720, **kwargs)
         self.set_size_request(360, 400)
         self.sections = {}
@@ -57,17 +59,17 @@ class HubWindow(Adw.ApplicationWindow):
         self.sidebar.connect("activated", self._on_activated)
 
         menu = Gio.Menu()
-        menu.append("Show the welcome tour", "app.welcome")
-        menu.append("About RedFox Hub", "app.about")
+        menu.append(s("H-026"), "app.welcome")
+        menu.append(s("H-027", app=s("H-001")), "app.about")
         sidebar_header = Adw.HeaderBar()
         sidebar_header.pack_end(Gtk.MenuButton(
             icon_name="open-menu-symbolic", menu_model=menu,
-            tooltip_text="Main menu", primary=True))
-        sidebar_page = header_page("RedFox Hub", self.sidebar, header=sidebar_header)
+            tooltip_text=s("H-025"), primary=True))
+        sidebar_page = header_page(s("H-001"), self.sidebar, header=sidebar_header)
 
         # Content: one navigation view per section, built when first shown.
         self.stack = Gtk.Stack(transition_type=Gtk.StackTransitionType.CROSSFADE)
-        self.content = Adw.NavigationPage(title="RedFox Hub", child=self.stack)
+        self.content = Adw.NavigationPage(title=s("H-001"), child=self.stack)
 
         self.split = Adw.NavigationSplitView(
             sidebar=sidebar_page, content=self.content,
