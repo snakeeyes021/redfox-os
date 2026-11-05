@@ -305,7 +305,8 @@ source_branches() {
             {kind: "branch", id: $name, title: $name, branch: $name, tag: $tag, url: $url,
              updated: (.commit.committer.date // "")[0:10],
              description: (if $described != "" then $described
-                           else ((.commit.message // "") | split("\n")[0]) end)}' <<< "$commit"
+                           else ((.commit.message // "") | split("\n")[0]) end
+                           | if length > 160 then (.[0:160] | sub(" [^ ]*$"; "")) + "…" else . end)}' <<< "$commit"
     done < <(jq -r --arg p "$FEATURE_PREFIX" '.[] | .name | select(startswith($p))' <<< "$list")
 }
 
