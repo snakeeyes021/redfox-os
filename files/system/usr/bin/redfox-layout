@@ -358,8 +358,24 @@ def remove_old_dock_copy():
           "Log out and back in once to switch to the system Dash to Dock.")
 
 
+def warn_shadowed_copies():
+    """A copy of one of RedFox's own extensions in ~/.local (a developer's
+    checkout, say) overrides the image's copy, and keeps the user on it
+    when the image's is fixed or updated: on a new GNOME, a stale copy shows
+    as OUT OF DATE and does nothing. Say so; it's the user's folder, so
+    leave it be."""
+    for uuid in (SMOOTH_OVERVIEW, HELPER):
+        user = os.path.join(GLib.get_user_data_dir(), "gnome-shell", "extensions", uuid)
+        system = os.path.join("/usr/share/gnome-shell/extensions", uuid)
+        if os.path.isdir(user) and os.path.isdir(system):
+            print(f"redfox-layout: warning: {user} overrides the image's copy of {uuid}. "
+                  "If it's out of date, GNOME won't run it; remove that folder to use "
+                  "the image's.", file=sys.stderr)
+
+
 def apply_layout(name):
     remove_old_dock_copy()
+    warn_shadowed_copies()
     layout = LAYOUTS[name]
     wanted = [HELPER, *layout["extensions"]]
 
