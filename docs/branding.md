@@ -8,8 +8,9 @@ The name is **RedFoxOS** (as in the README and the wordmark); the short name is 
 
 | Where | How | Notes |
 | --- | --- | --- |
-| `/usr/lib/os-release` (`NAME`, `PRETTY_NAME`, `LOGO`, URLs, `DEFAULT_HOSTNAME`, `BOOTLOADER_NAME`, `IMAGE_ID`, `ANSI_COLOR`) | `files/scripts/branding.sh` | Feeds Settings → About, `hostnamectl`, fastfetch's OS line, and the boot menu. |
-| Boot menu (GRUB) entries | `PRETTY_NAME`, "RedFoxOS 2026-11-04 19:13" (the build's date and time, UTC) | ostree titles each entry "PRETTY_NAME (ostree:N)" when it creates the deployment, so the current and previous systems can be told apart. Old entries keep their old titles until they're replaced. About and fastfetch show the same name. |
+| `/usr/lib/os-release` (`NAME`, `PRETTY_NAME`, `LOGO`, URLs, `DEFAULT_HOSTNAME`, `BOOTLOADER_NAME`, `IMAGE_ID`, `IMAGE_VERSION`, `ANSI_COLOR`) | `files/scripts/branding.sh` | Feeds Settings → About, `hostnamectl`, fastfetch's OS line, and the boot menu. |
+| Boot menu (GRUB) entries | `PRETTY_NAME`, "RedFoxOS" | ostree titles each entry "PRETTY_NAME (ostree:N)" when it creates the deployment; 0 is the newest. That's all it uses (not the image's version), so the entries read "RedFoxOS (ostree:0)", "RedFoxOS (ostree:1)", as on Bazzite. Hub's Go Back shows each system's date. Entries made by older builds keep their dated titles until they're replaced. |
+| Build date and time | `IMAGE_VERSION`, "2026-11-06 14:45" (UTC) | Settings → About shows it as "Operating System Build" (GNOME 51 prefers `IMAGE_VERSION` to `BUILD_ID`). |
 | Settings → About logo | `LOGO=redfox-logo`, icons in `/usr/share/icons/hicolor` | About looks for `redfox-logo-text-dark` (dark mode), `redfox-logo-text`, then `redfox-logo`. |
 | Default hostname | `/etc/hostname` and `DEFAULT_HOSTNAME` = `redfox` | Only applies where no hostname has been set. |
 | Login screen (GDM) | `/usr/share/pixmaps/fedora-gdm-logo.png` | Light lettering, since GDM's background is dark. |
