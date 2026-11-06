@@ -228,6 +228,7 @@ Move RedFox's own tooling into one GUI Flatpak app, like Thirties and Pianola al
 - [ ] **Wallpapers**
     - [ ] Import all Bluefin / Bluefin DX wallpapers.
     - [ ] **Collection:** Collect more Paweł Czerwiński light/dark pairs (Unsplash License, credited). *(The default pair is his and credited in [`docs/wallpaper-credits.md`](wallpaper-credits.md), which also lists candidate pairs.)*
+- [ ] **Consider a GNOME/Adwaita theme for Firefox** (Matt, 11-06; not committed to yet). Bazzite's Fedora 44 base shipped update commands for one (dropped with its Topgrade include in the F45 hotfix). If we adopt it, it needs its own install and update path.
 - [ ] **RedFoxOS Branding:** the OS calls itself RedFoxOS, not Bazzite, everywhere a person sees it. Machine-readable IDs that tooling reads stay Bazzite's; the trade-offs are in `docs/branding.md`. *(Built and tested in the VM on `feat/branding`, including update, rollback and rebase; waiting for Matt's OK to merge. Ticked items are done on that branch.)*
     - [x] `os-release`: NAME/PRETTY_NAME "RedFoxOS", LOGO, URLs, DEFAULT_HOSTNAME `redfox`, BOOTLOADER_NAME, IMAGE_ID. `ID=redfox` with `ID_LIKE="bazzite fedora"` on `feat/redfox-os-identity`.
     - [x] `image-info.json`: image name, vendor and ref are RedFox's (for the MOTD and Bazzite's scripts).
