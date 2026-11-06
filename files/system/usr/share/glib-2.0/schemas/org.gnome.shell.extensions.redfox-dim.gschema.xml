@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.redfox-dim" path="/org/gnome/shell/extensions/redfox-dim/">
+    <key name="dim-range" type="d">
+      <range min="0.05" max="0.5"/>
+      <default>0.25</default>
+      <summary>Share of the brightness slider that dims the picture</summary>
+      <description>Below this slider position the backlight stays at its minimum and the picture is dimmed. Above it the slider drives the backlight over its full range.</description>
+    </key>
+    <key name="darkest-level" type="d">
+      <range min="0.05" max="1.0"/>
+      <default>0.2</default>
+      <summary>Picture level at the very bottom of the slider</summary>
+      <description>1.0 is the undimmed picture. The lower limit keeps the screen readable enough to find the slider again.</description>
+    </key>
+  </schema>
+</schemalist>

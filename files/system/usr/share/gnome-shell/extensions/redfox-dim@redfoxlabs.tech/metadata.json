@@ -1,0 +1,11 @@
+{
+  "uuid": "redfox-dim@redfoxlabs.tech",
+  "name": "RedFox Dim",
+  "description": "Extends the bottom of the regular brightness slider below what the backlight can do, by dimming the picture in software. The slider, brightness keys and on-screen display all keep working as one control.",
+  "url": "https://github.com/snakeeyes021/redfox-os",
+  "settings-schema": "org.gnome.shell.extensions.redfox-dim",
+  "session-modes": ["user", "unlock-dialog"],
+  "shell-version": [
+    "51"
+  ]
+}

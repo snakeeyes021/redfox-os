@@ -1,0 +1,7 @@
+{
+  "uuid": "driver@redfox-dim.test",
+  "name": "RedFox Dim test driver",
+  "description": "Exercises RedFox Dim against the shell's real BrightnessManager. Only for tests/redfox-dim/run.sh.",
+  "session-modes": ["user", "unlock-dialog"],
+  "shell-version": ["SHELL_VERSION"]
+}
