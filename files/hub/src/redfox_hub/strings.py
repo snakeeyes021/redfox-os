@@ -9,13 +9,21 @@ giving away the wording), length budget, a short hint (<= 6 words, for
 hint-mode screenshots) and the current text. {name}-style placeholders are
 filled in by the app.
 
-REDFOX_HUB_COPY_HINTS=1 shows "<ID short-hint>" in place of every string,
-for screenshots. It's a development aid and isn't documented for users.
+VOICE lists the strings with character or voice (the welcome, the hero
+lines, the store text): the only ones a copy pass asks about. The rest are
+plain labels and explanations that keep their current text.
+
+REDFOX_HUB_COPY_HINTS=1 shows "<ID short-hint>" in place of the voice
+strings, for screenshots; REDFOX_HUB_COPY_HINTS=all does it for every
+string, including the catalog's, the layouts' and the Manual's. It's a
+development aid and isn't documented for users.
 """
 
 import os
 
-HINT_MODE = os.environ.get("REDFOX_HUB_COPY_HINTS") == "1"
+HINTS = os.environ.get("REDFOX_HUB_COPY_HINTS", "")
+HINT_MODE = HINTS in ("1", "all")
+ALL_HINTS = HINTS == "all"
 
 # (id, screen, kind, job, budget, short hint, text)
 ENTRIES = [
@@ -224,19 +232,19 @@ ENTRIES = [
      "The same, when the version number isn't known.",
      "≤ 6 words", "new system ready", "A new system is ready."),
     ("H-129", "Updates: status", "status text",
-     "Follows either of those: files and apps aren't affected by the restart. Also used in the restart and roll-back explanations.",
+     "A reassuring line after \"an update is ready, restart\" (and after \"restart to go back\"): your files and apps aren't affected by the restart.",
      "≤ 10 words", "files and apps kept", "Your files and apps stay as they are."),
     ("H-130", "Updates: status", "status headline",
      "Big warning headline when someone has switched off automatic updates.",
      "≤ 5 words", "auto updates switched off", "Automatic Updates Are Off"),
     ("H-131", "Updates: status", "status text",
-     "Under it: a gentle nudge to update by hand now and then, for fixes and security.",
+     "Under the warning that someone switched automatic updates off: a gentle nudge to update by hand now and then, for fixes and security.",
      "≤ 12 words", "nudge to update by hand", "Update now and then to get fixes and security updates."),
     ("H-132", "Updates: status", "status headline",
      "Big warning headline when the most recent update failed part-way.",
      "≤ 6 words", "last update failed", "The Last Update Didn't Finish"),
     ("H-133", "Updates: status", "status text",
-     "Under it: when that update started and how (automatically or by hand), that it will try again, and that you can update now.",
+     "Under the warning that the last update didn't finish: when it started and how (automatically or by hand), that it will try again by itself, and that you can update now.",
      "≤ 25 words; {how} is how it ran, {when} is when", "failed update: when, retry", "Started {how} {when}. It will try again by itself, or you can update now."),
     ("H-134", "Updates: status", "status headline",
      "Big reassuring headline in the normal state: everything is up to date and looks after itself.",
@@ -245,7 +253,7 @@ ENTRIES = [
      "Under it: when the last update ran, and how.",
      "≤ 12 words; {how}, {when}", "last update time", "Last updated {how}, {when}."),
     ("H-136", "Updates: status", "status text",
-     "Instead of that, on a brand-new install before any update has run.",
+     "Under the reassuring headline on a brand-new install, before any update has run: the first one will happen soon.",
      "≤ 10 words", "no update yet", "The first update will run soon."),
     ("H-137", "Updates: status", "phrase",
      "Fills {how} above: the update ran on its own schedule.",
@@ -632,9 +640,21 @@ def hint(id_, short):
     return f"⟨{id_} {short}⟩"
 
 
+# Strings with voice (Matt, 11-06): the copy pass covers only these.
+VOICE = {
+    "H-008", "H-009",                                   # store summary and description
+    "H-041", "H-042", "H-045", "H-046", "H-047", "H-048",
+    "H-049", "H-050", "H-051", "H-052",                 # the welcome tour
+    "H-080",                                            # Apps intro
+    "H-129", "H-131", "H-133", "H-134", "H-136",        # Updates: reassurance and the hero line
+    "H-270",                                            # layout picker intro
+    "H-290",                                            # Manual intro
+}
+
+
 def s(id_, **values):
     """The text for id_, with its {placeholders} filled in."""
-    if HINT_MODE:
+    if HINT_MODE and (ALL_HINTS or id_ in VOICE):
         return hint(id_, SHORT[id_])
     text = TEXT[id_]
     return text.format(**values) if values else text
@@ -643,6 +663,6 @@ def s(id_, **values):
 def data(kind, key, text, short):
     """Text that comes from elsewhere (the software catalog, the layouts, the
     images, the Manual pages): as it is, or its hint in hint mode."""
-    if HINT_MODE and text:
+    if ALL_HINTS and text:
         return hint(f"H-{kind}-{key}", short)
     return text

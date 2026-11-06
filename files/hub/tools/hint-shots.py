@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Screenshot every Hub screen, dialog and state, for the copy pass.
 
-    REDFOX_HUB_COPY_HINTS=1 python3 files/hub/tools/hint-shots.py OUT_DIR
+    REDFOX_HUB_COPY_HINTS=1 python3 files/hub/tools/hint-shots.py OUT_DIR   (voice strings; =all for everything)
 
 Run inside a desktop session (it opens Hub's windows). Commands that only
 read (the software list, layouts, start-at-login apps) run for real; the
@@ -30,6 +30,23 @@ from gi.repository import Adw, Gio, GLib, Graphene, Gtk  # noqa: E402
 
 from redfox_hub import host, manual  # noqa: E402
 from redfox_hub.app import HubApplication  # noqa: E402
+from redfox_hub.strings import ALL_HINTS  # noqa: E402
+
+# With hints for the voice strings only (REDFOX_HUB_COPY_HINTS=1), the shots
+# that show one; with REDFOX_HUB_COPY_HINTS=all, every shot.
+VOICE_SHOTS = {
+    *(f"Tour page {n} of 5, in the main window" for n in range(1, 6)),
+    "The tour in its own window (first login, or ☰ › tour): first page",
+    "The tour in its own window: last page",
+    "Apps page, top",
+    "All well (the usual state), top of the page",
+    "Brand new: no update has run yet",
+    "The last update failed",
+    "Automatic updates switched off",
+    "Update downloaded, restart to finish (version known)",
+    "Layout page, top",
+    "Manual, the list of pages",
+}
 
 OUT = Path(sys.argv[1] if len(sys.argv) > 1 else "hint-shots")
 OUT.mkdir(parents=True, exist_ok=True)
@@ -175,7 +192,8 @@ class Runner:
         self.steps = []
 
     def shot(self, screen, caption, setup, wait=500, target=None):
-        self.steps.append((screen, caption, setup, wait, target))
+        if ALL_HINTS or caption in VOICE_SHOTS:
+            self.steps.append((screen, caption, setup, wait, target))
 
     def start(self):
         GLib.timeout_add(1500, self._next)

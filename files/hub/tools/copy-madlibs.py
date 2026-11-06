@@ -30,7 +30,9 @@ import gi  # noqa: E402
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from redfox_hub import manual  # noqa: E402
-from redfox_hub.strings import ENTRIES  # noqa: E402
+from redfox_hub.strings import ENTRIES, VOICE  # noqa: E402
+
+ALL = "--all" in sys.argv  # every string, not only the ones with voice
 
 # Where the launcher, store and password-prompt strings live (not in Python).
 FILE_STRINGS = {
@@ -236,19 +238,26 @@ def entry(id_, kind, job, budget, extra=""):
 
 
 def main():
-    out = Path(sys.argv[1])
+    out = Path([a for a in sys.argv[1:] if not a.startswith("--")][0])
     out.mkdir(parents=True, exist_ok=True)
     used = usages()
     md = ["# RedFox Hub: copy, blind pass\n",
           "Write your text after each →. Leave a line blank to keep the current text for now. "
           "Don't change the IDs.\n"
           "`{name}`-style placeholders are filled in by the app; keep them if you use that fact.\n"]
+    if not ALL:
+        md.append("\nOnly the words with some voice are here: the welcome, the hero lines, the store text. "
+                  "Everything else (buttons, headings, labels, explanations, error details, the Manual's pages, "
+                  "the app catalog) keeps its current text. Any of it can still be changed later: "
+                  "\"make the thing that says abc say xyz\".\n")
     mapping = {}
     counts = {}
 
     # Hub's own strings, grouped by screen in reading order.
     screen = None
     for id_, scr, kind, job, budget, _short, text in ENTRIES:
+        if not ALL and id_ not in VOICE:
+            continue
         if scr != screen:
             md.append(f"\n## {scr}\n")
             screen = scr
@@ -266,6 +275,9 @@ def main():
         source = [file_line(*FILE_STRINGS[id_])] if id_ in FILE_STRINGS else []
         mapping[id_] = {"text": text, "defined": strings_line(id_),
                         "used": source + where}
+
+    if not ALL:
+        return finish(out, md, mapping, counts)
 
     # Optional, long: the Manual, one entry per block.
     manual.MANUAL_DIR = HUB / "data/manual"
@@ -349,6 +361,10 @@ def main():
             mapping[id_] = {"text": image[field], "used": [f"files/system/usr/bin/redfox-rollback-helper (image_{field})"]}
     counts["Graphics variants"] = len(images) * 2
 
+    finish(out, md, mapping, counts)
+
+
+def finish(out, md, mapping, counts):
     md.append("\n## Not covered in this pass\n")
     md.append("- The `ujust switch-image` prompts and other `redfox-rollback-helper` terminal text.\n"
               "- The terminal banner (MOTD) and its tips.\n"

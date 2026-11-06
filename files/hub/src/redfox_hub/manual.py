@@ -13,7 +13,7 @@ import re
 from gi.repository import Adw, Gdk, Gtk
 
 from .paths import MANUAL as MANUAL_DIR
-from .strings import HINT_MODE, data as copy_data, s
+from .strings import ALL_HINTS, data as copy_data, s
 from .window import Section
 
 
@@ -182,7 +182,7 @@ def blocks(body):
 
 def prose(page, part, text, escape=False):
     """A Manual page's text as markup, or its copy-pass hint (H-M-<slug>-<part>)."""
-    if HINT_MODE:
+    if ALL_HINTS:
         return html.escape(copy_data("M", f"{page.slug}-{part}", text, "Manual text"))
     return html.escape(text) if escape else inline(text)
 

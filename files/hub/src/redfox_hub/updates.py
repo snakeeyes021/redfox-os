@@ -9,7 +9,7 @@ import time
 from gi.repository import Adw, Gio, GLib, Gtk
 
 from . import host
-from .strings import HINT_MODE, data as copy_data, s
+from .strings import ALL_HINTS, data as copy_data, s
 from .window import Section
 
 CHANNELS = [
@@ -22,7 +22,7 @@ def when(ts, capital=True):
     """A friendly time: 'Today at 04:12', 'Yesterday at 09:30', '3 November
     2026'. With capital=False, 'today at 04:12', for the middle of a sentence."""
     text, relative = _when(ts)
-    if not capital and relative and not HINT_MODE:
+    if not capital and relative and not ALL_HINTS:
         text = text[0].lower() + text[1:]
     return text
 
