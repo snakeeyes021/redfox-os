@@ -33,6 +33,10 @@ from redfox_hub import manual  # noqa: E402
 from redfox_hub.strings import ENTRIES, VOICE  # noqa: E402
 
 ALL = "--all" in sys.argv  # every string, not only the ones with voice
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from copy_context import CONTEXT  # noqa: E402
+
+SHOTS_URL = "https://redmax.taila6a47f.ts.net:8413/img/copy-voice/"
 
 # Where the launcher, store and password-prompt strings live (not in Python).
 FILE_STRINGS = {
@@ -237,6 +241,18 @@ def entry(id_, kind, job, budget, extra=""):
     return "- " + " · ".join(parts) + "\n  →\n"
 
 
+def rich_entry(id_, kind, budget, extra):
+    c = CONTEXT[id_]
+    shots = ", ".join(f"[{f}]({SHOTS_URL}{f})" for f in c["shots"]) or "none (not shown inside Hub)"
+    head = [f"**{id_}**", f"*{kind}*"] + ([budget] if budget else []) + ([extra] if extra else [])
+    return ("- " + " · ".join(head) + "\n"
+            f"  - **Where:** {c['where']} Screenshots: {shots}.\n"
+            f"  - **When they see it:** {c['when']}\n"
+            f"  - **What they need then:** {c['needs']}\n"
+            f"  - **What it must get across:** {c['across']}\n"
+            "  →\n")
+
+
 def main():
     out = Path([a for a in sys.argv[1:] if not a.startswith("--")][0])
     out.mkdir(parents=True, exist_ok=True)
@@ -270,13 +286,15 @@ def main():
                 places[area] = places.get(area, 0) + 1
             extra = "used in: " + ", ".join(
                 area + (f" ×{n}" if n > 1 else "") for area, n in places.items())
-        md.append(entry(id_, kind, job, budget, extra))
+        md.append(rich_entry(id_, kind, budget, extra) if not ALL and id_ in CONTEXT
+                  else entry(id_, kind, job, budget, extra))
         counts[scr] = counts.get(scr, 0) + 1
         source = [file_line(*FILE_STRINGS[id_])] if id_ in FILE_STRINGS else []
         mapping[id_] = {"text": text, "defined": strings_line(id_),
                         "used": source + where}
 
     if not ALL:
+        retired(md)
         return finish(out, md, mapping, counts)
 
     # Optional, long: the Manual, one entry per block.
@@ -362,6 +380,26 @@ def main():
     counts["Graphics variants"] = len(images) * 2
 
     finish(out, md, mapping, counts)
+
+
+def retired(md):
+    """The strings dropped from the pass, one line each: they keep their text."""
+    md.append("\n## Retired from this pass (they keep their current text)\n")
+    md.append("Plain labels, headings, buttons and explanations. Listed so nothing goes missing; "
+              "say \"make the thing that says abc say xyz\" for any of them.\n\n")
+    screen = None
+    for id_, scr, kind, _job, _budget, short, _text in ENTRIES:
+        if id_ in VOICE:
+            continue
+        if scr != screen:
+            md.append(f"\n*{scr}*\n\n")
+            screen = scr
+        md.append(f"- {id_} · {kind} · {short}\n")
+    md.append("\n*Text from elsewhere*\n\n"
+              "- H-M-…: the Manual's seven pages (titles, summaries, every paragraph)\n"
+              "- H-P-… and H-A-…: the Apps catalog's pack names and descriptions, and each app's one-line description\n"
+              "- H-L-…: the line under each layout's card\n"
+              "- H-G-…: the graphics variants' names and descriptions\n")
 
 
 def finish(out, md, mapping, counts):
