@@ -126,7 +126,7 @@ EOF
         brew-upgrade.timer \
         input-remapper.service \
         check-sb-key.service; do
-        systemctl list-unit-files "$s" >/dev/null 2>&1 && systemctl disable "$s"
+        if systemctl list-unit-files "$s" >/dev/null 2>&1; then systemctl disable "$s"; fi
     done
     for s in \
         podman-auto-update.timer \
@@ -135,7 +135,7 @@ EOF
         bazzite-dynamic-fixes.service \
         redfox-user-setup.service \
         ublue-user-setup.service; do
-        systemctl --global list-unit-files "$s" >/dev/null 2>&1 && systemctl --global disable "$s"
+        if systemctl --global list-unit-files "$s" >/dev/null 2>&1; then systemctl --global disable "$s"; fi
     done
 )
 
