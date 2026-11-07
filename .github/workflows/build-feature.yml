@@ -1,0 +1,49 @@
+name: bluebuild-feature
+# Test images for feature/* branches, listed in RedFox Hub under
+# Updates › Advanced › Feature Branches. BlueBuild tags a build of a
+# non-default branch br-<branch, / as _>-<fedora>, which is the tag the Hub
+# looks for. No daily rebuild: a feature image is rebuilt only when its branch
+# is pushed (or by hand).
+on:
+  push:
+    branches:
+      - "feature/**"
+    paths-ignore: # don't rebuild if only documentation has changed
+      - "**.md"
+  workflow_dispatch: # rebuild a feature branch by hand (pick the branch as the ref)
+concurrency:
+  # one build per branch; a newer push cancels the older build
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  bluebuild:
+    name: Build Custom Image (feature)
+    # Never build main or unstable here: BlueBuild tags default-branch builds
+    # as :latest, and unstable has its own workflow.
+    if: startsWith(github.ref, 'refs/heads/feature/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    strategy:
+      fail-fast: false # stop GH from cancelling all matrix builds if one fails
+      matrix:
+        recipe:
+          - recipe-nvidia-legacy.yml
+          - recipe-nvidia.yml
+          - recipe-main.yml
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # the build is fully handled by the reusable github action
+      - name: Build Custom Image
+        uses: blue-build/github-action@v1
+        with:
+          recipe: ${{ matrix.recipe }}
+          cosign_private_key: ${{ secrets.SIGNING_SECRET }}
+          registry_token: ${{ github.token }}
+          maximize_build_space: true
+          skip_checkout: true
