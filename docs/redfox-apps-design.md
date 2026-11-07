@@ -88,6 +88,7 @@ The packs from the catalog, one group each, with each app's icon, name, a line o
 ## Settings
 
 - **Layout:** the six layouts as cards, three across (two or one on a narrow window), in Matt's order, using the previews from `assets/layouts/`. Picking one applies it at once with `redfox-layout set`. Below the cards: the floating dock's gap, and the screen width from which the RedFox layout uses a dock.
+- **Extra Dimming:** turns RedFox Dim on or off with `gnome-extensions enable|disable`. *(Matt, 11-07: RedFox's own shell extensions get a switch in Hub; features that aren't shell extensions stay plain OS files.)* The row only shows when the extension is installed.
 - **Start at Login:** a switch per app (Signal, Joplin) to start it in the tray at login, through `redfox-autostart`. This is the roadmap's per-app tray toggle. `configure-matt` still runs `configure-autostart-tray` until Matt says the automatic step should go.
 - **MIDI Archive:** where Midikeep keeps its recordings, with a folder chooser (`midikeep data-dir`). New takes go to the new folder; earlier ones stay where they were.
 - Still to come *(proposed)*: desktop options (window buttons, app grid, tiling, corners, sounds), services (Tailscale, NordVPN, ClamAV, swap), this machine, setup profile, config file. Window buttons wait on one question: every layout sets them, so a separate switch would fight the layouts.

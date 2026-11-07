@@ -1,4 +1,4 @@
-"""Settings: the layout picker, apps at login, and the MIDI archive."""
+"""Settings: the layout picker, extra dimming, apps at login, and the MIDI archive."""
 
 from gi.repository import Adw, Gio, GLib, Gtk
 
@@ -9,6 +9,8 @@ from .window import Section
 # The layout helper extension's settings, read and written with gsettings
 # (the command, so Hub needs no compiled schema of its own).
 RFL = "org.gnome.shell.extensions.redfox-layouts"
+# RedFox Dim, turned on and off with gnome-extensions like any extension.
+DIM = "redfox-dim@redfoxlabs.tech"
 
 
 class SettingsSection(Section):
@@ -24,6 +26,15 @@ class SettingsSection(Section):
         layout_row.add_suffix(Gtk.Image(icon_name="go-next-symbolic"))
         layout_row.connect("activated", lambda *_: self.open("layout"))
         desktop.add(layout_row)
+
+        # RedFox Dim, the image's own shell extension. Shown once
+        # `gnome-extensions info` has answered for it.
+        self.dim_row = Adw.SwitchRow(
+            title="Extra Dimming", visible=False, sensitive=False,
+            subtitle="Let the brightness slider go darker than the screen's lowest setting")
+        self.dim_row.add_prefix(Gtk.Image(icon_name="display-brightness-symbolic"))
+        self.dim_row.connect("notify::active", self._on_dim_toggled)
+        desktop.add(self.dim_row)
 
         page.add(desktop)
 
@@ -52,6 +63,32 @@ class SettingsSection(Section):
     def shown(self):
         host.run_json(["redfox-autostart", "list", "--json"], self._on_autostart)
         host.run_json(["midikeep", "data-dir", "--json"], self._on_midi)
+        host.run(["gnome-extensions", "info", DIM], on_done=self._on_dim_info)
+
+    # Extra dimming
+
+    def _on_dim_info(self, returncode, output):
+        if returncode != 0:
+            self.dim_row.set_visible(False)
+            return
+        enabled = any(line.strip().lower() == "enabled: yes" for line in output.splitlines())
+        self.dim_row.set_sensitive(False)  # setting it isn't the user's toggle
+        self.dim_row.set_active(enabled)
+        self.dim_row.set_sensitive(True)
+        self.dim_row.set_visible(True)
+
+    def _on_dim_toggled(self, row, _param):
+        if not row.get_sensitive():
+            return
+        verb = "enable" if row.get_active() else "disable"
+
+        def done(returncode, output):
+            if returncode != 0:
+                lines = output.strip().splitlines()
+                self.window.toast(lines[-1] if lines else "That didn't work")
+            host.run(["gnome-extensions", "info", DIM], on_done=self._on_dim_info)
+
+        host.run(["gnome-extensions", verb, DIM], on_done=done)
 
     # MIDI archive
 
