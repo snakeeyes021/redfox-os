@@ -251,6 +251,7 @@ export default class DriverExtension extends Extension {
 
         // The other ways brightness changes.
         const qs = Main.panel.statusArea.quickSettings._brightness.quickSettingsItems[0];
+        await this._checkMarkers(qs, 0.25);
         scale().value = 0.1;
         this._check('quick settings slider follows the value', near(qs.slider.value, 0.1), qs.slider.value);
         qs.slider.value = 0.05;
@@ -306,6 +307,12 @@ export default class DriverExtension extends Extension {
         this._check('dim-range applies right away', !overlay.visible && this._backlight.brightness === MIN);
         settings.reset('dim-range');
 
+        settings.set_double('dim-range', 0.4);
+        await sleep(20);
+        this._check('dim-range moves the marker', near(qs.slider.overdriveStart, 0.4), qs.slider.overdriveStart);
+        settings.reset('dim-range');
+        await sleep(20);
+
         // Monitors reconfigure, for example on resume or hotplug.
         scale().value = 0.1;
         const gone = this._ext._overlayFor({get_number: () => 0});
@@ -338,11 +345,16 @@ export default class DriverExtension extends Extension {
             this._check(`disabled (${i}): the value is the plain backlight again`,
                 near(this._backlight.relative, manager.scales[0].value), this._backlight.relative);
             manager.scales[0].value = 0.6;
+            this._check(`disabled (${i}): no markers left`,
+                qs.slider.overdriveStart === 1 && qs.slider.style === null &&
+                this._monitorSliders(qs).every(b => b.overdriveStart === 1 && b.style === null) &&
+                Main.osdWindowManager._osdWindows.every(w => w._level.overdriveStart === 1 && w._level.style === null));
             this._check(`disabled (${i}): stock slider works`,
                 near(this._backlight.relative, 0.6), this._backlight.relative);
 
             manager.scales[0].value = 0.1;
             await this._setEnabled(true);
+            this._check(`enabled again (${i}): marked`, near(qs.slider.overdriveStart, 0.25));
             this._check(`enabled again (${i}): dimmed`,
                 this._overlays.length === 1 && this._overlays[0].visible &&
                 this._backlight.brightness === MIN);
@@ -350,6 +362,43 @@ export default class DriverExtension extends Extension {
         await sleep(500);
 
         await this._failsSoftly(manager);
+    }
+
+    _monitorSliders(item) {
+        const found = [];
+        const walk = actor => {
+            if (actor.has_style_class_name?.('slider'))
+                found.push(actor);
+            actor.get_children?.().forEach(walk);
+        };
+        walk(item._monitorBrightnessSection.actor);
+        return found;
+    }
+
+    async _checkMarkers(qs, position) {
+        const sameFill = bar => {
+            const node = bar.get_theme_node();
+            return node.get_color('-barlevel-overdrive-color')
+                .equal(node.get_color('-barlevel-active-background-color'));
+        };
+
+        this._check('marker: on the main slider', near(qs.slider.overdriveStart, position), qs.slider.overdriveStart);
+        this._check('marker: no red past it on the slider', sameFill(qs.slider));
+        const sliders = this._monitorSliders(qs);
+        this._check('marker: on the per-monitor slider',
+            sliders.length === 1 && near(sliders[0].overdriveStart, position), sliders.length);
+
+        const {_osdWindows: [osd]} = Main.osdWindowManager;
+        Main.brightnessManager._screenBrightnessDown();
+        this._check('marker: on the brightness OSD', near(osd._level.overdriveStart, position), osd._level.overdriveStart);
+        this._check('marker: no red past it on the OSD', sameFill(osd._level));
+
+        Main.osdWindowManager.show(Gio.Icon.new_for_string('audio-volume-high-symbolic'),
+            null, {0: {level: 1.2, maxLevel: 1.5}});
+        this._check('marker: not on the volume OSD, which stays stock',
+            osd._level.overdriveStart === 1 && osd._level.style === null, osd._level.overdriveStart);
+        Main.brightnessManager._screenBrightnessUp();
+        this._check('marker: back on the next brightness OSD', near(osd._level.overdriveStart, position));
     }
 
     // What a future GNOME might do to us
@@ -366,6 +415,30 @@ export default class DriverExtension extends Extension {
         proto.setBacklight = setBacklight;
         manager.scales[0].value = 0.6;
         this._check('hooked method gone: nothing left behind', near(this._backlight.relative, 0.6));
+
+        // The marker's private paths going away
+        const quickSettings = Main.panel.statusArea.quickSettings;
+        const brightness = quickSettings._brightness;
+        quickSettings._brightness = null;
+        manager.scales[0].value = 0.1;
+        await this._setEnabled(true);
+        this._check('no quick settings item to mark: still dims',
+            this._dim.state === ACTIVE && this._ext._hooked && this._overlays[0].visible, this._dim.error);
+
+        const {_osdWindows: [osd]} = Main.osdWindowManager;
+        Object.defineProperty(osd._level, 'overdriveStart', {
+            configurable: true,
+            set() {
+                throw new Error('expected by the test');
+            },
+        });
+        manager._screenBrightnessUp();
+        delete osd._level.overdriveStart;
+        this._check('OSD bar can\'t be marked: the key press still works',
+            near(manager.scales[0].value, 0.15) && !manager._inhibitUpdates, manager.scales[0].value);
+
+        await this._setEnabled(false);
+        quickSettings._brightness = brightness;
 
         await this._setEnabled(true);
         this._ext._overlayFor = () => {

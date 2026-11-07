@@ -23,6 +23,22 @@ import {backlightFor, levelFor, valueForBacklight} from './curve.js';
 
 const HOOKED_METHODS = ['setBacklight', '_getRelativeBrightness'];
 
+const BRIGHTNESS_ICON = 'display-brightness-symbolic';
+const SLIDER_FILL = '-st-accent-color';
+const OSD_FILL = '#ffffff'; // what GNOME's light, dark and high contrast themes use
+
+// GNOME's level bars can show a notch, the one where volume goes past 100%. That
+// notch marks where dimming starts here too, only without the red beyond it.
+function markBar(bar, position, color) {
+    bar.overdriveStart = position;
+    bar.style = `-barlevel-overdrive-color: ${color};`;
+}
+
+function unmarkBar(bar) {
+    bar.overdriveStart = 1;
+    bar.style = null;
+}
+
 // A black rectangle over one monitor. Dimming the picture on the way to the
 // panel would be better still, but mutter's gamma table belongs to Night Light,
 // which overwrites it whenever the color temperature changes.
@@ -73,7 +89,10 @@ export default class RedFoxDimExtension extends Extension {
         this._hooked = false;
         this._unredirectDisabled = false;
 
-        this._settings.connectObject('changed', () => this._reapply(), this);
+        this._settings.connectObject('changed', () => {
+            this._reapply();
+            this._markSliders();
+        }, this);
         Main.brightnessManager.connectObject('changed', () => this._onScalesChanged(), this);
         Main.layoutManager.connectObject('monitors-changed', () => this._placeOverlays(), this);
 
@@ -91,6 +110,8 @@ export default class RedFoxDimExtension extends Extension {
 
         this._injections.clear();
         this._injections = null;
+        if (this._hooked)
+            this._unmarkBars();
 
         this._overlays.forEach(overlay => overlay.destroy());
         this._overlays.clear();
@@ -141,6 +162,67 @@ export default class RedFoxDimExtension extends Extension {
 
         // The shell applied the saved level before extensions loaded.
         this._reapply();
+
+        this._hookBars();
+    }
+
+    // The marker is a nicety reached through more private code than the dimming,
+    // so anything going wrong here costs the marker and nothing else.
+    _tryMarking(what) {
+        try {
+            what();
+        } catch (e) {
+            console.error(`${this.uuid}: can't mark the brightness bars: ${e}`);
+        }
+    }
+
+    get _brightnessItem() {
+        return Main.panel.statusArea.quickSettings?._brightness?.quickSettingsItems[0];
+    }
+
+    _hookBars() {
+        const extension = this;
+
+        this._tryMarking(() => {
+            // Called for the main slider and each monitor's, whenever they're made.
+            this._injections.overrideMethod(Object.getPrototypeOf(this._brightnessItem),
+                '_connectSlider', original =>
+                    function (slider, scale) {
+                        original.call(this, slider, scale);
+                        extension._tryMarking(() => markBar(slider, extension._range, SLIDER_FILL));
+                    });
+            this._markSliders();
+        });
+
+        this._tryMarking(() => {
+            // These windows also show volume and the like, so unmark for those.
+            this._injections.overrideMethod(Main.osdWindowManager, '_showOsdWindow', original =>
+                function (monitorIndex, icon, ...rest) {
+                    extension._tryMarking(() => {
+                        const bar = this._osdWindows[monitorIndex]._level;
+                        if (icon.to_string() === BRIGHTNESS_ICON)
+                            markBar(bar, extension._range, OSD_FILL);
+                        else
+                            unmarkBar(bar);
+                    });
+                    original.call(this, monitorIndex, icon, ...rest);
+                });
+        });
+    }
+
+    _markSliders() {
+        if (this._hooked)
+            this._tryMarking(() => this._brightnessItem._sync());
+    }
+
+    _unmarkBars() {
+        this._tryMarking(() => {
+            unmarkBar(this._brightnessItem.slider);
+            this._brightnessItem._sync();
+        });
+        this._tryMarking(() => {
+            Main.osdWindowManager._osdWindows.forEach(osd => unmarkBar(osd._level));
+        });
     }
 
     _setBrightness(scale, value, setBacklight) {
