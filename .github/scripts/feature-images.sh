@@ -15,7 +15,7 @@
 # deleting one removes the image index, its child manifests (the image and its
 # attestation), and their cosign signature/attestation tags.
 #
-# Needs: OWNER, GH_TOKEN (packages: write), optionally GH_ACTOR; skopeo, jq, gh;
+# Needs: OWNER, GH_TOKEN (packages: write), optionally GH_ACTOR; skopeo, jq, gh, curl.
 # DRY_RUN=1 lists what would be deleted.
 set -euo pipefail
 
@@ -39,6 +39,18 @@ digest_of() {  # the digest of a tag: sha256 of its manifest's bytes
     sum="$(sha256sum < "$f" | cut -d' ' -f1)"
     rm -f "$f"
     echo "sha256:${sum}"
+}
+# Tag the manifest with digest $1 as $2 through the registry API.
+add_tag() {
+    local f type token repo=${REF#ghcr.io/}
+    f="$(mktemp)"
+    raw_manifest "@$1" > "$f"
+    type="$(jq -r '.mediaType // empty' "$f")"
+    [ -n "$type" ] || type=application/vnd.oci.image.index.v1+json
+    token="$(curl -fsS -u "$CREDS" "https://ghcr.io/token?scope=repository:${repo}:pull,push" | jq -r .token)"
+    curl -fsS -X PUT -H "Authorization: Bearer ${token}" -H "Content-Type: ${type}" \
+        --data-binary "@${f}" "https://ghcr.io/v2/${repo}/manifests/$2" > /dev/null
+    rm -f "$f"
 }
 children_of() { raw_manifest "@$1" | jq -r '.manifests[]?.digest'; }
 
@@ -185,11 +197,10 @@ case "$MODE" in
         mark="fb-${SLUG}-${SHA:0:7}-${tag##*-}"
         echo "Tagging ${REF}:${tag} (${digest}) as ${mark}"
         if [ "${DRY_RUN:-}" != 1 ]; then
-            # Only a new tag on the same manifest: the signatures are found
-            # by digest, so they apply to it already.
-            skopeo copy --all --preserve-digests --quiet \
-                --src-creds "$CREDS" --dest-creds "$CREDS" \
-                "docker://${REF}@${digest}" "docker://${REF}:${mark}"
+            # Only a new tag on the same manifest (the signatures are found by
+            # digest, so they apply to it already): put the manifest's exact
+            # bytes back under the new tag.
+            add_tag "$digest" "$mark"
         fi
         prune "$digest"
         ;;
