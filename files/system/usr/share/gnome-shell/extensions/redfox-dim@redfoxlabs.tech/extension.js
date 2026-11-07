@@ -122,6 +122,12 @@ export default class RedFoxDimExtension extends Extension {
                     this._onMenuOpened();
             }, this);
             Main.layoutManager.connectObject('monitors-changed', () => this._placeOverlays(), this);
+            // Whatever is added to the stage later, such as the magnifier's
+            // view each time zoom turns on, would cover the overlays.
+            global.stage.connectObject('child-added', (_stage, child) => {
+                if (!(child instanceof DimOverlay))
+                    this._raiseOverlays();
+            }, this);
 
             this._onScalesChanged();
         } catch (e) {
@@ -136,6 +142,7 @@ export default class RedFoxDimExtension extends Extension {
 
         Main.brightnessManager.disconnectObject(this);
         Main.layoutManager.disconnectObject(this);
+        global.stage.disconnectObject(this);
         Main.panel.statusArea.quickSettings.menu.disconnectObject(this);
         this._settings.disconnectObject(this);
 
@@ -411,6 +418,10 @@ export default class RedFoxDimExtension extends Extension {
             this._placeOverlay(monitor, overlay);
         }
         return overlay;
+    }
+
+    _raiseOverlays() {
+        this._overlays.forEach(overlay => global.stage.set_child_above_sibling(overlay, null));
     }
 
     _placeOverlays() {
