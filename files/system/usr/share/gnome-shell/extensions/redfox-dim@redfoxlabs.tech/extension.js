@@ -107,20 +107,33 @@ export default class RedFoxDimExtension extends Extension {
         this._unredirectDisabled = false;
         this._uncontrolled = [];
 
-        this._settings.connectObject(
-            'changed::dim-range', () => this._onCurveChanged(),
-            'changed::darkest-level', () => this._onCurveChanged(),
-            this);
-        Main.brightnessManager.connectObject('changed', () => this._onScalesChanged(), this);
-        // Only there to be seen with the menu open, and at login the menu's items
-        // don't exist yet when extensions start.
-        Main.panel.statusArea.quickSettings.menu.connectObject('open-state-changed', (_menu, open) => {
-            if (open)
-                this._onMenuOpened();
-        }, this);
-        Main.layoutManager.connectObject('monitors-changed', () => this._placeOverlays(), this);
+        // The shell never calls disable() after a failed enable(), so undo
+        // whatever got done here, or the hooks would outlive the extension.
+        try {
+            this._settings.connectObject(
+                'changed::dim-range', () => this._onCurveChanged(),
+                'changed::darkest-level', () => this._onCurveChanged(),
+                this);
+            Main.brightnessManager.connectObject('changed', () => this._onScalesChanged(), this);
+            // Only there to be seen with the menu open, and at login the menu's items
+            // don't exist yet when extensions start.
+            Main.panel.statusArea.quickSettings.menu.connectObject('open-state-changed', (_menu, open) => {
+                if (open)
+                    this._onMenuOpened();
+            }, this);
+            Main.layoutManager.connectObject('monitors-changed', () => this._placeOverlays(), this);
+            // Whatever is added to the stage later, such as the magnifier's
+            // view each time zoom turns on, would cover the overlays.
+            global.stage.connectObject('child-added', (_stage, child) => {
+                if (!(child instanceof DimOverlay))
+                    this._raiseOverlays();
+            }, this);
 
-        this._onScalesChanged();
+            this._onScalesChanged();
+        } catch (e) {
+            this.disable();
+            throw e;
+        }
     }
 
     disable() {
@@ -129,6 +142,7 @@ export default class RedFoxDimExtension extends Extension {
 
         Main.brightnessManager.disconnectObject(this);
         Main.layoutManager.disconnectObject(this);
+        global.stage.disconnectObject(this);
         Main.panel.statusArea.quickSettings.menu.disconnectObject(this);
         this._settings.disconnectObject(this);
 
@@ -204,6 +218,8 @@ export default class RedFoxDimExtension extends Extension {
         if (this._hooked)
             this._reapply();
         this._dimUncontrolled();
+        // After the fallback overlays, which may have just appeared or gone.
+        this._updateUnredirect();
         this._markSliders();
     }
 
@@ -342,7 +358,12 @@ export default class RedFoxDimExtension extends Extension {
 
         const position = this._fallbackItem.slider.value;
         const level = levelFor(position, 1, this._floor);
-        this._uncontrolled.forEach(monitor => this._overlayFor(monitor).setLevel(level));
+        // As in _setBrightness: losing the dim shouldn't cost anything else.
+        try {
+            this._uncontrolled.forEach(monitor => this._overlayFor(monitor).setLevel(level));
+        } catch (e) {
+            console.error(`${this.uuid}: can't dim: ${e}`);
+        }
     }
 
     // Beside the regular slider, which GNOME adds after extensions start.
@@ -397,6 +418,10 @@ export default class RedFoxDimExtension extends Extension {
             this._placeOverlay(monitor, overlay);
         }
         return overlay;
+    }
+
+    _raiseOverlays() {
+        this._overlays.forEach(overlay => global.stage.set_child_above_sibling(overlay, null));
     }
 
     _placeOverlays() {
