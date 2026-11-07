@@ -16,7 +16,7 @@
 # attestation), and their cosign signature/attestation tags.
 #
 # Needs: OWNER, GH_TOKEN (packages: write), optionally GH_ACTOR; skopeo, jq, gh;
-# cosign for after-build. DRY_RUN=1 lists what would be deleted.
+# DRY_RUN=1 lists what would be deleted.
 set -euo pipefail
 
 die() { echo "::error::$*" >&2; exit 1; }
@@ -130,7 +130,8 @@ prune() {
         local hex=${1#sha256:} t sid sname sc
         for t in "sha256-${hex}" "sha256-${hex}.sig" "sha256-${hex}.att" "sha256-${hex}.sbom"; do
             sid=${id_of_tag[$t]:-}
-            [ -n "$sid" ] || continue
+            # Skip the manifest itself, when it carries its own sha256-<hex> tag.
+            [ -n "$sid" ] && [ "$sid" != "${id_of[$1]:-}" ] || continue
             # A referrers index lists manifests of its own.
             sname=${name_of[$sid]}
             for sc in $(children_of "$sname" 2>/dev/null); do
@@ -150,6 +151,9 @@ prune() {
         fi
         local ok=1
         for t in ${tags_of[$d]}; do
+            # cosign copy (used to tag builds before) also tagged the image
+            # itself sha256-<its own digest>.
+            [ "$t" = "sha256-${d#sha256:}" ] && continue
             deletable_tag "$t" || { ok=0; echo "${REF}@${d}: keeping it, it's also tagged ${t}"; }
         done
         [ "$ok" -eq 1 ] || continue
@@ -181,10 +185,11 @@ case "$MODE" in
         mark="fb-${SLUG}-${SHA:0:7}-${tag##*-}"
         echo "Tagging ${REF}:${tag} (${digest}) as ${mark}"
         if [ "${DRY_RUN:-}" != 1 ]; then
-            cosign copy -f \
-                --registry-username "$GH_ACTOR" \
-                --registry-password "$GH_TOKEN" \
-                "${REF}@${digest}" "${REF}:${mark}"
+            # Only a new tag on the same manifest: the signatures are found
+            # by digest, so they apply to it already.
+            skopeo copy --all --preserve-digests --quiet \
+                --src-creds "$CREDS" --dest-creds "$CREDS" \
+                "docker://${REF}@${digest}" "docker://${REF}:${mark}"
         fi
         prune "$digest"
         ;;
