@@ -1,45 +1,68 @@
-# RedFoxOS ISO: open questions
+# RedFoxOS live ISOs
 
-Status: design notes only, 2026-11-03. No build work yet.
+Each of the three stable images has a live ISO. It boots into a RedFoxOS desktop, where you can try the system and then install it. Unstable users install a stable ISO, then rebase (`ujust rollback-helper rebase unstable`).
 
-Today the only way to get RedFoxOS is to rebase onto it, from Bazzite, Bluefin or another Fedora Atomic GNOME install. Eventually RedFox wants an ISO of its own. This page collects the questions to answer first.
+| ISO | Installs |
+|---|---|
+| `redfox-os.iso` | `ghcr.io/snakeeyes021/redfox-os:latest` (Intel and AMD graphics) |
+| `redfox-os-nvidia.iso` | `ghcr.io/snakeeyes021/redfox-os-nvidia:latest` (GTX 16xx, RTX 20xx and newer) |
+| `redfox-os-nvidia-legacy.iso` | `ghcr.io/snakeeyes021/redfox-os-nvidia-legacy:latest` (GTX 10xx and older) |
 
-## What exists already
+Each ISO has a `.iso-CHECKSUM` file (SHA-256) and a `.iso.sig` file, signed with the same key as the images:
 
-`.github/workflows/build-iso.yml` builds an ISO with bootc-image-builder (`--type anaconda-iso`, btrfs root), using `disk_config/iso.toml`. It runs after each successful `main` build and by hand.
-- Its last runs, on 2026-01-01, failed.
-- It patches the image first to drop broken Terra repo files.
-- It only keeps the ISOs as Actions artifacts for 7 days, so nothing is published.
+```bash
+sha256sum -c redfox-os.iso-CHECKSUM
+cosign verify-blob --key cosign.pub --signature redfox-os.iso.sig redfox-os.iso
+```
 
-## Questions
+## What happens on the ISO
 
-1. **Builder.** How do the other Universal Blue-family images build ISOs today, and which fits RedFox?
-   - **bootc-image-builder's `anaconda-iso`**, the current workflow: an offline Anaconda installer with the image inside.
-   - **BlueBuild's own `bluebuild generate-iso`**: wraps an installer builder, and fits the recipe tooling RedFox already uses.
-   - **Titanoboa**: Universal Blue's live-ISO builder, as used by the newer Bluefin and Aurora ISOs. It boots into the image, with an installer inside.
+- **The live session** is the Intel/AMD image on Fedora's own kernel, in all three ISOs. Fedora's kernel is signed for the shim, so the ISO starts with Secure Boot on. Bazzite's kernel is signed with Universal Blue's key, which a new machine doesn't trust yet. NVIDIA cards run on nouveau in the live session.
+- **A welcome dialog** offers *Install RedFoxOS* or *Try It First*. The installer is also first in the dash. It warns about less than 8 GB of memory, and switches off machines started in legacy (CSM) mode, since the ISO is UEFI-only.
+- Nothing that sets up or updates a system runs in the live session: no update timers, Flatpak installs, Steam or Bazzite Portal.
 
-   Things to compare: ISO size, build time on a free GitHub runner, and whether the result installs the signed `ghcr.io` image so updates work straight away.
-2. **Hosting.**
-   - GitHub release assets are limited to 2 GiB per file, and each variant's ISO (main, NVIDIA, NVIDIA legacy) is likely bigger.
-   - Options:
-     - an ISO that downloads the image during install (small, but needs a network);
-     - splitting files (awkward for users);
-     - ghcr as an OCI artifact (free, but not a normal download);
-     - an object store such as Cloudflare R2 (cheap and no egress fees, but costs something and needs an account);
-     - a torrent.
-   - Who pays, and the URL users see (redfoxlabs.tech?).
-3. **Branding the installer.**
-   - Anaconda can be themed (its product name, sidebar art and colours).
-   - Bazzite ships its own installer setup.
-   - How much RedFox needs to change: the name and the fox at least. Keep it maintainable across Fedora releases.
-4. **Secure Boot.**
-   - The kernel is signed with Universal Blue's key, so a Secure Boot machine has to enrol that key (`ujust enroll-secure-boot-key`, or the MOK screen at first boot).
-   - The installer and its first-boot instructions must make that clear.
-   - Does RedFox ever need its own key? Probably not while it uses Bazzite's kernel.
-5. **NVIDIA variants.**
-   - One ISO per image, so three.
-   - Or one ISO that picks the variant from the hardware, as some uBlue images do.
-   - The NVIDIA images also need the key enrolment step above.
-6. **Testing.**
-   - The VM testbed (`tests/vm/`) installs from the Silverblue ISO with a kickstart. An ISO test would boot RedFox's own ISO in a fresh VM instead, unattended through a kickstart.
-   - Check that the installed system boots, logs in, updates and rolls back, and that `rpm-ostree status` shows the signed `ghcr.io` image.
+## What the installer does
+
+The installer is Anaconda's web interface.
+- The user picks the disk, the language and the keyboard, and **creates their account**. RedFoxOS, like Bazzite GNOME, has no GNOME Initial Setup, so the installer is where the account is made. The root account section is hidden.
+- The default layout is btrfs with zstd compression, as on Bazzite.
+- **The image comes from the ISO**, so the install works offline. Afterwards `bootc switch --enforce-container-sigpolicy` points the system at the signed image on ghcr.io (`ostree-image-signed:docker://ghcr.io/snakeeyes021/<image>:latest`). Updates come from there and are checked against RedFoxOS's key. The first update may download the whole image once, because the copy on the ISO was stored in a different format.
+- **Secure Boot:** the installer queues Universal Blue's key (`/usr/share/ublue-os/sb_pubkey.der`) with `mokutil`, and shows how to finish. At the next start the blue MOK screen appears: *Enroll MOK* → *Continue* → *Yes*, password `universalblue`, *Reboot*. Without that, Secure Boot refuses Bazzite's kernel. See the README's Secure Boot section.
+- **Flatpaks** install at the first boot, once there's a network, the same as after a rebase (Bazzite's Flatpak manager and the image's `system-flatpak-setup`). They aren't on the ISO, which keeps it a few GB smaller.
+
+## How it's built
+
+`.github/workflows/build-live-iso.yml`, run by hand: *Actions › Build live ISOs › Run workflow*. Pick the tag (`latest`), one ISO or all three, and whether to publish.
+
+1. Frees the runner's disk, and puts podman's storage on a compressed btrfs file.
+2. Pulls the images, accepting only ones signed with `cosign.pub`.
+3. Builds the live system from `installer/Containerfile`. `installer/build.sh` adds the image to install, Fedora's kernel (`kernel.sh`), a live initramfs, livesys, and Anaconda with its kickstart (`anaconda.sh`).
+4. [Titanoboa](https://github.com/ublue-os/titanoboa) (Universal Blue's live ISO builder, pinned to a commit) squashes it into the ISO.
+5. Writes the checksum, signs the ISO with `SIGNING_SECRET`, and keeps all three files as a workflow artifact for 3 days.
+6. With *publish* on, and only from `main`, uploads them to Cloudflare R2: the ISO first, then its checksum and signature. Each upload replaces the previous ISO of the same name, so the download links stay the same.
+
+Each ISO takes about 30–40 minutes and is about 6–8 GB.
+
+The installer is adapted from [Bazzite's](https://github.com/ublue-os/bazzite/tree/main/installer) (Apache-2.0). When Bazzite's ISO changes, compare `installer/` with theirs.
+
+### Publishing setup (R2)
+
+The upload step needs:
+- repository secrets `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` (an R2 API token with Object Read & Write on the bucket) and `R2_ENDPOINT` (`https://<account id>.r2.cloudflarestorage.com`);
+- a repository variable `R2_BUCKET` with the bucket's name.
+
+## Testing an ISO
+
+Download the artifact from the workflow run, then boot it in a UEFI VM with a blank disk, for example:
+
+```bash
+virt-install --connect qemu:///session --name redfox-iso-test --memory 8192 --vcpus 4 \
+    --disk size=64 --cdrom redfox-os.iso --boot uefi --osinfo fedora-unknown --graphics vnc
+```
+
+Check:
+- the live session starts and the welcome dialog shows;
+- the installer creates the account and finishes;
+- the installed system boots and logs in, and Flatpaks arrive;
+- `rpm-ostree status` shows `ostree-image-signed:docker://ghcr.io/snakeeyes021/<image>:latest`;
+- with Secure Boot on (OVMF's Secure Boot firmware): the ISO starts, and after the MOK enrolment the installed system does too.
