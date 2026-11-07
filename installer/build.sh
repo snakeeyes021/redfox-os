@@ -14,13 +14,17 @@ mkdir -p "$(realpath /root)"
 mkdir -p /var/tmp
 
 # The image the installer puts on disk, stored in the live system so the
-# install works offline. With the host's storage mounted (as in CI), copy it
-# from there rather than pulling it again.
+# install works offline, as a plain OCI directory (anaconda.sh installs it
+# with --transport=oci). Container storage written during an image build
+# doesn't survive into the live system intact. With the host's storage
+# mounted (as in CI), copy the image from there rather than pulling it again.
+PAYLOAD=/usr/share/redfox/install-image
+mkdir -p "$(dirname "$PAYLOAD")"
 if mountpoint -q /usr/lib/containers/storage; then
     podman --storage-opt additionalimagestore=/usr/lib/containers/storage \
-        save --format oci-archive "$INSTALL_IMAGE" | podman load
+        save --format oci-dir -o "$PAYLOAD" "$INSTALL_IMAGE"
 else
-    podman pull "$INSTALL_IMAGE"
+    skopeo copy "docker://$INSTALL_IMAGE" "oci:$PAYLOAD"
 fi
 
 cp -a "$SRC/system_files/." /

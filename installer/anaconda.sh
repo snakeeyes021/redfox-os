@@ -45,7 +45,7 @@ run0 --user=liveuser yad --timeout=0 --text-info --no-buttons --width=600 --heig
     < /tmp/anaconda.log
 %end
 
-ostreecontainer --url=$INSTALL_IMAGE --transport=containers-storage --no-signature-verification
+ostreecontainer --url=/usr/share/redfox/install-image --transport=oci --no-signature-verification
 %include /usr/share/anaconda/post-scripts/redfox-switch-to-registry.ks
 %include /usr/share/anaconda/post-scripts/disable-fedora-flatpak.ks
 %include /usr/share/anaconda/post-scripts/restore-selinux-labels.ks
