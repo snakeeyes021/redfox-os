@@ -40,7 +40,7 @@ rm -rf /mnt/sysroot/boot/efi/EFI/fedora
 %end
 
 %onerror
-run0 --user=liveuser yad --timeout=0 --text-info --no-buttons --width=600 --height=400 \
+run0 --user=liveuser yad --title="Installation failed" --window-icon=redfox-logo --timeout=0 --text-info --no-buttons --width=600 --height=400 \
     --text="Something went wrong during the installation. Please report it at https://github.com/snakeeyes021/redfox-os/issues with this log." \
     < /tmp/anaconda.log
 %end
@@ -88,7 +88,7 @@ EOF
 cat >/usr/share/anaconda/post-scripts/secureboot-docs.ks <<EOF
 %post --nochroot --log=/tmp/anaconda_custom_logs/secureboot-docs.log
 LC_ALL=C mokutil -t "$SECUREBOOT_KEY" | grep -q "is already in the enrollment request" && \
-    run0 --user=liveuser yad --timeout=0 --on-top --button=OK:0 --image="$SECUREBOOT_DOC_URL_QR" \
+    run0 --user=liveuser yad --title="Secure Boot" --window-icon=redfox-logo --timeout=0 --on-top --button=OK:0 --image="$SECUREBOOT_DOC_URL_QR" \
     --text="<b>One more step at the next start</b>\n\nA blue <b>MOK management</b> screen will appear.\nChoose <b>Enroll MOK</b>, then <b>Continue</b>, then <b>Yes</b>,\ntype the password <b>universalblue</b> and choose <b>Reboot</b>.\n\nThis lets Secure Boot start RedFoxOS. Instructions:\n$SECUREBOOT_DOC_URL"
 %end
 EOF

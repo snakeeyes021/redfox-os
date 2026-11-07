@@ -46,7 +46,7 @@ jobs:
     steps:
       - id: images
         env:
-          IMAGE: ${{ inputs.image || 'redfox-os' }}
+          IMAGE: ${{ inputs.image || 'all' }}
         run: |
           if [ "$IMAGE" = all ]; then
             echo 'images=["redfox-os","redfox-os-nvidia","redfox-os-nvidia-legacy"]' >> "$GITHUB_OUTPUT"
