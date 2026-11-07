@@ -127,15 +127,24 @@ prune() {
     done
 
     local failed=0
+    # Builds can share a child manifest (an unchanged image), so a version
+    # may come up twice, or be gone already.
+    declare -A deleted=()
     delete_version() {  # $1 = version id, $2 = what it is
+        local out
+        [ -z "${deleted[$1]:-}" ] || return 0
         if [ "${DRY_RUN:-}" = 1 ]; then
             echo "  would delete version $1 ($2)"
-        elif gh api -X DELETE "${api}/versions/$1" > /dev/null; then
+        elif out="$(gh api -X DELETE "${api}/versions/$1" 2>&1)"; then
             echo "  deleted version $1 ($2)"
+        elif grep -q "HTTP 404" <<< "$out"; then
+            echo "  version $1 ($2) was already gone"
         else
+            echo "$out" >&2
             echo "::warning::Couldn't delete version $1 ($2) of ${IMAGE}"
             return 1
         fi
+        deleted[$1]=1
     }
     # The cosign signature/attestation tags (and OCI referrers) of a manifest.
     delete_signatures() {  # $1 = digest
