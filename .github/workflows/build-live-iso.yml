@@ -24,18 +24,11 @@ on:
         description: Upload to Cloudflare R2 (only from main)
         type: boolean
         default: false
-  # TEMPORARY, for testing on feat/iso; removed before merging.
-  push:
-    branches:
-      - feat/iso
-    paths:
-      - installer/**
-      - .github/workflows/build-live-iso.yml
 
 permissions: {}
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.tag || 'latest' }}-${{ inputs.image || 'push' }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.tag }}-${{ inputs.image }}
   cancel-in-progress: true
 
 jobs:
@@ -46,7 +39,7 @@ jobs:
     steps:
       - id: images
         env:
-          IMAGE: ${{ inputs.image || 'all' }}
+          IMAGE: ${{ inputs.image }}
         run: |
           if [ "$IMAGE" = all ]; then
             echo 'images=["redfox-os","redfox-os-nvidia","redfox-os-nvidia-legacy"]' >> "$GITHUB_OUTPUT"
@@ -68,7 +61,7 @@ jobs:
         image: ${{ fromJson(needs.matrix.outputs.images) }}
     env:
       OWNER: ${{ github.repository_owner }}
-      TAG: ${{ inputs.tag || 'unstable' }} # TEMPORARY: pushes test with unstable, which the next stable will be
+      TAG: ${{ inputs.tag }}
       IMAGE: ${{ matrix.image }}
     steps:
       - name: Free disk space

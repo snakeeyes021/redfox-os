@@ -37,11 +37,15 @@ We have three images available, depending on your hardware:
 > [!TIP]
 > **Not sure which one to pick?**
 >
-> Run this command in your terminal to automatically detect your GPU and see which image is right for you:
+> The [download page](https://redfoxlabs.tech/download/) can tell you. Or run this in a terminal on the computer:
 >
 > ```bash
 > curl -sL https://raw.githubusercontent.com/snakeeyes021/redfox-os/main/extras/identify_gpu.sh | bash
 > ```
+>
+> On Windows, in PowerShell: `irm https://raw.githubusercontent.com/snakeeyes021/redfox-os/main/extras/identify_gpu.ps1 | iex`
+>
+> Either prints your graphics and a short code. Paste the code into the download page, which shows the image that suits them. RedFox Hub marks the same image "(Recommended)": both use [`gpu-rules.json`](files/system/usr/share/redfox/gpu-rules.json).
 
 ### Rebasing from Bluefin or Bazzite (GNOME)
 To switch to RedFoxOS from an existing GNOME-based Universal Blue installation, choose the command that corresponds to your hardware:
@@ -98,24 +102,20 @@ cosign verify --key cosign.pub ghcr.io/snakeeyes021/redfox-os
 
 ## ISO Installation
 
-Each image has a live ISO: it starts a RedFoxOS desktop from a USB stick, where you can try it and then install it. Download the ISO for your graphics from **https://redfoxlabs.tech/download**. Not sure which one? The page can tell you.
+Generating ISOs turns out to be the trickiest part of maintaining a custom OS image like this, both in terms of the pipeline (Bazzite, and thus RedFoxOS, is built on bleeding-edge Fedora Rawhide; if Fedora pushes a change to, e.g., grub that flumoxes the build system that smooshes Anaconda and our image together into an ISO, then the ISO build pipeline breaks and there's not much we can do about it except wait) and logistics (publication, storage, costs, etc). At the time of this writing, just such a change in Fedora seems to be breaking the pipeline, best we can tell.
 
-1. Write the ISO to a USB stick of 16 GB or more, with [Fedora Media Writer](https://flathub.org/apps/org.fedoraproject.MediaWriter), balenaEtcher or `dd`.
-2. Start the computer from the stick. It needs UEFI (not legacy/CSM mode).
-3. Choose **Install RedFoxOS**, pick the disk, and create your account.
-4. Restart. If Secure Boot is on, enrol the key once (below).
-5. Your apps install in the background at the first start, once you're online.
+For this reason, we do not currently have ISOs available for download, and even if/when we are able to begin generating them again, we cannot guarantee consistent availability. We highly recommend users install via a rebase (using one of the three commands above) from a GNOME-based Universal Blue distribution. To do so, simply:
 
-The ISOs install the stable images. For `unstable`, install stable first, then run `ujust rollback-helper rebase unstable`.
-
-To check a download: `sha256sum -c redfox-os.iso-CHECKSUM`, or with this repo's key, `cosign verify-blob --key cosign.pub --signature redfox-os.iso.sig redfox-os.iso`. See [docs/iso.md](docs/iso.md) for how the ISOs are made.
+1.  Download an ISO for Bluefin or Bazzite (we recommend Bazzite; make sure to select a version with the GNOME desktop).
+2.  Install as you normally would.
+3.  Immediately run one of the above commands to rebase to your preferred version of RedFoxOS.
+4.  Reboot.
+5.  Profit.
 
 ## Secure Boot
 
-RedFoxOS uses Bazzite's kernel, which is signed with Universal Blue's key. The installer queues that key for enrolment. At the first restart after installing, a blue **MOK management** screen appears:
+RedFoxOS uses Bazzite's kernel, which is signed with Universal Blue's key. With Secure Boot on, the computer needs that key enrolled once: run `ujust enroll-secure-boot-key`, and at the next restart, a blue **MOK management** screen appears:
 
 1. Choose **Enroll MOK**, then **Continue**, then **Yes**.
 2. Type the password `universalblue`.
 3. Choose **Reboot**.
-
-If you missed the screen, or rebased from another image, run `ujust enroll-secure-boot-key` and restart.
