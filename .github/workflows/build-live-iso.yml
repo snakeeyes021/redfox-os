@@ -68,7 +68,7 @@ jobs:
         image: ${{ fromJson(needs.matrix.outputs.images) }}
     env:
       OWNER: ${{ github.repository_owner }}
-      TAG: ${{ inputs.tag || 'latest' }}
+      TAG: ${{ inputs.tag || 'unstable' }} # TEMPORARY: pushes test with unstable, which the next stable will be
       IMAGE: ${{ matrix.image }}
     steps:
       - name: Free disk space

@@ -149,6 +149,15 @@ rm -f /usr/bin/rpm-ostree # never to be run on the live system
 
 glib-compile-schemas /usr/share/glib-2.0/schemas
 
-# The fox in Anaconda's web interface (with branding.css from overrides/)
-mkdir -p /usr/share/cockpit/branding/fedora
-cp /usr/share/icons/hicolor/256x256/apps/redfox-logo.png /usr/share/cockpit/branding/fedora/logo.png
+# The fox in Anaconda's web interface (with branding.css from overrides/).
+# Images from before RedFoxOS's branding have no fox; Fedora's logo stays.
+logo=/usr/share/icons/hicolor/256x256/apps/redfox-logo.png
+if [ -f "$logo" ]; then
+    mkdir -p /usr/share/cockpit/branding/fedora
+    cp "$logo" /usr/share/cockpit/branding/fedora/logo.png
+fi
+
+# Anaconda picks its profile by os-release ID: redfox, or bazzite on images
+# from before RedFoxOS had its own ID.
+os_id=$(. /usr/lib/os-release && echo "$ID")
+sed -i "s/^os_id = .*/os_id = ${os_id}/" /etc/anaconda/profile.d/redfox.conf
