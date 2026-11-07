@@ -3,7 +3,7 @@
     "id": "v1",
     "date": "2026-11-03",
     "commit": "3f7e997",
-    "changed": "The theme as Matt reviewed it: libadwaita colours, a flat header bar, grey round window buttons, GNOME accent.",
+    "changed": "The first version: libadwaita colours, a flat header bar, grey round window buttons, GNOME accent.",
     "gaps": "Text is DejaVu Sans (the Flatpak can't see Adwaita Sans) and small and bold. One header bar runs across all columns. Selection is a full-width accent bar, rows are dense with divider lines, and the sidebar selection is a square block."
   },
   {
