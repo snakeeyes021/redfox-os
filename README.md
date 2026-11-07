@@ -1,5 +1,7 @@
 # RedFoxOS
 
+![Platform](https://img.shields.io/badge/Platform-BlueBuild%20%2F%20bootc-blue) ![Packaging](https://img.shields.io/badge/Packaging-OCI%20image-orange) ![License](https://img.shields.io/badge/License-Apache%202.0-blue) ![Release](https://img.shields.io/badge/Release-v0.5.0-blue)
+
 ## Purpose
 The purpose of RedFoxOS is to round out the offerings of Bazzite, both with some of the features included in Bluefin DX (and therefore Bazzite DX) as well as a few features, apps, and configs not present in either.
 
