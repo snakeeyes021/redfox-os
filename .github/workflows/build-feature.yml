@@ -3,7 +3,8 @@ name: bluebuild-feature
 # Updates › Advanced › Feature Branches. BlueBuild tags a build of a
 # non-default branch br-<branch, / as _>-<fedora>, which is the tag the Hub
 # looks for. No daily rebuild: a feature image is rebuilt only when its branch
-# is pushed (or by hand). Each build deletes the branch's older images.
+# is pushed (or by hand). Each build deletes the branch's older images, and
+# cleanup-feature.yml deletes them all when the branch is deleted.
 on:
   push:
     branches:
