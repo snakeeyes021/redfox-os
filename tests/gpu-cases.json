@@ -1,0 +1,12 @@
+[
+  { "name": "Intel only", "devices": [["8086", "46a6"]], "image": "redfox-os" },
+  { "name": "AMD only", "devices": [["1002", "73bf"]], "image": "redfox-os" },
+  { "name": "hybrid Intel + RTX 4060", "devices": [["8086", "a7a0"], ["10de", "28e0"]], "image": "redfox-os-nvidia", "hybrid": true },
+  { "name": "GTX 1650 (Turing)", "devices": [["10de", "1f82"]], "image": "redfox-os-nvidia" },
+  { "name": "GTX 1060", "devices": [["10de", "1c03"]], "image": "redfox-os-nvidia-legacy" },
+  { "name": "hybrid AMD + GTX 1050", "devices": [["1002", "1636"], ["10de", "1c8d"]], "image": "redfox-os-nvidia-legacy", "hybrid": true },
+  { "name": "NVIDIA of both kinds", "devices": [["10de", "2484"], ["10de", "1b80"]], "image": null },
+  { "name": "virtual machine", "devices": [["1af4", "1050"]], "image": null },
+  { "name": "Intel plus something unknown", "devices": [["8086", "46a6"], ["1234", "1111"]], "image": null },
+  { "name": "no display device", "devices": [], "image": null }
+]
