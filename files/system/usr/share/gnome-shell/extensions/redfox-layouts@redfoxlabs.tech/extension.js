@@ -4,7 +4,6 @@
 // GNOME Shell to apply without logging out. `redfox-layout` (a shell script)
 // does everything else by writing settings.
 
-import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import St from 'gi://St';
 
@@ -17,13 +16,42 @@ const TILING_SHELL = 'tilingshell@ferrarodomenico.com';
 // Dash to Dock already leaves a few pixels between the dock and the screen
 // edge. Floating replaces that with `gap` pixels on the screen-facing sides
 // and none on the side facing the windows.
-const floatingDockCss = gap => `
-#dashtodockContainer #dash .dash-background { margin: 0 !important; }
-#dashtodockContainer.bottom #dash { margin: 0 ${gap}px ${gap}px ${gap}px !important; }
-#dashtodockContainer.top #dash { margin: ${gap}px ${gap}px 0 ${gap}px !important; }
-#dashtodockContainer.left #dash { margin: ${gap}px 0 ${gap}px ${gap}px !important; }
-#dashtodockContainer.right #dash { margin: ${gap}px ${gap}px ${gap}px 0 !important; }
-`;
+//
+// It's set as the dock's inline style, not a stylesheet: St keeps a stylesheet
+// that has been loaded twice into one theme (GNOME copies runtime stylesheets
+// into a rebuilt theme), and one unload then leaves the other in place with no
+// way to remove it. The floating margins then stayed on after a switch to a
+// full-height dock (RedFox -> GNOME -> Ubuntu gave it an 8 px gap).
+const floatingMargins = (side, gap) => ({
+    bottom: `0 ${gap}px ${gap}px ${gap}px`,
+    top: `${gap}px ${gap}px 0 ${gap}px`,
+    left: `${gap}px 0 ${gap}px ${gap}px`,
+    right: `${gap}px ${gap}px ${gap}px 0`,
+}[side]);
+
+const DOCK_SIDES = ['bottom', 'top', 'left', 'right'];
+
+function findByName(actor, name) {
+    if (actor.name === name)
+        return actor;
+    for (const child of actor.get_children?.() ?? []) {
+        const found = findByName(child, name);
+        if (found)
+            return found;
+    }
+    return null;
+}
+
+function findByClass(actor, styleClass) {
+    if (actor.has_style_class_name?.(styleClass))
+        return actor;
+    for (const child of actor.get_children?.() ?? []) {
+        const found = findByClass(child, styleClass);
+        if (found)
+            return found;
+    }
+    return null;
+}
 
 export default class RedFoxLayoutsExtension extends Extension {
     // GNOME Shell can call enable() or disable() twice in a row when the
@@ -47,15 +75,17 @@ export default class RedFoxLayoutsExtension extends Extension {
         Main.extensionManager.connectObject(
             'extension-state-changed', () => this._queueTilingButton(), this);
 
-        // A theme change (user-theme, high contrast) builds a new St.Theme
-        // and drops stylesheets loaded at runtime, so load ours into the new
-        // one. 'changed' also fires when a stylesheet is (un)loaded, including
-        // ours, so only act when the theme itself was replaced.
-        const themeContext = St.ThemeContext.get_for_stage(global.stage);
-        themeContext.connectObject('changed', () => {
-            if (this._stylesheet && themeContext.get_theme() !== this._theme)
-                this._syncFloatingDock();
+        // Dash to Dock builds its docks when it starts and when monitors or
+        // its own settings change; float each new one as it appears.
+        Main.uiGroup.connectObject('child-added', (_group, actor) => {
+            if (actor.name === 'dashtodockContainer')
+                this._watchDock(actor);
         }, this);
+        this._docks = new Set();
+        for (const actor of Main.uiGroup.get_children()) {
+            if (actor.name === 'dashtodockContainer')
+                this._watchDock(actor);
+        }
 
         Main.layoutManager.connectObject(
             'monitors-changed', () => this._queueAutoDock(), this);
@@ -77,7 +107,7 @@ export default class RedFoxLayoutsExtension extends Extension {
             return;
         Main.layoutManager.disconnectObject(this);
         Main.extensionManager.disconnectObject(this);
-        St.ThemeContext.get_for_stage(global.stage).disconnectObject(this);
+        Main.uiGroup.disconnectObject(this);
         this._settings.disconnectObject(this);
         this._settings = null;
         if (this._autoDockId) {
@@ -89,33 +119,46 @@ export default class RedFoxLayoutsExtension extends Extension {
             this._tilingButtonId = 0;
         }
         this._restoreTilingButton();
-        this._unloadStylesheet();
+        for (const dock of this._docks) {
+            dock.disconnectObject(this);
+            this._styleDock(dock, false);
+        }
+        this._docks = null;
+    }
+
+    _watchDock(dock) {
+        if (this._docks.has(dock))
+            return;
+        this._docks.add(dock);
+        // The side (left, bottom, ...) is a style class, which changes with
+        // Dash to Dock's position setting.
+        dock.connectObject(
+            'notify::style-class', () => this._styleDock(dock),
+            'destroy', () => this._docks?.delete(dock),
+            this);
+        this._styleDock(dock);
     }
 
     _syncFloatingDock() {
-        this._unloadStylesheet();
-        if (!this._settings.get_boolean('floating-dock'))
-            return;
-
-        const gap = this._settings.get_int('floating-dock-gap');
-        const dir = GLib.build_filenamev([GLib.get_user_runtime_dir(), this.uuid]);
-        GLib.mkdir_with_parents(dir, 0o700);
-        const file = Gio.File.new_for_path(GLib.build_filenamev([dir, `floating-dock-${gap}.css`]));
-        file.replace_contents(new TextEncoder().encode(floatingDockCss(gap)),
-            null, false, Gio.FileCreateFlags.REPLACE_DESTINATION, null);
-
-        this._theme = St.ThemeContext.get_for_stage(global.stage).get_theme();
-        this._theme.load_stylesheet(file);
-        this._stylesheet = file;
+        for (const dock of this._docks ?? [])
+            this._styleDock(dock);
     }
 
-    // Unloads from the theme it was loaded into, which after a theme change
-    // is no longer the current one (and is about to be dropped anyway).
-    _unloadStylesheet() {
-        if (this._stylesheet)
-            this._theme?.unload_stylesheet(this._stylesheet);
-        this._stylesheet = null;
-        this._theme = null;
+    // Set (or clear) the floating margins on one dock's dash and background.
+    _styleDock(dock, floating = this._settings?.get_boolean('floating-dock')) {
+        const dash = findByName(dock, 'dash');
+        if (!dash)
+            return;
+        const background = findByClass(dash, 'dash-background');
+        const side = DOCK_SIDES.find(s => dock.has_style_class_name(s));
+        if (floating && side) {
+            const gap = this._settings.get_int('floating-dock-gap');
+            dash.set_style(`margin: ${floatingMargins(side, gap)};`);
+            background?.set_style('margin: 0;');
+        } else {
+            dash.set_style(null);
+            background?.set_style(null);
+        }
     }
 
     // Turning Dash to Dock on or off rewrites the enabled-extensions list,

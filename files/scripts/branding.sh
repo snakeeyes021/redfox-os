@@ -37,13 +37,12 @@ set_os_release ID_LIKE "bazzite fedora"
 FEDORA_BUILD="$(sed -n 's/^BUILD_ID=.*(\(.*\)).*/\1/p' "$OS_RELEASE")"
 BASE_VERSION="$(sed -n 's/^OSTREE_VERSION=.\([^"'\'']*\).*/\1/p' "$OS_RELEASE")"
 set_os_release NAME "RedFoxOS"
-# ostree titles each boot menu entry "PRETTY_NAME (ostree:N)", so with a
-# plain "RedFoxOS" the current and the previous system looked the same. The
-# build's date and time (UTC) tell them apart; Bazzite's version date can't,
-# since RedFox builds several times on one Bazzite base. About and fastfetch
-# show it too.
-BUILD_STAMP="$(date -u '+%Y-%m-%d %H:%M')"
-set_os_release PRETTY_NAME "RedFoxOS ${BUILD_STAMP}"
+set_os_release PRETTY_NAME "RedFoxOS"
+# The build's date and time (UTC). Settings > About shows IMAGE_VERSION as
+# "Operating System Build" (ahead of BUILD_ID, which stays Bazzite's). The
+# boot menu doesn't: ostree titles entries "PRETTY_NAME (ostree:N)", newest
+# 0, and nothing else; Hub's Go Back shows each system's date.
+set_os_release IMAGE_VERSION "$(date -u '+%Y-%m-%d %H:%M')"
 set_os_release LOGO "redfox-logo"
 set_os_release ANSI_COLOR "0;38;2;178;34;52"
 set_os_release DEFAULT_HOSTNAME "redfox"
@@ -87,11 +86,10 @@ fi
 
 # --- Wallpapers: Bazzite's and Universal Blue's (Steam Deck logos, VGUI2,
 # Troll, Bazzite blue and glass, uBlue, convergence, giants, penguins). The
-# GNOME and Fedora ones, which come from their packages, stay. RedFox's own
-# entry is 00-redfox.xml so it sorts first. ---
+# GNOME and Fedora ones, which come from their packages, stay. ---
 for xml in /usr/share/gnome-background-properties/*.xml; do
     [ -e "$xml" ] || continue
-    case "$(basename "$xml")" in 00-redfox.xml) continue ;; esac
+    case "$(basename "$xml")" in redfox.xml) continue ;; esac
     rpm -qf "$xml" >/dev/null 2>&1 && ! rpm -qf "$xml" | grep -q '^steamdeck-backgrounds' && continue
     rm -f -- "$xml"
 done
@@ -101,6 +99,10 @@ rm -f -- /usr/share/backgrounds/bazzite-blue.png /usr/share/backgrounds/bazzite-
       /usr/share/backgrounds/penguins.jxl /usr/share/backgrounds/convergence.jxl \
       /usr/share/backgrounds/convergence-dynamic.xml
 rm -rf -- /usr/share/backgrounds/convergence
+# Settings lists wallpapers by name, with the one called "Default Background"
+# first. That's RedFox's on RedFoxOS (redfox.xml), so GNOME's is "Adwaita".
+sed -i 's|<name>Default Background</name>|<name>Adwaita</name>|' \
+    /usr/share/gnome-background-properties/adwaita.xml
 echo "Wallpapers in the picker:"
 ls /usr/share/gnome-background-properties/
 
