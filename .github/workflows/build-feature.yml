@@ -3,7 +3,7 @@ name: bluebuild-feature
 # Updates › Advanced › Feature Branches. BlueBuild tags a build of a
 # non-default branch br-<branch, / as _>-<fedora>, which is the tag the Hub
 # looks for. No daily rebuild: a feature image is rebuilt only when its branch
-# is pushed (or by hand).
+# is pushed (or by hand). Each build deletes the branch's older images.
 on:
   push:
     branches:
@@ -47,3 +47,18 @@ jobs:
           registry_token: ${{ github.token }}
           maximize_build_space: true
           skip_checkout: true
+
+      # Mark this build as the branch's (fb-<branch>-<sha7>-<fedora>), then
+      # delete the branch's older builds of this image. Runs only after a
+      # successful build, so a failed push leaves the last good image.
+      - name: Delete this branch's older images
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_ACTOR: ${{ github.actor }}
+          RECIPE: ${{ matrix.recipe }}
+          OWNER: ${{ github.repository_owner }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          IMAGE_NAME=$(awk '/^name:/ {print $2}' "recipes/${RECIPE}")
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$GH_ACTOR" --password-stdin
+          .github/scripts/feature-images.sh after-build "$IMAGE_NAME" "$BRANCH" "$GITHUB_SHA"
