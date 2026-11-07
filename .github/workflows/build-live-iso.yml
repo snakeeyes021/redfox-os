@@ -143,6 +143,7 @@ jobs:
         run: |
           if [ "$TAG" = latest ]; then name="$IMAGE"; else name="$IMAGE-$TAG"; fi
           echo "ISO_NAME=${name}.iso" >> "$GITHUB_ENV"
+          mkdir -p upload # Titanoboa needs the destination folder to exist
 
       - name: Build the ISO
         id: build
