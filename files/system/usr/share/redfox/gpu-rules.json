@@ -1,0 +1,19 @@
+{
+  "about": "Which RedFoxOS image suits a computer, from its PCI display devices (vendor and device id, lower-case hex without 0x). The one rule set for RedFox Hub's '(Recommended)' (redfox-rollback-helper) and the download page on redfoxlabs.tech. Each display device gets the first class it matches, or 'other'; then the first rule whose 'all' classes are all present and whose 'none' classes are all absent gives the answer. image null means no recommendation. hybrid marks built-in graphics next to an NVIDIA card (a laptop, usually). Test cases: tests/gpu-cases.json.",
+  "version": 1,
+  "classes": [
+    { "id": "nvidia-modern", "vendors": ["10de"], "device_from": "1e00", "note": "Turing and newer: GTX 16xx, RTX 20xx and newer" },
+    { "id": "nvidia-legacy", "vendors": ["10de"], "note": "older NVIDIA: GTX 10xx (Pascal) and before" },
+    { "id": "intel-amd", "vendors": ["8086", "1002", "1022"] }
+  ],
+  "rules": [
+    { "all": ["nvidia-modern", "nvidia-legacy"], "image": null, "why": "NVIDIA cards of both a current and an older generation" },
+    { "all": ["nvidia-modern", "intel-amd"], "image": "redfox-os-nvidia", "hybrid": true, "why": "an NVIDIA GTX 16xx, RTX 20xx or newer card, with built-in graphics" },
+    { "all": ["nvidia-modern"], "image": "redfox-os-nvidia", "why": "an NVIDIA GTX 16xx, RTX 20xx or newer card" },
+    { "all": ["nvidia-legacy", "intel-amd"], "image": "redfox-os-nvidia-legacy", "hybrid": true, "why": "an NVIDIA GTX 10xx or older card, with built-in graphics" },
+    { "all": ["nvidia-legacy"], "image": "redfox-os-nvidia-legacy", "why": "an NVIDIA GTX 10xx or older card" },
+    { "all": ["intel-amd"], "none": ["other"], "image": "redfox-os", "why": "Intel or AMD graphics" },
+    { "all": ["other"], "image": null, "why": "graphics it doesn't recognise (a virtual machine?)" },
+    { "all": [], "image": null, "why": "no graphics device" }
+  ]
+}

@@ -15,40 +15,44 @@ from pathlib import Path
 
 HELPER = Path(__file__).resolve().parent.parent / "files/system/usr/bin/redfox-rollback-helper"
 
-CASES = [
-    # name, [(vendor, device, class)], recommended
-    ("Intel only", [("8086", "46a6", "030000")], "redfox-os"),
-    ("AMD only", [("1002", "73bf", "030000")], "redfox-os"),
-    ("hybrid Intel + RTX 4060", [("8086", "a7a0", "030000"), ("10de", "28e0", "030200")], "redfox-os-nvidia"),
-    ("GTX 1650 (Turing)", [("10de", "1f82", "030000")], "redfox-os-nvidia"),
-    ("GTX 1060", [("10de", "1c03", "030000")], "redfox-os-nvidia-legacy"),
-    ("hybrid AMD + GTX 1050", [("1002", "1636", "030000"), ("10de", "1c8d", "030200")], "redfox-os-nvidia-legacy"),
-    ("NVIDIA of both kinds", [("10de", "2484", "030000"), ("10de", "1b80", "030000")], None),
-    ("virtual machine", [("1af4", "1050", "030000")], None),
-    ("Intel plus something unknown", [("8086", "46a6", "030000"), ("1234", "1111", "030000")], None),
-    ("no display device", [("8086", "1234", "060000")], None),
-]
+REPO = Path(__file__).resolve().parent.parent
+RULES = REPO / "files/system/usr/share/redfox/gpu-rules.json"
+# Shared with the download page on redfoxlabs.tech, which runs the same cases.
+CASES = json.loads((REPO / "tests/gpu-cases.json").read_text())
 
 
 @unittest.skipUnless(shutil.which("rpm-ostree"), "needs rpm-ostree")
 class TestRecommend(unittest.TestCase):
     def run_case(self, devices):
         with tempfile.TemporaryDirectory() as root:
-            for n, (vendor, device, cls) in enumerate(devices):
+            for n, (vendor, device) in enumerate(devices):
                 d = Path(root) / f"0000:0{n}:00.0"
                 d.mkdir()
                 (d / "vendor").write_text(f"0x{vendor}\n")
                 (d / "device").write_text(f"0x{device}\n")
-                (d / "class").write_text(f"0x{cls}\n")
+                (d / "class").write_text("0x030000\n")
             out = subprocess.run([str(HELPER), "--json", "images"], capture_output=True, text=True,
-                                 env={**os.environ, "REDFOX_PCI_ROOT": root}, check=True).stdout
+                                 env={**os.environ, "REDFOX_PCI_ROOT": root,
+                                      "REDFOX_GPU_RULES": str(RULES)}, check=True).stdout
         return json.loads(out)
 
+    def test_non_display_devices_are_ignored(self):
+        with tempfile.TemporaryDirectory() as root:
+            d = Path(root) / "0000:00:02.0"
+            d.mkdir()
+            (d / "vendor").write_text("0x10de\n")
+            (d / "device").write_text("0x1c03\n")
+            (d / "class").write_text("0x060000\n")  # a bridge, not a display
+            out = subprocess.run([str(HELPER), "--json", "images"], capture_output=True, text=True,
+                                 env={**os.environ, "REDFOX_PCI_ROOT": root,
+                                      "REDFOX_GPU_RULES": str(RULES)}, check=True).stdout
+        self.assertIsNone(json.loads(out)["recommended"])
+
     def test_cases(self):
-        for name, devices, expected in CASES:
-            with self.subTest(name):
-                data = self.run_case(devices)
-                self.assertEqual(data["recommended"], expected, data["detected"])
+        for case in CASES:
+            with self.subTest(case["name"]):
+                data = self.run_case(case["devices"])
+                self.assertEqual(data["recommended"], case["image"], data["detected"])
                 self.assertTrue(data["detected"])
 
 

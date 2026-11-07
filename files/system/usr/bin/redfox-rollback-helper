@@ -202,47 +202,40 @@ channel_name() {
 }
 
 # The image that suits this computer's graphics, from the PCI display
-# devices in sysfs (no root needed). Prints "IMAGE<tab>why", or "<tab>why"
-# when it can't tell; the caller then recommends nothing.
-#   NVIDIA from Turing on (GTX 16xx, RTX 20xx and newer; device id 0x1e00
-#   and up) -> redfox-os-nvidia; older NVIDIA -> redfox-os-nvidia-legacy.
-#   Intel or AMD only -> redfox-os. Intel or AMD plus NVIDIA (a hybrid
-#   laptop) -> the NVIDIA image for the NVIDIA card. Anything else, no
-#   display device, or NVIDIA cards of both kinds -> no recommendation.
-# REDFOX_PCI_ROOT points somewhere else for testing.
+# devices in sysfs (no root needed). Prints "IMAGE|why", or "|why" when it
+# can't tell; the caller then recommends nothing. The rules are in
+# /usr/share/redfox/gpu-rules.json, shared with the download page on
+# redfoxlabs.tech; this applies them with jq_gpu_rules below.
+# REDFOX_PCI_ROOT and REDFOX_GPU_RULES point elsewhere for testing.
+GPU_RULES="${REDFOX_GPU_RULES:-/usr/share/redfox/gpu-rules.json}"
 recommend_image() {
-    local root="${REDFOX_PCI_ROOT:-/sys/bus/pci/devices}" dev class vendor device
-    local modern=0 legacy=0 intel_amd=0 other=0
+    local root="${REDFOX_PCI_ROOT:-/sys/bus/pci/devices}" dev class devices=""
     for dev in "$root"/*; do
         [ -r "$dev/class" ] || continue
         class="$(cat "$dev/class")"
         case "$class" in 0x03*) ;; *) continue ;; esac   # display controllers
-        vendor="$(cat "$dev/vendor" 2>/dev/null)"
-        device="$(cat "$dev/device" 2>/dev/null)"
-        case "$vendor" in
-            0x10de)
-                if [ $((device)) -ge $((0x1e00)) ]; then modern=$((modern + 1)); else legacy=$((legacy + 1)); fi ;;
-            0x8086|0x1002|0x1022) intel_amd=$((intel_amd + 1)) ;;
-            *) other=$((other + 1)) ;;
-        esac
+        devices+="$(cat "$dev/vendor" 2>/dev/null) $(cat "$dev/device" 2>/dev/null)"$'\n'
     done
-    if [ $((modern + legacy)) -gt 0 ]; then
-        if [ "$modern" -gt 0 ] && [ "$legacy" -gt 0 ]; then
-            printf '|NVIDIA cards of both a current and an older generation\n'
-        elif [ "$modern" -gt 0 ]; then
-            printf 'redfox-os-nvidia|an NVIDIA GTX 16xx, RTX 20xx or newer card%s\n' \
-                "$([ "$intel_amd" -gt 0 ] && echo ", with built-in graphics")"
-        else
-            printf 'redfox-os-nvidia-legacy|an NVIDIA GTX 10xx or older card%s\n' \
-                "$([ "$intel_amd" -gt 0 ] && echo ", with built-in graphics")"
-        fi
-    elif [ "$intel_amd" -gt 0 ] && [ "$other" -eq 0 ]; then
-        printf 'redfox-os|Intel or AMD graphics\n'
-    elif [ "$other" -gt 0 ]; then
-        printf '|graphics it doesn'"'"'t recognise (a virtual machine?)\n'
-    else
-        printf '|no graphics device\n'
-    fi
+    jq -R -s -r --slurpfile rules "$GPU_RULES" "$(jq_gpu_rules)"' |
+        "\(.image // "")|\(.why)"' <<< "$devices" ||
+        printf '|no rules to go by (%s)\n' "$GPU_RULES"
+}
+
+# A jq filter: "vendor device" lines in, the matching rule out.
+jq_gpu_rules() {
+    cat <<'JQ'
+def hexnum: ascii_downcase | ltrimstr("0x") | explode
+    | reduce .[] as $c (0; . * 16 + (if $c >= 97 then $c - 87 else $c - 48 end));
+$rules[0] as $r
+| [split("\n")[] | select(length > 0) | split(" ") | map(ascii_downcase | ltrimstr("0x"))]
+| [.[] as [$vendor, $device]
+    | first(($r.classes[] | select((.vendors | index($vendor)) != null
+        and (.device_from == null or ($device | hexnum) >= (.device_from | hexnum))) | .id),
+        "other")]
+| unique as $have
+| first($r.rules[] | select(all(.all[]; . as $c | $have | index($c) != null)
+    and all((.none // [])[]; . as $c | $have | index($c) == null)))
+JQ
 }
 
 show_images() {
