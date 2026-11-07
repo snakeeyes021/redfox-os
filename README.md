@@ -1,5 +1,7 @@
 # RedFoxOS
 
+![Platform](https://img.shields.io/badge/Platform-BlueBuild%20%2F%20bootc-blue) ![Packaging](https://img.shields.io/badge/Packaging-OCI%20image-orange) ![License](https://img.shields.io/badge/License-Apache%202.0-blue) ![Release](https://img.shields.io/github/v/release/snakeeyes021/redfox-os?label=Release)
+
 ## Purpose
 The purpose of RedFoxOS is to round out the offerings of Bazzite, both with some of the features included in Bluefin DX (and therefore Bazzite DX) as well as a few features, apps, and configs not present in either.
 
@@ -35,11 +37,15 @@ We have three images available, depending on your hardware:
 > [!TIP]
 > **Not sure which one to pick?**
 >
-> Run this command in your terminal to automatically detect your GPU and see which image is right for you:
+> The [download page](https://redfoxlabs.tech/download/) can tell you. Or run this in a terminal on the computer:
 >
 > ```bash
 > curl -sL https://raw.githubusercontent.com/snakeeyes021/redfox-os/main/extras/identify_gpu.sh | bash
 > ```
+>
+> On Windows, in PowerShell: `irm https://raw.githubusercontent.com/snakeeyes021/redfox-os/main/extras/identify_gpu.ps1 | iex`
+>
+> Either prints your graphics and a short code. Paste the code into the download page, which shows the image that suits them. RedFox Hub marks the same image "(Recommended)": both use [`gpu-rules.json`](files/system/usr/share/redfox/gpu-rules.json).
 
 ### Rebasing from Bluefin or Bazzite (GNOME)
 To switch to RedFoxOS from an existing GNOME-based Universal Blue installation, choose the command that corresponds to your hardware:
