@@ -13,19 +13,22 @@ mkdir -p "$(realpath /root)"
 # podman (and dnf) need a /var/tmp, which the image build doesn't have
 mkdir -p /var/tmp
 
-# The image the installer puts on disk, stored in the live system so the
-# install works offline, as a plain OCI directory (anaconda.sh installs it
-# with --transport=oci). Container storage written during an image build
-# doesn't survive into the live system intact. With the host's storage
-# mounted (as in CI), copy the image from there rather than pulling it again.
-PAYLOAD=/usr/share/redfox/install-image
-mkdir -p "$(dirname "$PAYLOAD")"
-if mountpoint -q /usr/lib/containers/storage; then
-    podman --storage-opt additionalimagestore=/usr/lib/containers/storage \
-        save --format oci-dir -o "$PAYLOAD" "$INSTALL_IMAGE"
+# The image the installer puts on disk, stored in the live system's container
+# storage so the install works offline. Its files are the same as the live
+# system's, which squashfs stores only once. With the host's storage mounted
+# at /run/host-storage (as in CI), copy the image from there rather than
+# pulling it again. (Not at /usr/lib/containers/storage: the image's podman
+# reads that as an additional store, and would only record the image there.)
+if mountpoint -q /run/host-storage; then
+    podman --storage-opt additionalimagestore=/run/host-storage \
+        save --format oci-archive "$INSTALL_IMAGE" | podman load
 else
-    skopeo copy "docker://$INSTALL_IMAGE" "oci:$PAYLOAD"
+    podman pull "$INSTALL_IMAGE"
 fi
+# Every layer must be in this storage, or the install fails "layer not known".
+top_layer=$(jq -r --arg name "$INSTALL_IMAGE" '.[] | select(.names // [] | index($name)) | .layer' \
+    /var/lib/containers/storage/overlay-images/images.json)
+jq -e --arg id "$top_layer" 'any(.[]; .id == $id)' /var/lib/containers/storage/overlay-layers/layers.json >/dev/null
 
 cp -a "$SRC/system_files/." /
 

@@ -131,7 +131,7 @@ jobs:
         run: |
           sudo env TMPDIR=/mnt/podman-storage/tmp podman build \
             --cap-add sys_admin --security-opt label=disable \
-            -v /var/lib/containers/storage:/usr/lib/containers/storage:ro \
+            -v /var/lib/containers/storage:/run/host-storage:ro \
             --build-arg LIVE_IMAGE="$LIVE_IMAGE" \
             --build-arg INSTALL_IMAGE="$INSTALL_IMAGE" \
             -t localhost/redfox-live:latest installer/
