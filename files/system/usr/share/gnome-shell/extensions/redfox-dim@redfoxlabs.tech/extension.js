@@ -211,6 +211,8 @@ export default class RedFoxDimExtension extends Extension {
         if (this._hooked)
             this._reapply();
         this._dimUncontrolled();
+        // After the fallback overlays, which may have just appeared or gone.
+        this._updateUnredirect();
         this._markSliders();
     }
 
