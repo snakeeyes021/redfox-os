@@ -1,6 +1,6 @@
 # A GNOME front end over Mailspring's sync engine: feasibility
 
-Status: research note for Matt. Nothing is built, and nothing should be until the questions below are answered.
+Status: research note. Nothing is built, and nothing should be until the questions below are answered.
 
 The idea: keep Mailspring's sync engine (`mailsync`), which is good at IMAP, and replace its Electron interface with a GTK 4 / libadwaita app. This note looks at whether that's practical, and compares it with just recommending a GNOME mail client.
 
@@ -60,7 +60,7 @@ Practically the whole mail client except syncing:
 
 - **Geary** is the closest to "a GNOME mail app". It's simple and conversation-based. But it's on GTK 3 and moving slowly.
 - **Evolution** is the most complete (mail, calendar, contacts, Exchange) and well maintained. It's heavier and looks older, though it follows the system theme.
-- **Mailspring with RedFox Adwaita** keeps the client Matt already uses and makes it look at home. That's the theme on `feat/mailspring-adwaita`: light and dark, following GNOME's setting and accent colour.
+- **Mailspring with RedFox Adwaita** keeps Mailspring and makes it look at home. That's RedFox's Mailspring theme: light and dark, following GNOME's setting and accent colour.
 
 ## Recommendation
 
@@ -68,6 +68,6 @@ Practically the whole mail client except syncing:
 
 Instead:
 
-1. **Ship Mailspring with the RedFox Adwaita theme** (done on `feat/mailspring-adwaita`).
+1. **Ship Mailspring with the RedFox Adwaita theme** (done).
 2. **Offer Geary or Evolution** in RedFox's software list for people who want a GNOME-native client. Both get Gmail and Microsoft sign-in through GNOME Online Accounts.
 3. **Revisit only if Mailspring publishes a documented engine API**, or if a GTK 4 mail client that uses GNOME Online Accounts matures. Then RedFox could adopt it rather than build one.

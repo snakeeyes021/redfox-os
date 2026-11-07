@@ -1,6 +1,6 @@
 # Layout names
 
-Status: decided by Matt on 2026-11-03, and applied on `feat/layout-modes`.
+Status: in use since 2026-11-03.
 
 RedFox's six desktop layouts, in the order the layout picker shows them: RedFox's own first, then the two open-source desktops, then the three modelled on other systems. Those three get their own names, not the names of the systems they resemble.
 

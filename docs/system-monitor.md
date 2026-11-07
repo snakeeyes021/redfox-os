@@ -1,10 +1,10 @@
 # System monitor: Mission Center, Resources or GNOME System Monitor
 
-Status: measured on Matt's laptop (i7-12700H, 20 threads, 64 GB, Intel Iris Xe + RTX 3080 Ti Mobile) on 2026-11-02. RedFox switches to **Resources** on `feat/system-monitor`.
+Status: measured on a laptop with an i7-12700H (20 threads), 64 GB and Intel Iris Xe + RTX 3080 Ti Mobile graphics, on 2026-11-02. RedFox switches to **Resources**.
 
 ## What was measured
 
-Each app ran on a hidden virtual display (a headless mutter), so nothing appeared on Matt's screen. The versions were:
+Each app ran on a hidden virtual display (a headless mutter), so nothing appeared on screen. The versions were:
 - Mission Center 1.2.0 and Resources 1.10.2, both from Flathub;
 - GNOME System Monitor 50.0 from Fedora 44, run in a throwaway container because it isn't on Flathub. Its timings include about half a second of container start-up.
 
@@ -36,7 +36,7 @@ The machine was not idle: other work kept the load average between about 3 and 1
 | Shows apps as well as processes, ends apps | yes | yes | processes only |
 | Install | Flathub | Flathub | Fedora package; would have to be layered into the image |
 
-What Matt saw is real. Mission Center puts its window up quickly, then shows an empty window for 8 to 14 seconds while its data gatherer starts. Once, it stopped answering altogether for over 8 seconds. Both other apps show real data within about a second of their window.
+The slow start is real. Mission Center puts its window up quickly, then shows an empty window for 8 to 14 seconds while its data gatherer starts. Once, it stopped answering altogether for over 8 seconds. Both other apps show real data within about a second of their window.
 
 ## Recommendation
 

@@ -30,7 +30,7 @@ The name is **RedFoxOS** (as in the README and the wordmark); the short name is 
 
 | Identifier | Kept as | Who reads it |
 | --- | --- | --- |
-| os-release `ID` | `redfox`, with `ID_LIKE="bazzite fedora"` | Changed on `feat/redfox-os-identity`. Nothing in the image keys on `ID`: Bazzite's scripts read `image-info.json`, topgrade falls back to `ID_LIKE` and keeps running `rpm-ostree upgrade`, and Starship (which doesn't know `redfox`) reports Fedora, which RedFox's prompt also draws as the fox. Tools that only know Fedora or Bazzite find them through `ID_LIKE`. |
+| os-release `ID` | `redfox`, with `ID_LIKE="bazzite fedora"` | Nothing in the image keys on `ID`: Bazzite's scripts read `image-info.json`, topgrade falls back to `ID_LIKE` and keeps running `rpm-ostree upgrade`, and Starship (which doesn't know `redfox`) reports Fedora, which RedFox's prompt also draws as the fox. Tools that only know Fedora or Bazzite find them through `ID_LIKE`. |
 | `ID_LIKE`, `VERSION`, `VERSION_ID`, `VERSION_CODENAME`, `VARIANT`, `VARIANT_ID`, `CPE_NAME`, `BUILD_ID`, `OSTREE_VERSION`, `SUPPORT_END` | Bazzite's values | Version and support tracking; RedFox follows Bazzite's Fedora version and support window. |
 | `image-info.json` `base-image-name`, `fedora-version`, `version`, `image-tag`, `image-branch` | Bazzite's values | Bazzite's hardware setup, user setup and Flatpak manager compare these to decide whether to run again; `base-image-name` (`silverblue`) picks GNOME-specific behaviour. |
 
@@ -40,7 +40,7 @@ The name is **RedFoxOS** (as in the README and the wordmark); the short name is 
 
 ### Rollback helper
 
-Bazzite's `bazzite-rollback-helper` (also run by `bruh`) only knows Bazzite's images (`ghcr.io/ublue-os/bazzite-*`), so its `list` and `rebase` offered Bazzite. `feat/redfox-rollback-helper` adds `redfox-rollback-helper` (`ujust rollback-helper`) for RedFox's images and points `bazzite-rollback-helper` at it.
+Bazzite's `bazzite-rollback-helper` (also run by `bruh`) only knows Bazzite's images (`ghcr.io/ublue-os/bazzite-*`), so its `list` and `rebase` offered Bazzite. RedFox adds `redfox-rollback-helper` (`ujust rollback-helper`) for RedFox's images and points `bazzite-rollback-helper` at it.
 
 ## Artwork
 
@@ -51,7 +51,7 @@ Two marks are drawn in code by `assets/branding/make-marks.py` (with `brush.py`)
 
 Everything else is made from the existing art by `assets/branding/make-images.py`: the nine-tailed fox (`assets/red_fox_labs_logo_2_semi-transparent.png`, white-filled so it reads on light and dark) and the "RedFoxOS" wordmark (`assets/branding/wordmark-source.png`, cut from `updatelogo.png`). For dark backgrounds the lettering is recoloured light; no new marks are drawn. Rerun the script after changing the source art.
 
-### Wanted from Matt (new artwork)
+### Wanted (new artwork)
 
 These need art that doesn't exist yet. The plan is to commission a human artist to paint the watercolour fox properly; the same job should redraw the terminal fox and the swirl, and set the wordmark as a vector.
 
