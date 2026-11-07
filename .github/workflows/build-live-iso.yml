@@ -143,18 +143,23 @@ jobs:
         run: |
           if [ "$TAG" = latest ]; then name="$IMAGE"; else name="$IMAGE-$TAG"; fi
           echo "ISO_NAME=${name}.iso" >> "$GITHUB_ENV"
-          mkdir -p upload # Titanoboa needs the destination folder to exist
 
       - name: Build the ISO
         id: build
         uses: ublue-os/titanoboa@5c457c3d0518bd17e754be0fd98a60d29d26abb4
         with:
           image-ref: localhost/redfox-live:latest
-          iso-dest: ${{ github.workspace }}/upload/${{ env.ISO_NAME }}
+          iso-dest: ${{ env.ISO_NAME }}
 
+      # Titanoboa resolves iso-dest against its own folder; its output says where.
       - name: Checksum
-        working-directory: upload
+        env:
+          BUILT_ISO: ${{ steps.build.outputs.iso-dest }}
         run: |
+          set -o pipefail
+          mkdir -p upload
+          mv "$BUILT_ISO" "upload/$ISO_NAME"
+          cd upload
           sha256sum "$ISO_NAME" | tee "${ISO_NAME}-CHECKSUM"
           ls -l
 
