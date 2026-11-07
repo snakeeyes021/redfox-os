@@ -10,6 +10,8 @@ INSTALL_IMAGE=${INSTALL_IMAGE:?}
 
 # Create the directory that /root is symlinked to
 mkdir -p "$(realpath /root)"
+# podman (and dnf) need a /var/tmp, which the image build doesn't have
+mkdir -p /var/tmp
 
 # The image the installer puts on disk, stored in the live system so the
 # install works offline. With the host's storage mounted (as in CI), copy it
