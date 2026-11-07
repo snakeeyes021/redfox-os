@@ -23,7 +23,7 @@ The name is **RedFoxOS** (as in the README and the wordmark); the short name is 
 
 ### Left as Bazzite on purpose
 
-- **Bazzite Portal** (the first-run app, `yafti`) and **Bazzite Announcements**. Their content is Bazzite's own (Bazzite docs, Discord, Bazzite actions and news), so renaming them would mislead. The RedFox Welcome app is meant to replace the Portal (see `docs/redfox-apps-design.md`).
+- **Bazzite Portal** (the first-run app, `yafti`) and **Bazzite Announcements**. Their content is Bazzite's own (Bazzite docs, Discord, Bazzite actions and news), so renaming them would mislead. RedFox Hub's Welcome runs after it.
 - **`ujust` recipe names.**
 
 ## Identifiers tooling reads (kept)

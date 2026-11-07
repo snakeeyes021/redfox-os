@@ -39,10 +39,10 @@
 - [x] **Dropbox:** Install official Dropbox client (flatpak)
     - [x] Remove maestral after dropbox is tested and experience is satisfactory (if maestral is not removed, improve maestral uninstall script to remove leftovers)
 - [x] **Implement** System-level GNOME Boxes + Virt-Manager
-- [x] **Tailscale:** add to system defaults. *(Already there: Bazzite ships Tailscale, off until you run `ujust tailscale enable`. Nothing to change.)*
-- [x] **No Winboat at all.** *(Matt, 2026-11-03: "we don't want winboat at all. No ujust." Done: the `install-winboat` and `uninstall-winboat` recipes are gone, and so is FreeRDP, which was in the image only for Winboat.)*
-- [ ] **Replace Mission Center** (slow to start, frozen at first, heavy on memory) with a better system monitor. *(On `feat/system-monitor`: Resources, `net.nokyan.Resources`, for new setups and the Dewy dock; Ctrl+Shift+Esc, Ctrl+Alt+Del on the keypad and Logo Menu's button open it through `redfox-system-monitor`, which falls back to Mission Center where that's all there is. Existing installs keep Mission Center.)*
-- [ ] **VS Code:** install the Antigravity extension. *(On `feat/small-roadmap-items`: `Google.google-antigravity`.)*
+- [x] **Tailscale:** add to system defaults. *(Bazzite already ships Tailscale, off until `ujust tailscale enable`.)*
+- [x] **No Winboat:** its install and uninstall recipes are gone, and so is FreeRDP, which was only there for it.
+- [ ] **Replace Mission Center** (slow to start, frozen at first, heavy on memory) with a better system monitor: Resources (`net.nokyan.Resources`) for new setups and the Dewy dock. Ctrl+Shift+Esc, Ctrl+Alt+Del on the keypad and Logo Menu's button open it through `redfox-system-monitor`, which falls back to Mission Center where that's all there is.
+- [x] **VS Code:** install the Antigravity extension (`Google.google-antigravity`).
 - [ ] **Implement** Starship terminal prompt by default with light-theme terminal (steal from Bluefin)
     - [ ] **Implement** ujust "configure" recipes for starship bluefin (system default, "reset"), starship bazzite (deviation), starship off (deviation)
 
@@ -99,9 +99,9 @@
         - [ ] Don't disable overview on startup (in dash to dock) -- it's a nice touch starting up to the overview
         - [ ] Clock and Overview search should probably remain centered even if the usable workspace size changes
     - [x] `preset-dock-ubuntu` (Deviation): Configure Dash to Dock (Left side). Turn on Dash to Dock.
-    - [ ] `preset-dock-nostalgia` (Deviation): one taskbar along the bottom, start menu and apps on the left (Dash to Panel + ArcMenu). *(On `feat/layout-modes`.)*
-    - [ ] `preset-dock-wash` (Deviation): one taskbar along the bottom, start menu and apps centred (Dash to Panel + ArcMenu). *(On `feat/layout-modes`.)*
-    - [ ] `preset-dock-cal` (Deviation): a floating dock along the bottom (Dash to Dock). *(On `feat/layout-modes`.)*
+    - [x] `preset-dock-nostalgia` (Deviation): one taskbar along the bottom, start menu and apps on the left (Dash to Panel + ArcMenu).
+    - [x] `preset-dock-wash` (Deviation): one taskbar along the bottom, start menu and apps centred (Dash to Panel + ArcMenu).
+    - [x] `preset-dock-cal` (Deviation): a floating dock along the bottom (Dash to Dock).
     - [x] `configure-xway-scale-off` (Reset): Disable `xwayland-native-scaling` (reverts factor to default).
     - [x] `configure-xway-scale-on` (Deviation): Enable `xwayland-native-scaling` (forces factor to 0.0).
 - [ ] **Hardware Atoms (Must include Host Checks):**
@@ -161,39 +161,38 @@
 - [ ] `bootstrap-normie`: Runs `install-normie`, `theme-normie`, `layout-normie`, `configure-normie`.
 
 ## 🪟 Layout Modes
-*Built on `feat/layout-modes` and tested live in the VM; waiting for Matt's check before merging. `redfox-layout list/get/set` switches between redfox, gnome, ubuntu, cal, wash and nostalgia without a logout, and the `preset-dock-*` recipes call it. Wash and Nostalgia use Dash to Panel + ArcMenu. The restart had two causes: the gap hack copied Dash to Dock into `~/.local`, which GNOME only picks up at login; and smooth-overview broke when GNOME called enable() or disable() twice in a row ("too much recursion"), leaving the overview broken until the shell restarted.*
-- [ ] **Layout names without other systems' names.** *(Matt chose them on 2026-11-03: RedFox, GNOME and Ubuntu, then Cal, Wash and Nostalgia for the three modelled on other systems, in that order. Applied on `feat/layout-modes`, recipes and `redfox-layout` ids included, with bordered SVG previews: [`docs/layout-names.md`](layout-names.md).)*
+*`redfox-layout list/get/set` switches between the RedFox, GNOME, Ubuntu, Cal, Wash and Nostalgia layouts without logging out, and the `preset-dock-*` recipes call it. Wash and Nostalgia use Dash to Panel + ArcMenu.*
+- [x] **Layout names that don't borrow other systems' names:** RedFox, GNOME and Ubuntu, then Cal, Wash and Nostalgia for the three modelled on other systems, with previews: [`docs/layout-names.md`](layout-names.md).
 - [ ] **More layouts, built from scratch:** today only the Ubuntu-style layout (and Dewy's variant) is finished. Build the rest of the presets above (`preset-dock-nostalgia`, `preset-dock-wash`, `preset-dock-cal`, the `_preset-dock-redfox` hybrid proof of concept) plus any others we want, all written from scratch for RedFox.
 - [ ] **Switching layouts works live:** moving between presets shouldn't need a logout or restart. Some switches depend on smooth-overview, and something there may need a restart (possibly because the extension is built from source at image build time: `files/scripts/install-smooth-overview.sh`). Find out and fix it.
-- [ ] **smooth-overview, hardened:** *(Done on smooth-overview's local `harden` branch, not pushed yet: InjectionManager, safe to enable/disable twice, only the overview's and top bar's own lookups change, keeps the clock centred. Publishing on extensions.gnome.org needs Matt's account.)* review it against GNOME Shell extension best practice (it was thrown together quickly), make sure it's solid on the current GNOME, install it the proper way for a system extension, and consider publishing it on extensions.gnome.org.
+- [ ] **smooth-overview, hardened:** InjectionManager, safe to enable and disable twice, only the overview's and top bar's own lookups change, and the clock stays centred. Still to do: publish it on extensions.gnome.org.
 
 ## 💿 RedFoxOS ISO
-*Today the only way to get RedFoxOS is to rebase onto it. Eventually it wants an ISO. Open questions only for now, no build work: [`docs/iso.md`](iso.md).*
+*Today the only way to get RedFoxOS is to rebase onto it. The plan: a live ISO per image. See [`docs/iso.md`](iso.md).*
 
-- [ ] **RedFoxOS ISO**, once these are answered:
-    - [ ] **Builder:** how other Universal Blue-family images build ISOs (bootc-image-builder's `anaconda-iso`, BlueBuild's `generate-iso`, Titanoboa), and what fits us. The existing `build-iso.yml` (bootc-image-builder) last ran on 2026-01-01 and failed.
-    - [ ] **Hosting:** GitHub release assets cap at 2 GiB per file; ghcr, an object store such as R2, or a network installer instead; cost.
-    - [ ] **Branding the installer:** Anaconda's theming, or Bazzite's installer setup.
-    - [ ] **Secure Boot and NVIDIA variants:** enrolling Universal Blue's key; one ISO per variant or one that picks.
-    - [ ] **Testing in the VM:** boot the ISO in a fresh VM unattended, then check boot, login, update and rollback.
+- [ ] **RedFoxOS ISO:**
+    - [ ] **Builder:** Universal Blue's Titanoboa, as Bazzite and Aurora use, for a live ISO with an installer. Replaces the old `build-iso.yml` (bootc-image-builder), which last ran on 2026-01-01 and failed.
+    - [ ] **Hosting:** the ISOs are over GitHub's 2 GiB limit for release files, so an object store such as Cloudflare R2.
+    - [ ] **Branding the installer:** RedFox's name, colours and fox in Anaconda.
+    - [ ] **Secure Boot and NVIDIA variants:** one ISO per image; the installer queues Universal Blue's key for enrolment.
+    - [ ] **Testing in a VM:** install each ISO on a blank disk with Secure Boot on, then check boot, login, updates and rollback.
 
-## 🧩 RedFox Hub (Flatpak GUI)
-*Design: [`docs/redfox-apps-design.md`](redfox-apps-design.md). Matt decided on one app, **RedFox Hub** (`tech.redfoxlabs.Hub`), a Flatpak released like Thirties and Pianola, with four sections. Building starts after Matt's branch review.*
+## 🧩 RedFox Hub
+*One app for RedFox's own tooling, **RedFox Hub** (`tech.redfoxlabs.Hub`), with Welcome, Apps, Updates, Settings and Manual sections.*
 
-Move RedFox's own tooling into one GUI Flatpak app, like Thirties and Pianola already are (`tech.redfoxlabs.*`):
-- [ ] **Welcome:** a short, cheerful tour of RedFoxOS at first login, in the spirit of GNOME Tour, ending in links to Apps, Settings and the Manual. Runs after Bazzite Portal; a first-login step fetches Hub.
+- [ ] **Welcome:** a short, cheerful tour of RedFoxOS at first login, in the spirit of GNOME Tour, ending in links to Apps, Settings and the Manual. Runs after Bazzite Portal.
 - [ ] **Settings:** a front end to `redfox-config` / `config.yaml` and RedFox's settings, services and actions (see the setup-GUIs item in Fixups), including the layout picker with the RedFox layout names and previews.
-    - [ ] **"Start in tray at login" toggles, per app** (Signal, Joplin, and any others that support it). Long term there's no automatic autostart: the user turns each one on in Hub. Once the toggles exist, the automatic `configure-autostart-tray` step (run by `configure-matt`) goes away, and the toggles write or remove the same autostart entries.
-    - [ ] **"MIDI archive folder" setting:** today the only way to move Midikeep's archive is a `data_dir:` line in `~/.config/midikeep/config.yaml`. Add a row with a folder chooser that writes `data_dir` to that file and restarts the `midikeep` user service (`midikeep-daemon`). Pianola should get the same in its preferences, since it reads the same file (on Pianola's backlog).
+    - [ ] **"Start in tray at login" toggles, per app** (Signal, Joplin, and any others that support it). Long term there's no automatic autostart: each one is turned on in Hub, and the toggles write or remove the same autostart entries as `ujust configure-autostart-tray`.
+    - [ ] **"MIDI archive folder" setting:** a folder chooser that writes `data_dir` to `~/.config/midikeep/config.yaml` and restarts the `midikeep` user service. Pianola should get the same in its preferences, since it reads the same file.
 - [ ] **Apps:** a checklist of software and bundles (the `install-*` packs); tick and it installs them.
 - [ ] **Manual:** a very short help guide, only for where RedFoxOS differs from mainline Linux (it's immutable) or from other immutable distros (the conveniences and tools we chose). For example: "I want to install a Flatpak / a CLI tool, what do I do?", "My collaborators and I need identical dev setups with a specific Node version", "I need a Python environment; what are my options?" (uv, and whatever else we provide).
 
-- [ ] **Graphical front ends in the Hub for RedFox's CLI tools** (Matt, 11-07; not for right now): give the command-line tools and ujust recipes RedFox ships (e.g. the Nord fleet configurator) proper graphical controls built into RedFox Hub, so nobody needs a terminal for them.
+- [ ] **Graphical front ends in Hub for RedFox's CLI tools** (later): proper graphical controls for the command-line tools and ujust recipes RedFox ships (for example the Nord configurator), so nobody needs a terminal for them.
 
 ## 🖍️ Maniculos (screenshot markup)
-*Decided 2026-11-03: RedFox builds its own app, **Maniculos** (`tech.redfoxlabs.Maniculos`), in Python and libadwaita, in the Hub family. Gradia (Flathub) is the stop-gap until it ships; Satty isn't used. Building starts on its own feature branch after the current review batch is merged. Capture stays with GNOME's screenshot tool. Details and the evaluation: [`docs/screenshot-markup.md`](screenshot-markup.md).*
+*RedFox's own screenshot markup app, **Maniculos** (`tech.redfoxlabs.Maniculos`), in Python and libadwaita, in the Hub family. Capture stays with GNOME's screenshot tool, and Gradia (Flathub) covers markup until Maniculos ships.*
 
-- [ ] **Maniculos: quick, easy markup for screenshots** ("Gradia comes the closest, but it's got too many other things"), with exactly these features and nothing more:
+- [ ] **Maniculos: quick, easy markup for screenshots**, with exactly these features and nothing more:
     - [ ] Open from the clipboard, a file, or GNOME's "screenshot taken" notification (a "Mark up" button added by the layout helper extension)
     - [ ] Crop and rotate
     - [ ] Pen and highlighter, with colour and size
@@ -204,18 +203,18 @@ Move RedFox's own tooling into one GUI Flatpak app, like Thirties and Pianola al
     - [ ] Copy to clipboard (the main way out) and save
 
 ## 🧰 Editors
-- [ ] **Dewy and Sloppy extensions by default:** *(On `feat/small-roadmap-items`, in the `90-vscode.sh` login hook; Cursor's marketplace returns 403 for both, so it falls back to the Open VSX `.vsix`.)* install `RedFoxLabs.dewy` and `RedFoxLabs.sloppy` (on both the VS Code Marketplace and Open VSX) in VS Code and every fork we ship or set up (Cursor, Antigravity, etc.): add to `setup-vscode` / `setup-cursor`.
+- [x] **Dewy and Sloppy extensions by default:** `RedFoxLabs.dewy` and `RedFoxLabs.sloppy` in VS Code and every fork we ship or set up (Cursor, Antigravity, etc.), from the VS Code Marketplace or Open VSX.
 
 ## 🧪 Testing
-- [ ] **VM testbed:** `tests/vm/` (on `feat/layout-modes`) builds a Bazzite VM, `redfox-test`, and documents the three ways to test a feature branch: a hotfix overlay, a local `bluebuild build` plus rebase, or CI's `pr-*` images.
+- [x] **VM testbed:** `tests/vm/` builds a Bazzite VM, `redfox-test`, and documents three ways to test a feature branch: a hotfix overlay, a local `bluebuild build` plus rebase, or CI's `pr-*` images.
 - [ ] **Rebase from elsewhere now and then:** we normally rebase from Bazzite. Occasionally test rebasing from Bluefin (and other uBlue images) to make sure our setup holds up. Not pressing.
-    - [x] Bluefin → RedFox, 2026-11-01: works; details in `tests/vm/README.md` (on `feat/layout-modes`). It takes about 45 min, since the images share no layers. It found that the `docker` group never reaches a rebased machine (Bazzite too), so `docker.socket` fails; fixed on `fix/docker-group-after-rebase`. Bluefin-only extensions (Search Light, Logo Menu) disappear without a message, and some packages drop a version until the next update.
+    - [x] Bluefin → RedFox: works; details in `tests/vm/README.md`. It takes about 45 minutes, since the images share no layers. Bluefin-only extensions (Search Light, Logo Menu) disappear without a message, and some packages drop a version until the next update.
 
 ## 🔐 User Config, Secrets & the ujust Audit
 - [ ] **One secrets/config note per user:** the user keeps a single note in their secrets manager (Bitwarden or similar) that is their `~/.config/redfox/config.yaml`. It holds the settings that belong to the user rather than the OS, plus every secret or sensitive value, and RedFox sets everything else up from it automatically. Only a few integrations read it so far (NordVPN, per-machine hostname and quirks); audit which still need wiring.
-- [ ] **API keys for agents and tools:** keys (Gemini, Anthropic, OpenAI, etc.) come from the config, and RedFox puts each where its tool expects it (keyring or environment) instead of hand-editing `.bashrc`. A Gemini API key is still in the hp machine's `.bashrc`. Agent harness sign-ins (Claude Code, agy, T3, `gh`) stay a one-time prompt on first run unless the user goes the API-key route.
-- [ ] **Agent CLI themes:** *(Claude Code part on `feat/small-roadmap-items`: its `auto` theme follows the terminal, set at login when no theme is chosen. agy still to do: it has a `colorScheme` setting and `--settings`, but no auto mode found yet.)* Terminal agents (Claude Code, agy, etc.) need a dark theme in the terminal but a light one inside VS Code. Pick defaults that follow where they're running.
-- [ ] **Audit the ujust recipes:** for each one, decide whether it belongs in the OS or is one user's quirk that should move into that user's config. Some stay baked in on purpose: `bootstrap-matt` and `bootstrap-dewy` are a nice touch, since RedFox is two brothers.
+- [ ] **API keys for agents and tools:** keys (Gemini, Anthropic, OpenAI, etc.) come from the config, and RedFox puts each where its tool expects it (keyring or environment) instead of hand-editing `.bashrc`. Agent sign-ins (Claude Code, agy, `gh`) stay a one-time prompt on first run unless an API key is configured.
+- [ ] **Agent CLI themes:** terminal agents (Claude Code, agy, etc.) need a dark theme in the terminal but a light one inside VS Code. Claude Code's `auto` theme follows the terminal; agy has a `colorScheme` setting but no automatic mode yet.
+- [ ] **Audit the ujust recipes:** for each one, decide whether it belongs in the OS or is one user's quirk that should move into that user's config. Some stay on purpose, such as `bootstrap-matt` and `bootstrap-dewy`.
 
 ## 🛠️ Ujust Idempotency Fixes
 - [x] **Research & Fix:** Identify and resolve recipes that fail or cause issues when run multiple times.
@@ -230,9 +229,9 @@ Move RedFox's own tooling into one GUI Flatpak app, like Thirties and Pianola al
 - [ ] **Wallpapers**
     - [ ] Import all Bluefin / Bluefin DX wallpapers.
     - [ ] **Collection:** Collect more Paweł Czerwiński light/dark pairs (Unsplash License, credited). *(The default pair is his and credited in [`docs/wallpaper-credits.md`](wallpaper-credits.md), which also lists candidate pairs.)*
-- [ ] **Consider a GNOME/Adwaita theme for Firefox** (Matt, 11-06; not committed to yet). Bazzite's Fedora 44 base shipped update commands for one (dropped with its Topgrade include in the F45 hotfix). If we adopt it, it needs its own install and update path.
-- [ ] **RedFoxOS Branding:** the OS calls itself RedFoxOS, not Bazzite, everywhere a person sees it. Machine-readable IDs that tooling reads stay Bazzite's; the trade-offs are in `docs/branding.md`. *(Built and tested in the VM on `feat/branding`, including update, rollback and rebase; waiting for Matt's OK to merge. Ticked items are done on that branch.)*
-    - [x] `os-release`: NAME/PRETTY_NAME "RedFoxOS", LOGO, URLs, DEFAULT_HOSTNAME `redfox`, BOOTLOADER_NAME, IMAGE_ID. `ID=redfox` with `ID_LIKE="bazzite fedora"` on `feat/redfox-os-identity`.
+- [ ] **Maybe a GNOME/Adwaita theme for Firefox.** Bazzite's Fedora 44 base shipped update commands for one, dropped with its Topgrade include on Fedora 45. If we adopt it, it needs its own install and update path.
+- [ ] **RedFoxOS Branding:** the OS calls itself RedFoxOS, not Bazzite, everywhere a person sees it. The trade-offs are in `docs/branding.md`.
+    - [x] `os-release`: NAME/PRETTY_NAME "RedFoxOS", LOGO, URLs, DEFAULT_HOSTNAME `redfox`, BOOTLOADER_NAME, IMAGE_ID, and `ID=redfox` with `ID_LIKE="bazzite fedora"`.
     - [x] `image-info.json`: image name, vendor and ref are RedFox's (for the MOTD and Bazzite's scripts).
     - [x] Settings → About: name and logo (light and dark variants).
     - [x] GRUB entries: "RedFoxOS (ostree:N)".
@@ -243,10 +242,10 @@ Move RedFox's own tooling into one GUI Flatpak app, like Thirties and Pianola al
     - [x] Terminal banner (MOTD): RedFox welcome, links and tips; Bazzite's tips removed.
     - [x] Fedora logo files (installer, initial setup, About dialogs) regenerated from the RedFox art.
     - [ ] Bazzite Portal and Bazzite Announcements stay as they are: their content is Bazzite's. RedFox Hub's Welcome runs after the Portal for now (whether to replace it is still open).
-    - [x] Bazzite's rollback helper (`bazzite-rollback-helper`, `bruh`) only knows Bazzite images. *(`redfox-rollback-helper` / `ujust rollback-helper` on `feat/redfox-rollback-helper`: lists builds of latest/unstable by commit and date, rolls back, rebases with a warning when switching NVIDIA flavour. Tested in the VM.)*
-    - [x] Create/Add assets: Neofetch/Fastfetch Logo, Splash Screen, System Info Logo. *(Made from the existing art by `assets/branding/make-images.py` on `feat/branding`.)*
-    - [ ] **New artwork from Matt** (listed in `docs/branding.md`): the fox as an SVG; a simple single-colour fox mark for 16 px and symbolic icons (ArcMenu's start button, Logo Menu); the wordmark as a vector, or its font.
-    - [ ] **Fox-face mark:** a simple, flat fox face for small sizes, used for the fastfetch logo (bigger than today's), ArcMenu's start button and the Logo Menu (white, symbolic), and 16–32 px icons. *(Two drafts are waiting for Matt to pick one: `~/Pictures/redfox-fox-face/`.)*
+    - [x] Bazzite's rollback helper (`bazzite-rollback-helper`, `bruh`) only knows Bazzite images. `redfox-rollback-helper` (`ujust rollback-helper`) lists builds of latest and unstable by commit and date, rolls back, and warns when a rebase switches NVIDIA flavour.
+    - [x] Create/Add assets: Neofetch/Fastfetch Logo, Splash Screen, System Info Logo (made from the existing art by `assets/branding/make-images.py`).
+    - [ ] **New artwork** (listed in `docs/branding.md`): the fox as an SVG; a simple single-colour fox mark for 16 px and symbolic icons (ArcMenu's start button, Logo Menu); the wordmark as a vector, or its font.
+    - [ ] **Fox-face mark:** a simple, flat fox face for small sizes, used for the fastfetch logo (bigger than today's), ArcMenu's start button and the Logo Menu (white, symbolic), and 16–32 px icons.
     - [ ] **Commission a human artist** (e.g. on Fiverr) to paint the watercolour fox properly, and probably to redraw the face mark and the wordmark as vectors at the same time. Until then the current fox stays.
 
 ## Fixups/New (Items that arrive after a fix is already implemented)
@@ -264,7 +263,7 @@ Move RedFox's own tooling into one GUI Flatpak app, like Thirties and Pianola al
 - [ ] Bake Ollama
 - [ ] implement 6 openclaw recipes (installs for openclaw, openclaw orchestrator, openclaw worker, and uninstalls for openclaw, orchestrator, and worker) -- see standalone to-do doc
 - [ ] rounded blur issue in blur my shell
-- [ ] Joplin and Signal start minimized to the tray, but only when started at boot; started any other way they open normally. *(On `feat/small-roadmap-items`: `ujust configure-autostart-tray`, run by `configure-matt`.)*
+- [x] Joplin and Signal start minimized to the tray, but only when started at login; started any other way they open normally (`ujust configure-autostart-tray`).
 - [x] Mailspring doesn't get Adwaita as its default theme, but it should. *(Shipped 2026-11-03: RedFox Adwaita Light and Dark, written from scratch, with Adwaita symbolic icons from the system theme and a small plugin for GNOME's button layout and Reply/Forward in the header; see [`docs/mailspring-adwaita.md`](mailspring-adwaita.md). Known limits: no GNOME split header, no native window corners or menus, and Mailspring puts the plugin's Reply group after its own buttons. A GNOME front end over Mailspring's sync engine was looked at and isn't recommended: [`docs/mailspring-gnome-frontend.md`](mailspring-gnome-frontend.md).)*
 - [ ] Setup/bootstrapping/config GUIs for managing RedFox's app sets, settings, services, actions, etc.
 - [ ] Midikeep: GNOME notifications don't group.
@@ -274,7 +273,7 @@ Move RedFox's own tooling into one GUI Flatpak app, like Thirties and Pianola al
 ## Running Matt fixes
 - [ ] Post-GNOME Builder install fix to reset file associations (GNOME builder steals just about any type of code file, python, json, sh, etc.)
 - [x] Text Editor should not open previous session by default
-- From the Joplin note "RedfoxOS Manual Steps" (done by hand on Matt's machine; automate):
+- Manual steps still to automate:
     - [ ] Install T3
     - [ ] Install Claude Code
     - [ ] GitHub CLI (`configure-git` uses `gh`; make sure it's installed)
