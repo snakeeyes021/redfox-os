@@ -249,7 +249,7 @@ Any order works for 2–5 and for 8–9.
   - Welcome: a five-page tour in GNOME Tour's manner, shown once per user at first login, after Bazzite Portal closes.
   - Updates: the RedFox updater (Matt, 11-04). Status, update now with its output, automatic updates on/off, restart, the channel, go back, and other builds.
   - Apps: RedFox's packs from one catalog, `/usr/share/redfox/software.yaml`, read by the new `redfox-software`; every `install-*` recipe now calls it.
-  - Settings: the layout picker; "start in the tray at login" switches (`redfox-autostart`); the MIDI archive folder (`midikeep data-dir`).
+  - Settings: the layout picker; Extra Dimming (21); "start in the tray at login" switches (`redfox-autostart`); the MIDI archive folder (`midikeep data-dir`).
   - Manual: seven pages, no `ujust`.
   - The old RedFox Updater launcher opens Hub › Updates and is hidden from the app grid; the terminal tips point at Hub.
 - **Tested** on an image built from the branch, in the VM: the first-login Welcome shows once; update now ran topgrade to the end; going back and forth; the password prompts for automatic updates and for switching channel, and cancelling them; a layout switch from Hub; installing an app from Apps. 53 unit tests pass (`tests/test_hub_*.py`, `tests/test_redfox_software.py`, `tests/test_midikeep.py`).
@@ -267,10 +267,33 @@ Walked on a fresh `:unstable` install; findings in `docs/first-15-minutes.md`, s
 
 The rest (Steam autostart, Portal, announcements, the dock, the default layout, wallpapers, and more) is listed in the doc for Matt.
 
+## 18. RedFox Dim review fixes (merged)
+
+- **What it fixes:** the three findings of the RedFox Dim review: a failed `enable()` is now undone instead of leaving the brightness hooks installed; changing `darkest-level` updates direct scanout for fallback-dimmed monitors; Zoom no longer covers the dim.
+- **Merged** 2026-11-07 (0d47f5e); the `unstable` build passed. Tested in the VM on GNOME 51.1 with the fallback slider: zoom while dimmed, `darkest-level` 1.0 and back, and an `enable()` made to fail. Dewy has an FYI on Trello.
+
+## 19. Feature branch images in CI (merged)
+
+- **What it does:** a `feature/…` branch gets its own test images (`br-<branch>-<fedora>`, `fb-<branch>-<sha7>-<fedora>`), listed in Hub's image picker. Each build deletes the branch's older images, and deleting the branch deletes them all. See `docs/ci.md`.
+- **Merged** 2026-11-07 (c39d014), after five builds of a throwaway `feature/ci-smoke` branch. They found and fixed three bugs in the cleanup. The workflow's own token can delete GHCR versions, so no setting needs changing.
+- **Note:** the delete-on-branch-deletion workflow only runs from `main`, so it takes effect at the next promotion. Until then, a deleted `feature/…` branch leaves its last images behind.
+- The old `feature/midikeep`, `feature/redfox-nord` and `feature/topgrade-updater` images were deleted from GHCR (all three branches merged or gone).
+
+## 20. One graphics rule set: `feat/gpu-detect` (merged) and `feat/gpu-rules`
+
+- **What it does:** `files/system/usr/share/redfox/gpu-rules.json` says which image suits which display devices (NVIDIA from 0x1e00 on → NVIDIA, older NVIDIA → legacy, Intel/AMD alone → mainline, hybrid laptops marked). The download page and Hub's "(Recommended)" both apply it; `tests/gpu-cases.json` holds the ten machines both are tested against.
+- `extras/identify_gpu.sh` now prints a code to paste into the download page (`RFX1 8086:46a6 10de:1c03`), and `extras/identify_gpu.ps1` does the same on Windows.
+- **Merged:** `feat/gpu-detect` (rules, cases, both detectors, README tip) on 2026-11-07.
+- **Waiting:** `feat/gpu-rules` switches Hub's `redfox-rollback-helper` to the shared file. It sits on `feat/image-picker`, so it merges with that.
+
+## 21. Hub: an Extra Dimming switch (in `feat/redfox-hub`)
+
+Matt, 11-07: RedFoxOS's own shell extensions get a switch in Hub. Settings › Desktop › **Extra Dimming** turns RedFox Dim on and off (`gnome-extensions enable|disable`), and hides itself without the extension. Tested in the VM. It's merged into `feat/redfox-hub` (e30c00b), so it lands with Hub (16).
+
 ---
 
 ## Also waiting for Matt (not branches)
 
-- RedFox Hub: see 16.
+- RedFox Hub: see 16 (and 21).
 - The first-15-minutes findings for Matt: see 17.
 - Not building a GNOME front end for Mailspring (`docs/mailspring-gnome-frontend.md`): agree or not.
