@@ -1015,6 +1015,7 @@ configure-dewy: redfox-enforce-config configure-keybindings-default configure-te
     gsettings set org.gnome.shell.keybindings show-screenshot-ui "['Print']"
     gsettings set org.gnome.shell.keybindings screenshot "['<Shift><Super>s']"
     gnome-extensions disable unblank@sun.wxg@gmail.com
+    gnome-extensions enable redfox-dim@redfoxlabs.tech
 
 # Configure Fedora's Environment
 configure-fedora: configure-keybindings-default configure-text-editor-reset reset-hostname configure-powersaver-default configure-xway-scale-on
