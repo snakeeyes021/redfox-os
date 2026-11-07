@@ -107,20 +107,27 @@ export default class RedFoxDimExtension extends Extension {
         this._unredirectDisabled = false;
         this._uncontrolled = [];
 
-        this._settings.connectObject(
-            'changed::dim-range', () => this._onCurveChanged(),
-            'changed::darkest-level', () => this._onCurveChanged(),
-            this);
-        Main.brightnessManager.connectObject('changed', () => this._onScalesChanged(), this);
-        // Only there to be seen with the menu open, and at login the menu's items
-        // don't exist yet when extensions start.
-        Main.panel.statusArea.quickSettings.menu.connectObject('open-state-changed', (_menu, open) => {
-            if (open)
-                this._onMenuOpened();
-        }, this);
-        Main.layoutManager.connectObject('monitors-changed', () => this._placeOverlays(), this);
+        // The shell never calls disable() after a failed enable(), so undo
+        // whatever got done here, or the hooks would outlive the extension.
+        try {
+            this._settings.connectObject(
+                'changed::dim-range', () => this._onCurveChanged(),
+                'changed::darkest-level', () => this._onCurveChanged(),
+                this);
+            Main.brightnessManager.connectObject('changed', () => this._onScalesChanged(), this);
+            // Only there to be seen with the menu open, and at login the menu's items
+            // don't exist yet when extensions start.
+            Main.panel.statusArea.quickSettings.menu.connectObject('open-state-changed', (_menu, open) => {
+                if (open)
+                    this._onMenuOpened();
+            }, this);
+            Main.layoutManager.connectObject('monitors-changed', () => this._placeOverlays(), this);
 
-        this._onScalesChanged();
+            this._onScalesChanged();
+        } catch (e) {
+            this.disable();
+            throw e;
+        }
     }
 
     disable() {
@@ -342,7 +349,12 @@ export default class RedFoxDimExtension extends Extension {
 
         const position = this._fallbackItem.slider.value;
         const level = levelFor(position, 1, this._floor);
-        this._uncontrolled.forEach(monitor => this._overlayFor(monitor).setLevel(level));
+        // As in _setBrightness: losing the dim shouldn't cost anything else.
+        try {
+            this._uncontrolled.forEach(monitor => this._overlayFor(monitor).setLevel(level));
+        } catch (e) {
+            console.error(`${this.uuid}: can't dim: ${e}`);
+        }
     }
 
     // Beside the regular slider, which GNOME adds after extensions start.
