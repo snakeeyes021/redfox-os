@@ -188,6 +188,8 @@ Move RedFox's own tooling into one GUI Flatpak app, like Thirties and Pianola al
 - [ ] **Apps:** a checklist of software and bundles (the `install-*` packs); tick and it installs them.
 - [ ] **Manual:** a very short help guide, only for where RedFoxOS differs from mainline Linux (it's immutable) or from other immutable distros (the conveniences and tools we chose). For example: "I want to install a Flatpak / a CLI tool, what do I do?", "My collaborators and I need identical dev setups with a specific Node version", "I need a Python environment; what are my options?" (uv, and whatever else we provide).
 
+- [ ] **Graphical front ends in the Hub for RedFox's CLI tools** (Matt, 11-07; not for right now): give the command-line tools and ujust recipes RedFox ships (e.g. the Nord fleet configurator) proper graphical controls built into RedFox Hub, so nobody needs a terminal for them.
+
 ## 🖍️ Maniculos (screenshot markup)
 *Decided 2026-11-03: RedFox builds its own app, **Maniculos** (`tech.redfoxlabs.Maniculos`), in Python and libadwaita, in the Hub family. Gradia (Flathub) is the stop-gap until it ships; Satty isn't used. Building starts on its own feature branch after the current review batch is merged. Capture stays with GNOME's screenshot tool. Details and the evaluation: [`docs/screenshot-markup.md`](screenshot-markup.md).*
 
