@@ -14,5 +14,7 @@ for r in results:
 finished = bool(results) and results[-1]["name"] == "finished"
 if not finished:
     print("FAIL  the shell stopped before the tests finished")
+elif len(results) == 1:
+    print("FAIL  nothing was checked")
 
-sys.exit(0 if finished and all(r["ok"] for r in results) else 1)
+sys.exit(0 if finished and len(results) > 1 and all(r["ok"] for r in results) else 1)

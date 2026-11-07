@@ -36,15 +36,19 @@ cp "$SRC/glib-2.0/schemas/org.gnome.shell.extensions.redfox-dim.gschema.xml" "$W
 glib-compile-schemas "$WORK/schemas"
 
 run_shell() {
+    local enabled="'$DRIVER'" monitors=(--virtual-monitor 1920x1200)
+    [ "$1" = startup ] && enabled="'$DRIVER', '$UUID'"
+    [ "$1" = mixed ] && monitors+=(--virtual-monitor 1600x1000)
+
     # A session of its own, so all of it can be killed however it ends up.
     REDFOX_DIM_TEST_PHASE=$1 REDFOX_DIM_TEST_RESULT=$WORK/$1.json \
     XDG_DATA_HOME=$WORK/data XDG_CONFIG_HOME=$WORK/config XDG_CACHE_HOME=$WORK/cache \
     XDG_STATE_HOME=$WORK/state XDG_RUNTIME_DIR=$WORK/run \
     GSETTINGS_SCHEMA_DIR=$WORK/schemas GSETTINGS_BACKEND=keyfile GVFS_DISABLE_FUSE=1 \
     setsid dbus-run-session -- bash -c "
-        gsettings set org.gnome.shell enabled-extensions \"['$DRIVER']\"
+        gsettings set org.gnome.shell enabled-extensions \"[$enabled]\"
         gsettings set org.gnome.shell disable-user-extensions false
-        exec gnome-shell --headless --no-x11 --wayland-display=redfox-dim-test --virtual-monitor 1920x1200
+        exec gnome-shell --headless --no-x11 --wayland-display=redfox-dim-test ${monitors[*]}
     " >"$WORK/$1.log" 2>&1 &
     local session=$!
     (sleep 90; kill -9 -- "-$session" 2>/dev/null) &
@@ -56,11 +60,12 @@ run_shell() {
 }
 
 status=0
-for phase in main restart; do
+for phase in main restart startup no-backlight mixed; do
     run_shell "$phase"
     [ -s "$WORK/$phase.json" ] || echo '[]' > "$WORK/$phase.json"
 
-    if ! python3 "$REPO/tests/redfox-dim/report.py" "$WORK/$phase.json"; then
+    if ! python3 "$REPO/tests/redfox-dim/report.py" "$WORK/$phase.json" ||
+        { [ "$phase" = startup ] && grep -E "can't (mark|dim)" "$WORK/$phase.log"; }; then
         status=1
         echo "--- $phase log:"
         grep -v -E "dbus-daemon|libva info" "$WORK/$phase.log" | tail -30

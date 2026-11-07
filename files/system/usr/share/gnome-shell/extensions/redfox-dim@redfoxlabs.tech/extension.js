@@ -14,10 +14,12 @@
 
 import Clutter from 'gi://Clutter';
 import Cogl from 'gi://Cogl';
+import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 
 import {Extension, InjectionManager} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import {QuickSlider, SystemIndicator} from 'resource:///org/gnome/shell/ui/quickSettings.js';
 
 import {backlightFor, levelFor, valueForBacklight} from './curve.js';
 
@@ -26,6 +28,7 @@ const HOOKED_METHODS = ['setBacklight', '_getRelativeBrightness'];
 const BRIGHTNESS_ICON = 'display-brightness-symbolic';
 const SLIDER_FILL = '-st-accent-color';
 const OSD_FILL = '#ffffff'; // what GNOME's light, dark and high contrast themes use
+const SAVE_DELAY_MS = 300;
 
 // GNOME's level bars can show a notch, the one where volume goes past 100%. That
 // notch marks where dimming starts here too, only without the red beyond it.
@@ -78,6 +81,19 @@ class DimOverlay extends Clutter.Actor {
     }
 });
 
+// For monitors GNOME has no brightness control for, and so no slider. There's no
+// backlight to move here: the whole slider dims the picture.
+const FallbackSlider = GObject.registerClass(
+class FallbackSlider extends QuickSlider {
+    _init(position, onMoved) {
+        super._init({iconName: 'weather-clear-night-symbolic'});
+
+        this.slider.accessible_name = 'Dim monitors without brightness control';
+        this.slider.value = position;
+        this.slider.connect('notify::value', () => onMoved(this.slider.value));
+    }
+});
+
 export default class RedFoxDimExtension extends Extension {
     enable() {
         if (this._settings)
@@ -87,13 +103,21 @@ export default class RedFoxDimExtension extends Extension {
         this._injections = new InjectionManager();
         this._overlays = new Map();
         this._hooked = false;
+        this._slidersHooked = false;
         this._unredirectDisabled = false;
+        this._uncontrolled = [];
 
-        this._settings.connectObject('changed', () => {
-            this._reapply();
-            this._markSliders();
-        }, this);
+        this._settings.connectObject(
+            'changed::dim-range', () => this._onCurveChanged(),
+            'changed::darkest-level', () => this._onCurveChanged(),
+            this);
         Main.brightnessManager.connectObject('changed', () => this._onScalesChanged(), this);
+        // Only there to be seen with the menu open, and at login the menu's items
+        // don't exist yet when extensions start.
+        Main.panel.statusArea.quickSettings.menu.connectObject('open-state-changed', (_menu, open) => {
+            if (open)
+                this._onMenuOpened();
+        }, this);
         Main.layoutManager.connectObject('monitors-changed', () => this._placeOverlays(), this);
 
         this._onScalesChanged();
@@ -105,7 +129,10 @@ export default class RedFoxDimExtension extends Extension {
 
         Main.brightnessManager.disconnectObject(this);
         Main.layoutManager.disconnectObject(this);
+        Main.panel.statusArea.quickSettings.menu.disconnectObject(this);
         this._settings.disconnectObject(this);
+
+        this._destroyFallbackSlider();
         this._settings = null;
 
         this._injections.clear();
@@ -130,7 +157,14 @@ export default class RedFoxDimExtension extends Extension {
         if (scale && !this._hooked)
             this._hook(Object.getPrototypeOf(scale));
 
-        const monitors = new Set(Main.brightnessManager.scales.map(s => s.monitor));
+        this._uncontrolled = global.backend.get_monitor_manager().get_logical_monitors()
+            .filter(lm => !lm.get_monitors().some(m => m.get_backlight() && m.is_active()));
+        this._syncFallbackSlider();
+
+        const monitors = new Set([
+            ...Main.brightnessManager.scales.map(s => s.monitor),
+            ...this._uncontrolled,
+        ]);
         for (const [monitor, overlay] of this._overlays) {
             if (!monitors.has(monitor)) {
                 overlay.destroy();
@@ -163,7 +197,19 @@ export default class RedFoxDimExtension extends Extension {
         // The shell applied the saved level before extensions loaded.
         this._reapply();
 
-        this._hookBars();
+        this._hookOsd();
+    }
+
+    _onCurveChanged() {
+        if (this._hooked)
+            this._reapply();
+        this._dimUncontrolled();
+        this._markSliders();
+    }
+
+    _onMenuOpened() {
+        this._hookSliders();
+        this._placeFallbackSlider();
     }
 
     // The marker is a nicety reached through more private code than the dimming,
@@ -180,9 +226,11 @@ export default class RedFoxDimExtension extends Extension {
         return Main.panel.statusArea.quickSettings?._brightness?.quickSettingsItems[0];
     }
 
-    _hookBars() {
-        const extension = this;
+    _hookSliders() {
+        if (!this._hooked || this._slidersHooked)
+            return;
 
+        const extension = this;
         this._tryMarking(() => {
             // Called for the main slider and each monitor's, whenever they're made.
             this._injections.overrideMethod(Object.getPrototypeOf(this._brightnessItem),
@@ -191,35 +239,54 @@ export default class RedFoxDimExtension extends Extension {
                         original.call(this, slider, scale);
                         extension._tryMarking(() => markBar(slider, extension._range, SLIDER_FILL));
                     });
-            this._markSliders();
+            this._slidersHooked = true;
+            this._brightnessItem._sync();
         });
+    }
 
+    _hookOsd() {
+        const extension = this;
         this._tryMarking(() => {
             // These windows also show volume and the like, so unmark for those.
             this._injections.overrideMethod(Main.osdWindowManager, '_showOsdWindow', original =>
-                function (monitorIndex, icon, ...rest) {
+                function (monitorIndex, icon, label, level, maxLevel) {
+                    let bar = null;
                     extension._tryMarking(() => {
-                        const bar = this._osdWindows[monitorIndex]._level;
-                        if (icon.to_string() === BRIGHTNESS_ICON)
+                        bar = this._osdWindows[monitorIndex]._level;
+                        if (icon.to_string() === BRIGHTNESS_ICON) {
                             markBar(bar, extension._range, OSD_FILL);
-                        else
+                        } else {
                             unmarkBar(bar);
+                            bar = null;
+                        }
                     });
-                    original.call(this, monitorIndex, icon, ...rest);
+
+                    const animating = bar?.get_transition('value');
+                    original.call(this, monitorIndex, icon, label, level, maxLevel);
+
+                    // GNOME eases the bar to each new level from the start again,
+                    // so while a slider is being dragged it barely moves, then
+                    // jumps. Only let it ease when it has finished the last one.
+                    if (animating) {
+                        bar.remove_transition('value');
+                        bar.value = level;
+                    }
                 });
         });
     }
 
     _markSliders() {
-        if (this._hooked)
+        if (this._slidersHooked)
             this._tryMarking(() => this._brightnessItem._sync());
     }
 
     _unmarkBars() {
-        this._tryMarking(() => {
-            unmarkBar(this._brightnessItem.slider);
-            this._brightnessItem._sync();
-        });
+        if (this._slidersHooked) {
+            this._tryMarking(() => {
+                unmarkBar(this._brightnessItem.slider);
+                this._brightnessItem._sync();
+            });
+        }
         this._tryMarking(() => {
             Main.osdWindowManager._osdWindows.forEach(osd => unmarkBar(osd._level));
         });
@@ -247,6 +314,67 @@ export default class RedFoxDimExtension extends Extension {
     // calls setBacklight. Its dimming setter is the public way to trigger that.
     _reapply() {
         Main.brightnessManager.dimming = Main.brightnessManager.dimming;
+    }
+
+    _syncFallbackSlider() {
+        if (this._uncontrolled.length > 0 && !this._fallbackIndicator) {
+            const position = this._settings.get_double('fallback-slider');
+            this._fallbackItem = new FallbackSlider(position, () => {
+                this._dimUncontrolled();
+                this._updateUnredirect();
+                this._saveFallbackSlider();
+            });
+
+            this._fallbackIndicator = new SystemIndicator();
+            this._fallbackIndicator.quickSettingsItems.push(this._fallbackItem);
+            Main.panel.statusArea.quickSettings.addExternalIndicator(this._fallbackIndicator, 2);
+        }
+
+        if (this._fallbackItem)
+            this._fallbackItem.visible = this._uncontrolled.length > 0;
+
+        this._dimUncontrolled();
+    }
+
+    _dimUncontrolled() {
+        if (!this._fallbackItem)
+            return;
+
+        const position = this._fallbackItem.slider.value;
+        const level = levelFor(position, 1, this._floor);
+        this._uncontrolled.forEach(monitor => this._overlayFor(monitor).setLevel(level));
+    }
+
+    // Beside the regular slider, which GNOME adds after extensions start.
+    _placeFallbackSlider() {
+        const brightness = this._brightnessItem;
+        if (!this._fallbackItem || !brightness || this._fallbackItem.get_parent() !== brightness.get_parent())
+            return;
+        this._tryMarking(() => brightness.get_parent().set_child_above_sibling(this._fallbackItem, brightness));
+    }
+
+    _saveFallbackSlider() {
+        if (this._saveId)
+            return;
+        this._saveId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, SAVE_DELAY_MS, () => {
+            this._saveId = 0;
+            this._settings.set_double('fallback-slider', this._fallbackItem.slider.value);
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _destroyFallbackSlider() {
+        if (this._saveId) {
+            GLib.source_remove(this._saveId);
+            this._saveId = 0;
+            this._settings.set_double('fallback-slider', this._fallbackItem.slider.value);
+        }
+
+        this._fallbackItem?.destroy();
+        this._fallbackItem = null;
+        this._fallbackIndicator?.destroy();
+        this._fallbackIndicator = null;
+        this._uncontrolled = [];
     }
 
     get _range() {

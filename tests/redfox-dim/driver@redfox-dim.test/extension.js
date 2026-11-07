@@ -70,7 +70,14 @@ const FakeBacklight = GObject.registerClass({
 
 export default class DriverExtension extends Extension {
     enable() {
+        // Disabling an extension restarts the ones loaded after it, maybe this one
+        if (this._results)
+            return;
+
         this._results = [];
+        // Before redfox-dim starts, if it's in the same login as us
+        if (GLib.getenv('REDFOX_DIM_TEST_PHASE') === 'startup')
+            this._installBacklight();
         this._run()
             .catch(e => this._check(`no exception: ${e}\n${e.stack}`, false))
             .finally(() => this._finish());
@@ -115,9 +122,12 @@ export default class DriverExtension extends Extension {
             await sleep(20);
     }
 
-    _installBacklight() {
-        this._backlight = new FakeBacklight();
-        Meta.Monitor.prototype.get_backlight = () => this._backlight;
+    _installBacklight(connector = null) {
+        const backlight = new FakeBacklight();
+        this._backlight = backlight;
+        Meta.Monitor.prototype.get_backlight = function () {
+            return !connector || this.get_connector() === connector ? backlight : null;
+        };
         Main.brightnessManager._monitorsChanged();
     }
 
@@ -159,6 +169,19 @@ export default class DriverExtension extends Extension {
         await sleep(500);
         const phase = GLib.getenv('REDFOX_DIM_TEST_PHASE');
         const manager = Main.brightnessManager;
+
+        if (phase === 'startup') {
+            await this._afterLogin(manager);
+            return;
+        }
+        if (phase === 'no-backlight') {
+            await this._noBacklight();
+            return;
+        }
+        if (phase === 'mixed') {
+            await this._mixed(manager);
+            return;
+        }
 
         this._installBacklight();
         const scale = () => manager.globalScale;
@@ -272,6 +295,9 @@ export default class DriverExtension extends Extension {
         this._check('OSD shown for key presses',
             Main.osdWindowManager._osdWindows.some(w => w.visible));
 
+        const lag = await this._osdLagDuringDrag(manager);
+        this._check('dragging: the OSD keeps up', lag < 0.05, lag);
+
         scale().value = 0.8;
         manager.dimming = true;
         this._check('idle dim clips to its target',
@@ -354,7 +380,9 @@ export default class DriverExtension extends Extension {
 
             manager.scales[0].value = 0.1;
             await this._setEnabled(true);
+            this._openMenu();
             this._check(`enabled again (${i}): marked`, near(qs.slider.overdriveStart, 0.25));
+            this._closeMenu();
             this._check(`enabled again (${i}): dimmed`,
                 this._overlays.length === 1 && this._overlays[0].visible &&
                 this._backlight.brightness === MIN);
@@ -382,6 +410,7 @@ export default class DriverExtension extends Extension {
                 .equal(node.get_color('-barlevel-active-background-color'));
         };
 
+        this._openMenu();
         this._check('marker: on the main slider', near(qs.slider.overdriveStart, position), qs.slider.overdriveStart);
         this._check('marker: no red past it on the slider', sameFill(qs.slider));
         const sliders = this._monitorSliders(qs);
@@ -399,6 +428,31 @@ export default class DriverExtension extends Extension {
             osd._level.overdriveStart === 1 && osd._level.style === null, osd._level.overdriveStart);
         Main.brightnessManager._screenBrightnessUp();
         this._check('marker: back on the next brightness OSD', near(osd._level.overdriveStart, position));
+        this._closeMenu();
+    }
+
+    _openMenu() {
+        Main.panel.statusArea.quickSettings.menu.open(false);
+    }
+
+    _closeMenu() {
+        Main.panel.statusArea.quickSettings.menu.close(false);
+    }
+
+    // How far the on-screen bar falls behind while a slider is dragged at a frame
+    // per step. GNOME's own easing lets it stall, then jump.
+    async _osdLagDuringDrag(manager) {
+        const {_osdWindows: [osd]} = Main.osdWindowManager;
+        manager.globalScale.value = 0;
+        await sleep(150);
+
+        let worst = 0;
+        for (let i = 1; i <= 60; i++) {
+            manager.globalScale.value = i / 60;
+            await sleep(16);
+            worst = Math.max(worst, Math.abs(osd._level.value - i / 60));
+        }
+        return worst;
     }
 
     // What a future GNOME might do to us
@@ -437,8 +491,17 @@ export default class DriverExtension extends Extension {
         this._check('OSD bar can\'t be marked: the key press still works',
             near(manager.scales[0].value, 0.15) && !manager._inhibitUpdates, manager.scales[0].value);
 
-        await this._setEnabled(false);
+        this._openMenu();
+        this._closeMenu();
+        this._check('menu opened with no item to mark: still dims', this._overlays[0].visible);
+
+        // Which is how every login starts: the item arrives after the extension
         quickSettings._brightness = brightness;
+        this._openMenu();
+        this._check('item arrives after the extension: marked when the menu opens',
+            near(brightness.quickSettingsItems[0].slider.overdriveStart, 0.25));
+        this._closeMenu();
+        await this._setEnabled(false);
 
         await this._setEnabled(true);
         this._ext._overlayFor = () => {
@@ -450,6 +513,124 @@ export default class DriverExtension extends Extension {
         this._check('overlay failing: slider keeps responding', !manager._inhibitUpdates);
         manager.globalScale.value = 1;
         this._check('overlay failing: and again', this._backlight.brightness === MAX);
+        await this._setEnabled(false);
+    }
+
+    // Started along with the shell, as at a real login
+    async _afterLogin(manager) {
+        for (let i = 0; i < 100 && this._dim?.state !== ACTIVE; i++)
+            await sleep(20);
+        this._check('login: extension is active', this._dim?.state === ACTIVE, this._dim?.error);
+        await sleep(500);
+
+        const item = Main.panel.statusArea.quickSettings._brightness.quickSettingsItems[0];
+        this._openMenu();
+        this._check('login: the slider is marked when the menu opens',
+            near(item.slider.overdriveStart, 0.25), item.slider.overdriveStart);
+        this._closeMenu();
+
+        manager.globalScale.value = 0.5;
+        this._check('login: the slider drives the backlight', near(this._backlight.relative, 1 / 3));
+        await this._setEnabled(false);
+    }
+
+    _alpha(overlay) {
+        return overlay._pipeline.get_color().alpha / 255;
+    }
+
+    async _noBacklight() {
+        const quickSettings = Main.panel.statusArea.quickSettings;
+        const stock = quickSettings._brightness.quickSettingsItems[0];
+        await this._setEnabled(true);
+
+        this._check('no backlight: GNOME has no slider', !stock.visible && !Main.brightnessManager.globalScale);
+        const item = this._ext._fallbackItem;
+        this._check('no backlight: the fallback slider shows', item?.visible);
+        this._check('no backlight: nothing hooked', !this._ext._hooked);
+        this._check('no backlight: undimmed to start', this._overlays.every(o => !o.visible));
+
+        item.slider.value = 0;
+        this._check('no backlight: slider at 0 is the darkest level',
+            this._overlays.length === 1 && this._overlays[0].visible && near(this._alpha(this._overlays[0]), 0.8, 0.01),
+            this._overlays.length);
+        this._check('no backlight: direct scanout inhibited', this._ext._unredirectDisabled);
+        item.slider.value = 0.5;
+        this._check('no backlight: slider in the middle', near(this._alpha(this._overlays[0]), 0.4, 0.01));
+        this._ext._settings.set_double('darkest-level', 0.5);
+        await sleep(20);
+        this._check('no backlight: darkest-level applies right away', near(this._alpha(this._overlays[0]), 0.25, 0.01));
+        this._ext._settings.reset('darkest-level');
+        await sleep(20);
+
+        this._openMenu();
+        this._closeMenu();
+        item.slider.value = 1;
+        this._check('no backlight: slider at 1 is undimmed',
+            this._overlays.every(o => !o.visible) && !this._ext._unredirectDisabled);
+
+        item.slider.value = 0.3;
+        const ext = this._ext;
+        await this._setEnabled(false); // before the delayed save
+        this._check('no backlight: disabled, overlay gone',
+            !global.stage.get_children().some(a => a.constructor.name.includes('DimOverlay')));
+        this._check('no backlight: disabled, scanout allowed', !ext._unredirectDisabled);
+        this._check('no backlight: disabled, slider gone', !item.get_parent?.());
+
+        await this._setEnabled(true);
+        this._check('no backlight: position comes back',
+            near(this._ext._fallbackItem.slider.value, 0.3) && this._overlays[0].visible,
+            this._ext._fallbackItem.slider.value);
+        this._ext._fallbackItem.slider.value = 1;
+        await sleep(400);
+        await this._setEnabled(false);
+    }
+
+    // A laptop panel beside a monitor with no brightness control
+    async _mixed(manager) {
+        this._installBacklight('Meta-0');
+        await this._setEnabled(true);
+
+        const ext = this._ext;
+        const item = ext._fallbackItem;
+        const stock = Main.panel.statusArea.quickSettings._brightness.quickSettingsItems[0];
+        this._check('mixed: two monitors', Main.layoutManager.monitors.length === 2, Main.layoutManager.monitors.length);
+        this._check('mixed: GNOME\'s slider for the panel', stock.visible && manager.scales.length === 1);
+        this._check('mixed: and the fallback slider for the other', item?.visible);
+
+        this._openMenu();
+        this._check('mixed: the fallback slider sits right after GNOME\'s',
+            stock.get_next_sibling() === item, stock.get_next_sibling());
+        this._closeMenu();
+
+        const overlay = monitor => ext._overlays.get(monitor);
+        const panel = manager.scales[0].monitor;
+        const [other] = ext._uncontrolled;
+        this._check('mixed: one monitor each', ext._uncontrolled.length === 1 && other !== panel);
+
+        manager.globalScale.value = 0.1;
+        item.slider.value = 1;
+        this._check('mixed: GNOME\'s slider dims only the panel',
+            overlay(panel).visible && !overlay(other).visible && this._backlight.brightness === MIN);
+        manager.globalScale.value = 1;
+        item.slider.value = 0;
+        this._check('mixed: the fallback slider dims only the other',
+            !overlay(panel).visible && overlay(other).visible && this._backlight.brightness === MAX);
+        this._check('mixed: on the monitor it belongs to',
+            overlay(other).x === Main.layoutManager.monitors[other.get_number()].x);
+
+        manager._monitorsChanged();
+        await sleep(20);
+        this._check('mixed: a monitor change keeps both', ext._overlays.size === 2 && overlay(other).visible);
+
+        // The other monitor gains a brightness control, or leaves
+        Meta.Monitor.prototype.get_backlight = () => this._backlight;
+        manager._monitorsChanged();
+        await sleep(20);
+        this._check('mixed: every monitor controlled, the fallback slider hides',
+            !item.visible && !overlay(other)?.visible);
+
+        item.slider.value = 1;
+        await sleep(400);
         await this._setEnabled(false);
     }
 

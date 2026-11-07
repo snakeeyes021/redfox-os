@@ -13,5 +13,11 @@
       <summary>Picture level at the very bottom of the slider</summary>
       <description>1.0 is the undimmed picture. The lower limit keeps the screen readable enough to find the slider again.</description>
     </key>
+    <key name="fallback-slider" type="d">
+      <range min="0.0" max="1.0"/>
+      <default>1.0</default>
+      <summary>Position of the slider for monitors without brightness control</summary>
+      <description>1.0 is undimmed and 0.0 is darkest-level. The slider only appears while such a monitor is connected.</description>
+    </key>
   </schema>
 </schemalist>
