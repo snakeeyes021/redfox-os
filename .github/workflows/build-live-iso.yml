@@ -1,0 +1,195 @@
+name: Build live ISOs
+# Live ISOs of the stable images: each boots into a RedFoxOS desktop with an
+# installer, which puts that image on disk and points it at the signed image
+# on ghcr.io. Built with Universal Blue's Titanoboa; see docs/iso.md.
+# Run by hand (Actions › Build live ISOs › Run workflow). It replaces the
+# old bootc-image-builder workflow (build-iso.yml). With "publish" on,
+# a run from main uploads the ISOs to Cloudflare R2 for the download page.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Image tag to build from (latest is the stable image)
+        default: latest
+      image:
+        description: Which ISO
+        type: choice
+        default: all
+        options:
+          - all
+          - redfox-os
+          - redfox-os-nvidia
+          - redfox-os-nvidia-legacy
+      publish:
+        description: Upload to Cloudflare R2 (only from main)
+        type: boolean
+        default: false
+  # TEMPORARY, for testing on feat/iso; removed before merging.
+  push:
+    branches:
+      - feat/iso
+    paths:
+      - installer/**
+      - .github/workflows/build-live-iso.yml
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.tag || 'latest' }}-${{ inputs.image || 'push' }}
+  cancel-in-progress: true
+
+jobs:
+  matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      images: ${{ steps.images.outputs.images }}
+    steps:
+      - id: images
+        env:
+          IMAGE: ${{ inputs.image || 'redfox-os' }}
+        run: |
+          if [ "$IMAGE" = all ]; then
+            echo 'images=["redfox-os","redfox-os-nvidia","redfox-os-nvidia-legacy"]' >> "$GITHUB_OUTPUT"
+          else
+            echo "images=[\"$IMAGE\"]" >> "$GITHUB_OUTPUT"
+          fi
+
+  build-iso:
+    name: ${{ matrix.image }} ISO
+    needs: matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      packages: read
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ${{ fromJson(needs.matrix.outputs.images) }}
+    env:
+      OWNER: ${{ github.repository_owner }}
+      TAG: ${{ inputs.tag || 'latest' }}
+      IMAGE: ${{ matrix.image }}
+    steps:
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@v2.0.0
+        with:
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: false
+
+      # The images are stored twice (the live system, and the image it
+      # installs) and squashed once more, so put podman's storage on a
+      # compressed btrfs file (Bazzite's approach).
+      - name: Container storage on compressed btrfs
+        run: |
+          sudo truncate -s 110G /mnt/podman-storage.img
+          sudo mkfs.btrfs -f -m single -d single /mnt/podman-storage.img
+          sudo podman system reset --force
+          sudo systemctl stop podman.service || true
+          LOOP=$(sudo losetup --find --show --direct-io=on /mnt/podman-storage.img)
+          sudo mkdir -p /mnt/podman-storage
+          sudo mount -o compress-force=zstd:2,discard=async,noatime "$LOOP" /mnt/podman-storage
+          sudo mkdir -p /mnt/podman-storage/storage /mnt/podman-storage/tmp
+          sudo mount --bind /mnt/podman-storage/storage /var/lib/containers/storage
+          df -h / /mnt/podman-storage
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Pull only images signed with RedFoxOS's key (cosign.pub).
+      - name: Require signed RedFoxOS images
+        run: |
+          OWNER=${OWNER,,}
+          sudo mkdir -p /etc/pki/containers /etc/containers/registries.d
+          sudo cp cosign.pub /etc/pki/containers/redfox-os.pub
+          sudo tee "/etc/containers/registries.d/${OWNER}.yaml" > /dev/null <<EOF
+          docker:
+            ghcr.io/${OWNER}:
+              use-sigstore-attachments: true
+          EOF
+          sudo jq --arg repo "ghcr.io/${OWNER}" \
+            '.transports.docker[$repo] = [{"type": "sigstoreSigned", "keyPath": "/etc/pki/containers/redfox-os.pub", "signedIdentity": {"type": "matchRepository"}}]' \
+            /etc/containers/policy.json > policy.json
+          sudo mv policy.json /etc/containers/policy.json
+
+      - name: Pull the images
+        run: |
+          OWNER=${OWNER,,}
+          # The live system is always the Intel/AMD image: the live session
+          # runs Fedora's kernel (for Secure Boot), which the NVIDIA driver
+          # isn't built for, so NVIDIA cards get nouveau there.
+          echo "LIVE_IMAGE=ghcr.io/${OWNER}/redfox-os:${TAG}" >> "$GITHUB_ENV"
+          echo "INSTALL_IMAGE=ghcr.io/${OWNER}/${IMAGE}:${TAG}" >> "$GITHUB_ENV"
+          sudo podman pull "ghcr.io/${OWNER}/redfox-os:${TAG}"
+          [ "$IMAGE" = redfox-os ] || sudo podman pull "ghcr.io/${OWNER}/${IMAGE}:${TAG}"
+
+      - name: Build the live system
+        run: |
+          sudo env TMPDIR=/mnt/podman-storage/tmp podman build \
+            --cap-add sys_admin --security-opt label=disable \
+            -v /var/lib/containers/storage:/usr/lib/containers/storage:ro \
+            --build-arg LIVE_IMAGE="$LIVE_IMAGE" \
+            --build-arg INSTALL_IMAGE="$INSTALL_IMAGE" \
+            -t localhost/redfox-live:latest installer/
+          # Only the live system is needed from here on.
+          sudo podman rmi -f "$INSTALL_IMAGE" "$LIVE_IMAGE" || true
+          sudo df -h /mnt/podman-storage
+
+      - name: Name the ISO
+        run: |
+          if [ "$TAG" = latest ]; then name="$IMAGE"; else name="$IMAGE-$TAG"; fi
+          echo "ISO_NAME=${name}.iso" >> "$GITHUB_ENV"
+
+      - name: Build the ISO
+        id: build
+        uses: ublue-os/titanoboa@5c457c3d0518bd17e754be0fd98a60d29d26abb4
+        with:
+          image-ref: localhost/redfox-live:latest
+          iso-dest: ${{ github.workspace }}/upload/${{ env.ISO_NAME }}
+
+      - name: Checksum
+        working-directory: upload
+        run: |
+          sha256sum "$ISO_NAME" | tee "${ISO_NAME}-CHECKSUM"
+          ls -l
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign
+        working-directory: upload
+        env:
+          SIGNING_KEY: ${{ secrets.SIGNING_SECRET }}
+        run: cosign sign-blob -y --key env://SIGNING_KEY "$ISO_NAME" --output-signature "${ISO_NAME}.sig"
+
+      - name: Keep as a workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ISO_NAME }}
+          path: upload/
+          if-no-files-found: error
+          retention-days: 3
+          compression-level: 0
+
+      - name: Upload to Cloudflare R2
+        if: inputs.publish && github.ref_name == 'main'
+        working-directory: upload
+        env:
+          RCLONE_CONFIG_R2_TYPE: s3
+          RCLONE_CONFIG_R2_PROVIDER: Cloudflare
+          RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          RCLONE_CONFIG_R2_REGION: auto
+          RCLONE_CONFIG_R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET: ${{ vars.R2_BUCKET }}
+        run: |
+          [ -n "$R2_BUCKET" ] || { echo "::error::Set the R2_BUCKET repository variable"; exit 1; }
+          sudo apt-get update -q && sudo apt-get install -yq rclone
+          # The ISO first, then its checksum and signature, so a download
+          # page never points at a checksum for an ISO still uploading.
+          rclone copyto --s3-upload-concurrency 8 --s3-chunk-size 64M "$ISO_NAME" "R2:${R2_BUCKET}/${ISO_NAME}"
+          rclone copy --include "${ISO_NAME}-CHECKSUM" --include "${ISO_NAME}.sig" . "R2:${R2_BUCKET}/"

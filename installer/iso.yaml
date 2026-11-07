@@ -1,0 +1,10 @@
+label: "RedFoxOS-Live"
+grub2:
+  timeout: 5
+  entries:
+    - name: "Start RedFoxOS"
+      linux: "/images/pxeboot/vmlinuz quiet rhgb root=live:CDLABEL=RedFoxOS-Live enforcing=0 rd.live.image"
+      initrd: "/images/pxeboot/initrd.img"
+    - name: "Start RedFoxOS (basic graphics)"
+      linux: "/images/pxeboot/vmlinuz quiet rhgb root=live:CDLABEL=RedFoxOS-Live enforcing=0 rd.live.image nomodeset"
+      initrd: "/images/pxeboot/initrd.img"

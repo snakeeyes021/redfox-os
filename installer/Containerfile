@@ -1,0 +1,16 @@
+# The live system of a RedFoxOS live ISO: LIVE_IMAGE turned into a bootable
+# live desktop, with Anaconda and the image it installs (INSTALL_IMAGE) inside.
+# Titanoboa then squashes it into the ISO. See docs/iso.md.
+#
+#   podman build --cap-add sys_admin --security-opt label=disable \
+#       --build-arg LIVE_IMAGE=ghcr.io/snakeeyes021/redfox-os:latest \
+#       --build-arg INSTALL_IMAGE=ghcr.io/snakeeyes021/redfox-os-nvidia:latest \
+#       -t localhost/redfox-live installer/
+
+ARG LIVE_IMAGE=ghcr.io/snakeeyes021/redfox-os:latest
+
+FROM ${LIVE_IMAGE}
+ARG LIVE_IMAGE
+ARG INSTALL_IMAGE
+RUN --mount=type=bind,source=./.,target=/src \
+    env LIVE_IMAGE="${LIVE_IMAGE}" INSTALL_IMAGE="${INSTALL_IMAGE}" /src/build.sh
