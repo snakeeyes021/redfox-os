@@ -2,8 +2,17 @@
 # Turn one of RedFox Hub's system-wide toggles on or off. Run as root, by
 # `redfox-toggles on|off ID` through pkexec; the polkit action
 # tech.redfoxlabs.hub.system-toggles gives the password dialog its words.
-# Each toggle is one of Bazzite's own ujust recipes; only these can be run.
+# Each toggle is one of Bazzite's own ujust recipes, or RedFox's own
+# non-interactive wrapper of one; only these can be run.
 set -euo pipefail
+usage() {
+    echo "Usage: $0 tailscale|ssh|cockpit|wake-on-lan|snapshots|automount|dedup|bt-mic on|off" >&2
+    exit 2
+}
+case "${2:-}" in
+    on|off) ;;
+    *) usage ;;
+esac
 case "${1:-}" in
     tailscale) recipe=tailscale ;;
     ssh) recipe=ssh ;;
@@ -12,10 +21,11 @@ case "${1:-}" in
     snapshots) recipe=configure-snapshots ;;
     automount) recipe=automounting ;;
     bt-mic) recipe=toggle-bt-mic ;;
-    *) echo "Usage: $0 tailscale|ssh|cockpit|wake-on-lan|snapshots|automount|bt-mic on|off" >&2; exit 2 ;;
+    # Bazzite's configure-beesd asks which drive; this does the main drive.
+    dedup) exec /usr/libexec/redfox-dedup "$2" ;;
+    *) usage ;;
 esac
-case "${2:-}" in
+case "$2" in
     on) exec /usr/bin/ujust "$recipe" enable ;;
     off) exec /usr/bin/ujust "$recipe" disable ;;
-    *) echo "Usage: $0 ${1} on|off" >&2; exit 2 ;;
 esac

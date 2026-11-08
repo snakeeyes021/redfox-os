@@ -40,7 +40,7 @@ class TestToggles(unittest.TestCase):
         ids = [t["id"] for t in rt.TOGGLES]
         self.assertEqual(len(ids), len(set(ids)))
         for t in rt.TOGGLES:
-            self.assertIn(t["group"], ("services", "storage", "sound"))
+            self.assertIn(t["group"], ("terminal", "services", "storage", "sound"))
             for key in ("title", "subtitle", "status", "on_tokens"):
                 self.assertTrue(t.get(key), (t["id"], key))
             if not t["system"]:
@@ -89,6 +89,35 @@ class TestToggles(unittest.TestCase):
         self.assertEqual(run.calls, [["ujust", "enable-midikeep"],
                                      ["ujust", "setup-virtual-surround", "disable"]])
 
+    def test_terminal_switches_use_redfox_terminal(self):
+        run = fake_run({"redfox-terminal prompt status": "on\n",
+                        "redfox-terminal tools status": "off\n"})
+        with unittest.mock.patch.object(rt.subprocess, "run", run):
+            state = {t["id"]: t["on"] for t in rt.list_toggles()["toggles"]}
+            rt.main(["on", "tools"])
+            rt.main(["off", "prompt"])
+        self.assertIs(state["prompt"], True)
+        self.assertIs(state["tools"], False)
+        self.assertEqual(run.calls[-2:], [["redfox-terminal", "tools", "on"],
+                                          ["redfox-terminal", "prompt", "off"]])
+
+    def test_dedup_states_its_memory_and_goes_through_the_helper(self):
+        run = fake_run({f"{rt.DEDUP} status": "on\n",
+                        f"{rt.DEDUP} plan --json": '{"uuid": "u", "memory_mb": 1536}\n'})
+        with unittest.mock.patch.object(rt.subprocess, "run", run):
+            toggles = {t["id"]: t for t in rt.list_toggles()["toggles"]}
+            rt.main(["off", "dedup"])
+        self.assertIs(toggles["dedup"]["on"], True)
+        self.assertIn("uses 1.5 GB of memory", toggles["dedup"]["subtitle"])
+        self.assertEqual(run.calls[-1], ["pkexec", rt.SYSTEM_HELPER, "dedup", "off"])
+
+    def test_dedup_unavailable_reads_as_unknown(self):
+        run = fake_run({f"{rt.DEDUP} status": "unavailable\n"})
+        with unittest.mock.patch.object(rt.subprocess, "run", run):
+            toggles = {t["id"]: t for t in rt.list_toggles()["toggles"]}
+        self.assertIsNone(toggles["dedup"]["on"])
+        self.assertIn("up to 2 GB", toggles["dedup"]["subtitle"])
+
     def test_unknown_id_is_refused(self):
         with self.assertRaises(SystemExit):
             with redirect_stdout(io.StringIO()), unittest.mock.patch("sys.stderr", io.StringIO()):
@@ -100,7 +129,7 @@ class TestHelper(unittest.TestCase):
         text = HELPER.read_text()
         for t in rt.TOGGLES:
             if t["system"]:
-                self.assertIn(f"    {t['id']}) recipe=", text, t["id"])
+                self.assertRegex(text, rf"\n    {t['id']}\) (recipe=|exec )", t["id"])
 
     def test_helper_refuses_anything_else(self):
         for args in (["nope", "on"], ["tailscale", "maybe"], []):

@@ -7,9 +7,11 @@ the JSON printed by `list --json` and `install|remove --json`:
 
   list --json      {"version": 1, "packs": [{"id", "name", "description",
                     "section", "hidden", "includes": [...], "items": [{"id",
-                    "kind", "name", "summary", "installed", "icon"}]}]}
+                    "kind", "name", "summary", "installed", "icon",
+                    "restart"}]}]}
                    Items that need hardware this computer doesn't have (an
-                   item's `gpu`) are left out.
+                   item's `gpu`) are left out. "restart" is true for items
+                   that take effect after a restart.
   install|remove --json ID...
                    one JSON object per line:
                      {"event": "start", "id": ...}
@@ -419,6 +421,7 @@ def list_packs(catalog):
             "summary": item["summary"],
             "installed": installed,
             "icon": item_icon(item, installed),
+            "restart": bool(item.get("restart", False)),
         }
     packs = []
     for pack in catalog.packs:

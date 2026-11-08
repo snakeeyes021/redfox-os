@@ -10,8 +10,9 @@ page; `hub:updates` and the like open a part of Hub.
 import html
 import re
 
-from gi.repository import Adw, Gdk, Gtk
+from gi.repository import Adw, Gdk, GLib, Gtk
 
+from . import actions
 from .paths import MANUAL as MANUAL_DIR
 from .window import Section
 
@@ -188,6 +189,11 @@ class ManualSection(Section):
                   "Linux systems.", wrap=True, xalign=0)
         intro.add_css_class("dim-label")
         box.append(intro)
+        # Help's actions: the ones that live elsewhere in Hub are links to
+        # them; Help's own (firmware settings) run here.
+        self.help_group = Adw.PreferencesGroup(title="Something not working?", visible=False)
+        self.help_rows = []
+        box.append(self.help_group)
         box.append(self.search)
         box.append(self.list)
         box.append(self.empty)
@@ -199,6 +205,28 @@ class ManualSection(Section):
         root = Gtk.ScrolledWindow(child=Adw.Clamp(maximum_size=720, child=box),
                                   hscrollbar_policy=Gtk.PolicyType.NEVER)
         super().__init__(window, "Manual", root)
+
+    def shown(self):
+        actions.load(self._on_actions)
+
+    def _on_actions(self, found):
+        for row in self.help_rows:
+            self.help_group.remove(row)
+        self.help_rows = []
+        for action in found:
+            if action["group"] == "help":
+                row = actions.ActionRow(self.window, action)
+            elif action["group"] in actions.GROUP_PAGES and not action.get("done"):
+                path, where = actions.GROUP_PAGES[action["group"]]
+                row = Adw.ActionRow(title=GLib.markup_escape_text(action["title"]),
+                                    subtitle=GLib.markup_escape_text(where), activatable=True)
+                row.add_suffix(Gtk.Image(icon_name="go-next-symbolic"))
+                row.connect("activated", lambda _r, p=path: self.window.open_page(p))
+            else:
+                continue
+            self.help_group.add(row)
+            self.help_rows.append(row)
+        self.help_group.set_visible(bool(self.help_rows))
 
     def _filter(self, row):
         query = self.search.get_text().strip().lower()

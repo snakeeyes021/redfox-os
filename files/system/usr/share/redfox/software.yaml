@@ -175,6 +175,7 @@ packs:
       - proton-dlss-upgrade
       - proton-fsr4-upgrade
       - proton-fsr4-rdna3-upgrade
+      - controller-input-group
 
   - id: hardware
     name: Hardware
@@ -182,6 +183,7 @@ packs:
     description: Software for specific hardware.
     items:
       - openrgb
+      - amd-hdmi21
 
   - id: redfox-app-fleet
     name: RedFox Apps
@@ -618,6 +620,15 @@ items:
     install: ujust global-fsr4-rdna3 enable
     remove: ujust global-fsr4-rdna3 disable
     check: test -f "$HOME/.config/environment.d/99-proton-fsr4-rdna3.conf"
+  - id: controller-input-group
+    kind: recipe
+    name: Controller and Wheel Access
+    summary: Some controller and racing wheel drivers need you in the input group. It also lets any app you run read every keyboard and mouse. Takes effect after a restart.
+    install: pkexec /usr/libexec/redfox-system-action input-group add
+    remove: pkexec /usr/libexec/redfox-system-action input-group remove
+    # The group database, not this session's groups, which change at the next login.
+    check: id -nG "$USER" | tr ' ' '\n' | grep -qx input
+    restart: true
 
   # Hardware (Bazzite's ujust recipes)
   - id: openrgb
@@ -627,3 +638,13 @@ items:
     install: ujust openrgb install
     remove: ujust openrgb uninstall
     check: '[ "$(ujust openrgb status 2>/dev/null)" = install ]'
+  - id: amd-hdmi21
+    kind: recipe
+    name: HDMI 2.1 on AMD Graphics
+    summary: Turns on more HDMI 2.1 and FreeSync features. It can cause flicker or a lost signal on some displays. Takes effect after a restart.
+    gpu: amd
+    install: ujust configure-amd-hdmi21 enable
+    remove: ujust configure-amd-hdmi21 disable
+    # The next boot's arguments, so it shows as on before the restart.
+    check: rpm-ostree kargs | grep -qw 'amdgpu.dcfeaturemask=0x402'
+    restart: true

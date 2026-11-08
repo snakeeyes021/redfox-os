@@ -7,7 +7,7 @@ polkit for the system-wide ones)."""
 
 from gi.repository import Adw, Gio, GLib, Gtk
 
-from . import host
+from . import actions, host
 from .paths import LAYOUTS
 from .window import Section
 
@@ -17,8 +17,10 @@ RFL = "org.gnome.shell.extensions.redfox-layouts"
 # RedFox Dim, turned on and off with gnome-extensions like any extension.
 DIM = "redfox-dim@redfoxlabs.tech"
 # redfox-toggles groups, in page order: id, title.
-TOGGLE_GROUPS = [("services", "Services"), ("storage", "Storage"),
-                 ("sound", "Sound & Music")]
+TOGGLE_GROUPS = [("terminal", "Terminal"), ("services", "Services"),
+                 ("storage", "Storage"), ("sound", "Sound & Music")]
+TERMINAL_NOTE = ("Each works in bash, zsh and fish, in any terminal app. "
+                 "New terminal windows show the change.")
 
 
 class SettingsSection(Section):
@@ -58,10 +60,15 @@ class SettingsSection(Section):
         self.toggle_groups = {}
         for group_id, title in TOGGLE_GROUPS:
             # Group titles are markup ("Sound & Music").
-            group = Adw.PreferencesGroup(title=GLib.markup_escape_text(title), visible=False)
+            group = Adw.PreferencesGroup(title=GLib.markup_escape_text(title), visible=False,
+                                         description=TERMINAL_NOTE
+                                         if group_id == "terminal" else None)
             page.add(group)
             self.toggle_groups[group_id] = group
         self.toggle_rows = []
+        # One-off actions (redfox-actions) after the switches in their group.
+        self.actions = []
+        self.action_rows = []
 
         # The MIDI archive folder sits under the Midikeep switch, in Sound &
         # Music. It shows once `midikeep data-dir` answers.
@@ -76,6 +83,7 @@ class SettingsSection(Section):
     def shown(self):
         host.run_json(["redfox-autostart", "list", "--json"], self._on_autostart)
         host.run_json(["redfox-toggles", "list", "--json"], self._on_toggles)
+        actions.load(self._on_actions)
         host.run_json(["midikeep", "data-dir", "--json"], self._on_midi)
         host.run(["gnome-extensions", "info", DIM], on_done=self._on_dim_info)
 
@@ -129,6 +137,26 @@ class SettingsSection(Section):
             self.toggle_rows.append((group, row))
             if toggle["id"] == "midikeep":
                 group.add(self.midi_row)
+        self._place_actions()
+
+    def _on_actions(self, found):
+        self.actions = found
+        self._place_actions()
+
+    def _place_actions(self):
+        """The actions go last in their group, so after every (re)load of
+        the switches they're taken out and added again."""
+        for group, row in self.action_rows:
+            group.remove(row)
+        self.action_rows = []
+        for action in self.actions:
+            group = self.toggle_groups.get(action["group"])
+            if group is None:
+                continue
+            row = actions.ActionRow(self.window, action)
+            group.add(row)
+            group.set_visible(True)
+            self.action_rows.append((group, row))
 
     def _on_toggled(self, row, _param, toggle_id):
         if not row.get_sensitive() or getattr(row, "_busy", False):

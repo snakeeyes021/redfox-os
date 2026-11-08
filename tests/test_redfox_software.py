@@ -172,7 +172,9 @@ class TestList(unittest.TestCase):
             self.assertIsInstance(pack["hidden"], bool)
             self.assertIsInstance(pack["includes"], list)
             for item in pack["items"]:
-                self.assertEqual(set(item), {"id", "kind", "name", "summary", "installed", "icon"})
+                self.assertEqual(set(item), {"id", "kind", "name", "summary", "installed", "icon",
+                                             "restart"})
+                self.assertIsInstance(item["restart"], bool)
                 self.assertIn(item["kind"], ("flatpak", "redfox-app", "recipe"))
                 self.assertIsInstance(item["installed"], bool)
                 self.assertTrue(item["icon"] is None or isinstance(item["icon"], str))

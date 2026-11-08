@@ -2,9 +2,11 @@
 # redfox-terminal: the two optional terminal extras, each on or off by itself.
 #
 #   redfox-terminal status [--json]   {"prompt": true|false, "tools": true|false}
-#   redfox-terminal prompt on|off     the styled prompt: Starship with RedFox's
+#   redfox-terminal prompt on|off|status
+#                                     the styled prompt: Starship with RedFox's
 #                                     look. Looks only; commands are unchanged.
-#   redfox-terminal tools on|off      modern command-line tools: eza for ls,
+#   redfox-terminal tools on|off|status
+#                                     modern command-line tools: eza for ls,
 #                                     ugrep for grep, atuin for Ctrl+R history,
 #                                     zoxide's z (Bazzite's "bling").
 #
@@ -94,11 +96,12 @@ case "${1:-}" in
     prompt|tools)
         case "${2:-}" in
             on|off) switch "$1" "$2" ;;
-            *) echo "Usage: redfox-terminal $1 on|off" >&2; exit 2 ;;
+            status) if is_on "$1"; then echo on; else echo off; fi ;;
+            *) echo "Usage: redfox-terminal $1 on|off|status" >&2; exit 2 ;;
         esac
         ;;
     *)
-        sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'
+        sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'
         exit 2
         ;;
 esac

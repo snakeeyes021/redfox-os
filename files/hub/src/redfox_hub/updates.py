@@ -8,7 +8,7 @@ import time
 
 from gi.repository import Adw, Gio, GLib, Gtk
 
-from . import host
+from . import actions, host
 from .window import Section
 
 CHANNELS = [
@@ -201,7 +201,22 @@ class UpdatesSection(Section):
             back.add(row)
         page.add(back)
 
+        # One-off actions about updates (redfox-actions), NVIDIA's for instance.
+        self.actions_group = Adw.PreferencesGroup(visible=False)
+        self.action_rows = []
+        page.add(self.actions_group)
+        actions.load(self._on_actions)
+
         self.view.connect("destroy", lambda *_: self._stop_refresh())
+
+    def _on_actions(self, found):
+        for row in self.action_rows:
+            self.actions_group.remove(row)
+        self.action_rows = [actions.ActionRow(self.window, a)
+                            for a in found if a["group"] == "updates"]
+        for row in self.action_rows:
+            self.actions_group.add(row)
+        self.actions_group.set_visible(bool(self.action_rows))
 
     # Refreshing
 

@@ -7,7 +7,7 @@ Each pack's `section` puts it on one of the tabs below.
 
 from gi.repository import Adw, Gtk
 
-from . import host
+from . import actions, host
 from .window import Section
 
 BAZAAR = "io.github.kolunmi.Bazaar"
@@ -59,6 +59,15 @@ class AppsSection(Section):
         self.page = self.pages["packs"]
         self.stack.add_named(tabbed, "list")
         self.groups = []
+        self.used = set()
+        # One-off actions (redfox-actions) on these tabs, after the packs:
+        # tab, group title.
+        self.action_groups = {}
+        for section_id, title in (("gaming", "Fixes"), ("other", None)):
+            group = Adw.PreferencesGroup(title=title, visible=False)
+            self.pages[section_id].add(group)
+            self.action_groups[section_id] = group
+        self.action_rows = []
 
         # Bazaar, if it's installed.
         more = Adw.PreferencesGroup(visible=False)
@@ -130,10 +139,46 @@ class AppsSection(Section):
             page.add(group)
             self.groups.append((page, group))
             used.add(page)
-        for section_id, page in self.pages.items():
-            self.tabs.get_page(page).set_visible(section_id == "packs" or page in used)
+        self.used = used
+        self._show_tabs()
         self._update_bar()
         self.stack.set_visible_child_name("list")
+        actions.load(self._on_actions)
+
+    def _show_tabs(self):
+        for section_id, page in self.pages.items():
+            has_actions = (section_id in self.action_groups
+                           and self.action_groups[section_id].get_visible())
+            self.tabs.get_page(page).set_visible(
+                section_id == "packs" or page in self.used or has_actions)
+        pending = getattr(self, "pending_tab", None)
+        if pending and self.tabs.get_page(self.pages[pending]).get_visible():
+            self.tabs.set_visible_child_name(pending)
+            self.pending_tab = None
+
+    def _on_actions(self, found):
+        for group, row in self.action_rows:
+            group.remove(row)
+        self.action_rows = []
+        for section_id, group in self.action_groups.items():
+            rows = [a for a in found if a["group"] == section_id]
+            for action in rows:
+                row = actions.ActionRow(self.window, action,
+                                        on_finished=lambda: actions.load(self._on_actions))
+                group.add(row)
+                self.action_rows.append((group, row))
+            group.set_visible(bool(rows))
+            # After the packs, wherever they were added.
+            page = self.pages[section_id]
+            page.remove(group)
+            page.add(group)
+        self._show_tabs()
+
+    def open(self, subpath):
+        if subpath in self.pages:
+            # A tab shows once its list has loaded, so it's chosen then too.
+            self.pending_tab = subpath
+            self.tabs.set_visible_child_name(subpath)
 
     def _row(self, item):
         self.items[item["id"]] = item
@@ -224,6 +269,7 @@ class AppsSection(Section):
             for check in checks:
                 check.set_sensitive(False)
         self.failed = []
+        self.restart_names = []
         steps = []
         if add:
             steps.append(["redfox-software", "install", "--json", *add])
@@ -253,6 +299,8 @@ class AppsSection(Section):
                 self.items[item_id]["installed"] = self.wanted.get(
                     item_id, self.items[item_id]["installed"])
                 self.wanted.pop(item_id, None)
+                if self.items[item_id].get("restart"):
+                    self.restart_names.append(self.items[item_id]["name"])
             else:
                 self.failed.append(self.items[item_id]["name"])
 
@@ -274,6 +322,8 @@ class AppsSection(Section):
             self.window.toast("Didn't finish: " + ", ".join(self.failed))
         else:
             self.window.toast("Done")
+        if self.restart_names:
+            actions.ask_restart(self.window, self.restart_names)
         # Refresh icons and states from the system.
         self.loaded = False
         self.load()

@@ -1,7 +1,8 @@
 #!/usr/bin/python3
 """redfox-toggles: list, turn on and turn off RedFox Hub's on/off settings.
 
-Most are Bazzite's own `ujust` recipes; this gives them one interface:
+Most are Bazzite's own `ujust` recipes; the Terminal ones are redfox-terminal's,
+and deduplication is redfox-dedup's. This gives them one interface:
 
   list [--json]   {"version": 1, "toggles": [{"id", "group", "title",
                    "subtitle", "system", "on"}]}
@@ -25,6 +26,11 @@ from concurrent.futures import ThreadPoolExecutor
 VERSION = "1.0.0"
 CONTRACT_VERSION = 1
 SYSTEM_HELPER = "/usr/libexec/redfox-system-toggle"
+DEDUP = "/usr/libexec/redfox-dedup"
+# {memory} is what bees uses on this drive (redfox-dedup plan).
+DEDUP_SUBTITLE = ("A daily background job finds data stored more than once on the main "
+                  "drive and keeps one copy. It uses {memory} of memory while it runs, "
+                  "and the first run can take hours.")
 
 
 def ujust_status(recipe, on_tokens):
@@ -35,6 +41,19 @@ def ujust_status(recipe, on_tokens):
 # Display order. Each toggle: group, title, subtitle, how to read its state,
 # and how to change it (a system helper name, or the user's own commands).
 TOGGLES = [
+    # Terminal (RedFox's own, through redfox-terminal; the first time, each
+    # installs its tools with Homebrew)
+    dict(id="prompt", group="terminal", title="Styled Prompt",
+         subtitle="Colours and icons in the terminal's prompt, with the current folder "
+                  "and Git branch. Looks only: commands work as before.",
+         system=False, status=["redfox-terminal", "prompt", "status"], on_tokens={"on"},
+         on=["redfox-terminal", "prompt", "on"], off=["redfox-terminal", "prompt", "off"]),
+    dict(id="tools", group="terminal", title="Modern Command-Line Tools",
+         subtitle="Changes some commands as you type them: ls lists with eza, grep "
+                  "searches with ugrep, Ctrl+R searches history with atuin, and z jumps "
+                  "to folders you've used. Scripts aren't affected.",
+         system=False, status=["redfox-terminal", "tools", "status"], on_tokens={"on"},
+         on=["redfox-terminal", "tools", "on"], off=["redfox-terminal", "tools", "off"]),
     # Services
     dict(id="tailscale", group="services", title="Tailscale",
          subtitle="A private network between your devices",
@@ -56,6 +75,9 @@ TOGGLES = [
     dict(id="automount", group="storage", title="Mount Internal Drives at Startup",
          subtitle="Labelled partitions on other internal drives open under /run/media/system",
          system=True, **ujust_status("automounting", {"enable"})),
+    dict(id="dedup", group="storage", title="Save Space on Identical Files",
+         subtitle=DEDUP_SUBTITLE.format(memory="up to 2 GB"),
+         system=True, status=[DEDUP, "status"], on_tokens={"on"}),
     # Sound & Music
     dict(id="midikeep", group="sound", title="Record MIDI Keyboards",
          subtitle="Midikeep saves everything you play on a MIDI keyboard to the archive folder",
@@ -93,18 +115,38 @@ def read_state(toggle):
     except (OSError, subprocess.TimeoutExpired):
         return None
     words = res.stdout.split()
-    if not words:
+    if not words or words[-1] == "unavailable":   # redfox-dedup: not a btrfs drive
         return None
     return words[-1] in toggle["on_tokens"]
+
+
+def dedup_memory():
+    """What bees would use on this computer's main drive, in words, or None."""
+    try:
+        res = subprocess.run([DEDUP, "plan", "--json"], capture_output=True, text=True,
+                             stdin=subprocess.DEVNULL, env=_env(), check=False, timeout=30)
+        mb = json.loads(res.stdout)["memory_mb"]
+    except (OSError, subprocess.TimeoutExpired, ValueError, KeyError, TypeError):
+        return None
+    return f"{mb} MB" if mb < 1024 else f"{mb / 1024:g} GB"
+
+
+def subtitle(toggle):
+    if toggle["id"] == "dedup":
+        memory = dedup_memory()
+        if memory:
+            return DEDUP_SUBTITLE.format(memory=memory)
+    return toggle["subtitle"]
 
 
 def list_toggles():
     with ThreadPoolExecutor(max_workers=8) as pool:
         states = list(pool.map(read_state, TOGGLES))
+        subtitles = list(pool.map(subtitle, TOGGLES))
     return {"version": CONTRACT_VERSION, "toggles": [
-        {"id": t["id"], "group": t["group"], "title": t["title"], "subtitle": t["subtitle"],
+        {"id": t["id"], "group": t["group"], "title": t["title"], "subtitle": sub,
          "system": t["system"], "on": on}
-        for t, on in zip(TOGGLES, states)]}
+        for t, on, sub in zip(TOGGLES, states, subtitles)]}
 
 
 def change(toggle_id, turn_on):
