@@ -433,25 +433,32 @@ layout-tiling-default:
     gsettings reset org.gnome.shell.extensions.tilingshell move-window-right
     gsettings reset org.gnome.shell.extensions.tilingshell cycle-layouts
 
-# Flatten folders, alphabetize grid, and force dock apps to show
+# App grid order and folders are separate choices.
+# The grid is alphabetical by default (Alphabetical App Grid, on in the image's
+# default extensions), with GNOME's folders. These recipes change one or the other.
+
+# Keep the app grid alphabetical, and show dock apps in it too
 sort-app-grid:
-    # 1. Flatten folders
-    # This sets the list of folders to 'empty', dumping all apps into the root grid.
-    gsettings set org.gnome.desktop.app-folders folder-children "[]"
-    
-    # 2. Force alphabetical sort
-    # This does a one-time sort immediately so it looks right even before extensions load.
+    # A one-time sort now, so it looks right before the extension loads.
     gsettings reset org.gnome.shell app-picker-layout
-
-    # 3. Enable extensions    
-    # Extension A: Alphabetical App Grid (Maintains the sort order persistently)
+    # Alphabetical App Grid keeps it sorted, apps installed later included.
     gnome-extensions enable AlphabeticalAppGrid@stuarthayhurst
-
-    # Extension B: Keep Pinned Apps (Forces dock apps back into the grid)
+    # Pinned Apps in App Grid keeps dock apps in the grid as well.
     gnome-extensions enable pinned-apps-in-appgrid@brunosilva.io
 
+# GNOME's own app grid order: new apps go at the end, and icons can be arranged by hand
 default-app-grid:
-    echo "TODO: Implement default-app-grid"
+    gnome-extensions disable AlphabeticalAppGrid@stuarthayhurst || true
+    gnome-extensions disable pinned-apps-in-appgrid@brunosilva.io || true
+    gsettings reset org.gnome.shell app-picker-layout
+
+# Put every app in the main grid, with no folders
+flatten-app-folders:
+    gsettings set org.gnome.desktop.app-folders folder-children "[]"
+
+# Bring back the default app folders
+default-app-folders:
+    gsettings reset org.gnome.desktop.app-folders folder-children
 
 # --- LAYOUT PRESETS ---
 # Each preset applies live through `redfox-layout` (see `redfox-layout list`);
@@ -1029,7 +1036,7 @@ configure-normie: configure-keybindings-default configure-text-editor-reset rese
 # --- LAYOUT MOLECULES (UX/Behavior/Positioning) ---
 
 # Layout Matt
-layout-matt: sort-app-grid layout-tiling-default preset-dock-gnome set-window-controls-left-gnome
+layout-matt: sort-app-grid flatten-app-folders layout-tiling-default preset-dock-gnome set-window-controls-left-gnome
     gsettings reset-recursively org.gnome.shell.extensions.dash-to-dock
     gsettings set org.gnome.shell favorite-apps "[\
       'org.gnome.Ptyxis.desktop', \
@@ -1047,18 +1054,18 @@ layout-matt: sort-app-grid layout-tiling-default preset-dock-gnome set-window-co
     # Note: Add Gemini Web App ID and Dorico 6 once stabilized.
 
 # Layout Dewy
-layout-dewy: sort-app-grid layout-tiling-dewy preset-dock-ubuntu set-window-controls-right-full
+layout-dewy: sort-app-grid flatten-app-folders layout-tiling-dewy preset-dock-ubuntu set-window-controls-right-full
     gsettings set org.gnome.shell.extensions.dash-to-dock isolate-workspaces true
     gsettings set org.gnome.shell.extensions.dash-to-dock dash-max-icon-size 40
     gsettings set org.gnome.shell favorite-apps "['org.gnome.Nautilus.desktop', 'net.nokyan.Resources.desktop', 'org.gnome.Settings.desktop', 'org.gnome.Ptyxis.desktop', 'org.mozilla.firefox.desktop', 'com.brave.Browser.desktop', 'org.gnome.Calculator.desktop', 'org.gnome.TextEditor.desktop', 'dev.zed.Zed.desktop', 'cursor.desktop', 'com.spotify.Client.desktop', 'com.slack.Slack.desktop', 'org.signal.Signal.desktop', 'dev.vencord.Vesktop.desktop']"
 
 # Layout Fedora (Mostly Vanilla Fedora 43 Defaults)
-layout-fedora: default-app-grid layout-tiling-default preset-dock-gnome set-window-controls-right-gnome
+layout-fedora: default-app-grid default-app-folders layout-tiling-default preset-dock-gnome set-window-controls-right-gnome
     gsettings reset-recursively org.gnome.shell.extensions.dash-to-dock
     gsettings set org.gnome.shell favorite-apps "['org.mozilla.firefox.desktop', 'org.gnome.Calendar.desktop', 'org.gnome.Nautilus.desktop', 'io.github.kolunmi.Bazaar.desktop', 'org.gnome.TextEditor.desktop', 'org.gnome.Calculator.desktop']"
 
 # Layout Normie (Consumer-focused Experience)
-layout-normie: default-app-grid set-window-controls-left-gnome layout-tiling-default
+layout-normie: sort-app-grid default-app-folders set-window-controls-left-gnome layout-tiling-default
     gsettings set org.gnome.shell favorite-apps "[\
       'org.gnome.Nautilus.desktop', \
       'com.getmailspring.Mailspring.desktop', \
