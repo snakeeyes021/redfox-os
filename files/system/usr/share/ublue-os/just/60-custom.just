@@ -808,7 +808,7 @@ install-creative: install-audio install-graphics install-photos install-video in
 # Level 2: Molecules (Logical Groups)
 
 # Install Matt's Bundle
-install-matt: install-redfox-app-fleet install-dev install-bluefin-dx install-creative install-daily install-productivity install-compatibility install-basic install-comms
+install-matt: install-redfox-app-fleet install-dev install-antigravity-cli install-bluefin-dx install-creative install-daily install-productivity install-compatibility install-basic install-comms
     flatpak install -y flathub \
         com.jeffser.Alpaca
 
