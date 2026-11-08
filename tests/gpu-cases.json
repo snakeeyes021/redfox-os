@@ -8,5 +8,12 @@
   { "name": "NVIDIA of both kinds", "devices": [["10de", "2484"], ["10de", "1b80"]], "image": null },
   { "name": "virtual machine", "devices": [["1af4", "1050"]], "image": null },
   { "name": "Intel plus something unknown", "devices": [["8086", "46a6"], ["1234", "1111"]], "image": null },
-  { "name": "no display device", "devices": [], "image": null }
+  { "name": "no display device", "devices": [], "image": null },
+  { "name": "GTX 970 (Maxwell)", "devices": [["10de", "13c2"]], "image": "redfox-os-nvidia-legacy" },
+  { "name": "GTX 750 Ti (first Maxwell)", "devices": [["10de", "1380"]], "image": "redfox-os-nvidia-legacy" },
+  { "name": "GTX 780 (Kepler)", "devices": [["10de", "1004"]], "image": "redfox-os" },
+  { "name": "GT 710 (Kepler)", "devices": [["10de", "128b"]], "image": "redfox-os" },
+  { "name": "GTX 480 (Fermi)", "devices": [["10de", "06c0"]], "image": "redfox-os" },
+  { "name": "hybrid Intel + GT 740M (Kepler)", "devices": [["8086", "0416"], ["10de", "1292"]], "image": "redfox-os" },
+  { "name": "GTX 1060 and GTX 780", "devices": [["10de", "1c03"], ["10de", "1004"]], "image": null }
 ]
