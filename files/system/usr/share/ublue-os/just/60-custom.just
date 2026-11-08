@@ -108,10 +108,6 @@ configure-vscode:
 configure-cursor:
     echo "TODO: Implement configure-cursor"
 
-# Configure Antigravity IDE
-configure-antigravity:
-    echo "TODO: Implement configure-antigravity"
-
 # Configure Text Editor Dev Mode (Indentation)
 configure-text-editor-dev:
     #!/usr/bin/bash
@@ -990,7 +986,7 @@ configure-music: enable-midikeep
     echo "Configured music workstation."
 
 # Configure Dev Environment
-configure-dev: configure-vscode configure-cursor configure-antigravity
+configure-dev: configure-vscode configure-cursor
 
 # Configure Matt's Environment
 configure-matt: redfox-enforce-config apply-hardware-quirks add-swap configure-nordvpn reset-hostname configure-keybindings-default configure-dev configure-text-editor-dev configure-terminal-default configure-powersaver-no-suspend configure-xway-scale-off configure-music configure-autostart-tray
@@ -1045,7 +1041,6 @@ layout-matt: sort-app-grid flatten-app-folders layout-tiling-default preset-dock
       'org.mozilla.firefox.desktop', \
       'org.signal.Signal.desktop', \
       'org.gnome.TextEditor.desktop', \
-      'antigravity-ide.desktop', \
       'com.spotify.Client.desktop', \
       'steam.desktop', \
       'net.cozic.joplin_desktop.desktop', \
