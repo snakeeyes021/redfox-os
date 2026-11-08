@@ -126,5 +126,4 @@ modules:
       - install-smooth-overview.sh
       - stamp-redfox-dim.sh
       - no-bazzite-portal-autostart.sh
-      - install-antigravity.sh
       - branding.sh # last: RedFoxOS names, image-info, and the boot splash (rebuilds the initramfs)

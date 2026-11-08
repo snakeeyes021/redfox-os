@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 # 90-redfox-setup.sh
 # RedFoxOS User Setup Hook
-# Handles mandatory extensions and default settings for VSCode, Cursor, and Antigravity IDE.
+# Handles mandatory extensions and default settings for VSCode and Cursor.
 
 set -euo pipefail
 
@@ -86,44 +86,6 @@ if command -v cursor &> /dev/null; then
              echo "Installing Cursor extension: $ext_id"
              cursor --install-extension "$ext_id" --force > /dev/null 2>&1 ||
                  install_from_openvsx cursor "$ext_id" ||
-                 echo "Failed to install $ext_id"
-        fi
-    done
-fi
-
-
-# --- ANTIGRAVITY IDE SETUP ---
-
-if [ -x "/usr/lib/antigravity-ide/bin/antigravity-ide" ]; then
-    ANTIGRAVITY_BIN="/usr/lib/antigravity-ide/bin/antigravity-ide"
-
-    # Antigravity IDE Default Settings (One-time copy)
-    ANTIGRAVITY_USER_SETTINGS="$HOME/.config/Antigravity IDE/User/settings.json"
-    ANTIGRAVITY_SKELETON="/etc/skel/.config/Antigravity IDE/User/settings.json"
-
-    if [ ! -f "$ANTIGRAVITY_USER_SETTINGS" ]; then
-        if [ -f "$ANTIGRAVITY_SKELETON" ]; then
-            echo "Initializing Antigravity IDE settings..."
-            mkdir -p "$(dirname "$ANTIGRAVITY_USER_SETTINGS")"
-            cp "$ANTIGRAVITY_SKELETON" "$ANTIGRAVITY_USER_SETTINGS"
-        fi
-    fi
-
-    # Antigravity IDE Mandatory Extensions. Antigravity installs from Open VSX,
-    # where Microsoft doesn't publish its Dev Containers and Remote - SSH
-    # extensions, so asking for them failed (404) at every login.
-    ANTIGRAVITY_EXTENSIONS=(
-        "ms-azuretools.vscode-containers"
-        "RedFoxLabs.dewy"
-        "RedFoxLabs.sloppy"
-    )
-
-    for ext_id in "${ANTIGRAVITY_EXTENSIONS[@]}"; do
-        # Check if extension exists in ~/.antigravity-ide/extensions/
-        if ! compgen -G "$HOME/.antigravity-ide/extensions/${ext_id,,}*" > /dev/null; then
-             echo "Installing Antigravity IDE extension: $ext_id"
-             "$ANTIGRAVITY_BIN" --install-extension "$ext_id" --force > /dev/null 2>&1 ||
-                 install_from_openvsx "$ANTIGRAVITY_BIN" "$ext_id" ||
                  echo "Failed to install $ext_id"
         fi
     done
