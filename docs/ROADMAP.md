@@ -34,7 +34,7 @@
     - [ ] **Behavior:** Sort alphabetically (no folders).
         - [ ] Add behavior to keep user's folders saved, so they can go back to them if they want
     - [ ] **Behavior:** Pinning to dock must not remove from grid.
-- [x] **Default dock apps:** Files, Mailspring, Firefox, Signal, Calendar, LibreOffice Writer, Spotify, Joplin, Bazaar and Settings, in that order (`org.gnome.shell favorite-apps`), in place of the set inherited from Bazzite. GNOME hides any that aren't installed yet and shows them once they are. Each layout keeps its own set.
+- [x] **Default dock apps:** Files, Firefox, Calculator, Text Editor, Bazaar and Settings, in that order (`org.gnome.shell favorite-apps`), in place of the set inherited from Bazzite. Only apps that are in the image or installed automatically at the first boot go in the default dock. Each layout keeps its own set.
 
 ## 📦 Default Software
 - [x] **Dropbox:** Install official Dropbox client (flatpak)
