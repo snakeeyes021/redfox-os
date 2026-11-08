@@ -6,6 +6,9 @@
 # included packs' items first, then its own, each item once. Hidden packs are
 # personal bundles that a GUI shouldn't offer.
 #
+# A pack's `section` is where RedFox Hub's Software page shows it: packs (the
+# default), dev, gaming, hardware or other.
+#
 # Item kinds:
 #   flatpak     a Flathub app id, installed system-wide (the flatpak default)
 #   redfox-app  a RedFox Labs app, installed per user from its GitHub release
@@ -14,6 +17,9 @@
 #               commands; `check` exits 0 when the item is installed. An
 #               optional `icon` is an icon name or a path ($HOME and ~ are
 #               expanded), reported only while the item is installed.
+#
+# An item can name the graphics it needs with `gpu: amd|nvidia|intel`; on
+# computers without it, the item isn't listed and packs skip it.
 
 version: 1
 
@@ -129,17 +135,18 @@ packs:
 
   - id: dev
     name: Development
+    section: dev
     description: Code editors, containers and system inspection tools, plus the GNOME development pack.
     includes: [gnome-dev]
     items:
       - zed
-      - antigravity-cli
       - io.podman_desktop.PodmanDesktop
       - org.gnome.dspy
       - ca.desrt.dconf-editor
 
   - id: gnome-dev
     name: GNOME Development
+    section: dev
     description: Build and prototype GNOME apps.
     items:
       - org.gnome.Builder
@@ -147,6 +154,7 @@ packs:
 
   - id: bluefin-dx
     name: Bluefin DX Extras
+    section: dev
     description: Developer utilities from Bluefin's developer edition.
     items:
       - org.freedesktop.Bustle
@@ -155,6 +163,25 @@ packs:
       - me.iepure.devtoolbox
       - io.github.getnf.embellish
       - org.pipewire.Helvum
+
+  - id: gaming
+    name: Gaming
+    section: gaming
+    description: Tools for games on Steam and other launchers, and upscaling upgrades for games run through Proton.
+    items:
+      - com.vysp3r.ProtonPlus
+      - emudeck
+      - steamcmd
+      - proton-dlss-upgrade
+      - proton-fsr4-upgrade
+      - proton-fsr4-rdna3-upgrade
+
+  - id: hardware
+    name: Hardware
+    section: hardware
+    description: Software for specific hardware.
+    items:
+      - openrgb
 
   - id: redfox-app-fleet
     name: RedFox Apps
@@ -169,6 +196,7 @@ packs:
     hidden: true
     includes: [redfox-app-fleet, dev, bluefin-dx, creative, daily, productivity, compatibility, basic, comms]
     items:
+      - antigravity-cli
       - com.jeffser.Alpaca
 
   - id: dewy
@@ -546,3 +574,56 @@ items:
           echo "TeX Live is not installed."
       fi
     check: test -d /var/lib/flatpak/runtime/org.freedesktop.Sdk.Extension.texlive || test -d "$HOME/.local/share/flatpak/runtime/org.freedesktop.Sdk.Extension.texlive"
+
+  # Gaming (Bazzite's ujust recipes)
+  - id: com.vysp3r.ProtonPlus
+    kind: flatpak
+    name: Proton Plus
+    summary: Install and update Proton versions for Steam and other launchers.
+  - id: emudeck
+    kind: recipe
+    name: EmuDeck
+    summary: Sets up emulators for console and retro games.
+    install: ujust get-emudeck install
+    remove: ujust get-emudeck uninstall
+    check: '[ "$(ujust get-emudeck status 2>/dev/null)" = install ]'
+  - id: steamcmd
+    kind: recipe
+    name: SteamCMD
+    summary: Steam's command-line client, for running game servers.
+    install: ujust get-steamcmd install
+    remove: ujust get-steamcmd uninstall
+    check: '[ "$(ujust get-steamcmd status 2>/dev/null)" = install ]'
+  - id: proton-dlss-upgrade
+    kind: recipe
+    name: DLSS Upgrade
+    summary: Games run through Proton use the newest DLSS. Needs a Proton build that supports it, such as Proton-GE.
+    gpu: nvidia
+    install: ujust global-dlss enable
+    remove: ujust global-dlss disable
+    check: test -f "$HOME/.config/environment.d/99-proton-dlss.conf"
+  - id: proton-fsr4-upgrade
+    kind: recipe
+    name: FSR 4 Upgrade (Radeon RX 9000)
+    summary: Games run through Proton use FSR 4 in place of FSR 3.1. Needs Proton 10 or Proton-GE 10-25 or later.
+    gpu: amd
+    install: ujust global-fsr4 enable
+    remove: ujust global-fsr4 disable
+    check: test -f "$HOME/.config/environment.d/99-proton-fsr4.conf"
+  - id: proton-fsr4-rdna3-upgrade
+    kind: recipe
+    name: FSR 4 Upgrade (Radeon RX 7000)
+    summary: Games run through Proton use FSR 4 in place of FSR 3.1. Needs Proton-GE, Proton-EM or a similar build.
+    gpu: amd
+    install: ujust global-fsr4-rdna3 enable
+    remove: ujust global-fsr4-rdna3 disable
+    check: test -f "$HOME/.config/environment.d/99-proton-fsr4-rdna3.conf"
+
+  # Hardware (Bazzite's ujust recipes)
+  - id: openrgb
+    kind: recipe
+    name: OpenRGB
+    summary: Control RGB lighting on PC parts and peripherals.
+    install: ujust openrgb install
+    remove: ujust openrgb uninstall
+    check: '[ "$(ujust openrgb status 2>/dev/null)" = install ]'

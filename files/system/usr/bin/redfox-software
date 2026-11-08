@@ -6,8 +6,10 @@ The `ujust install-*` recipes call this, and so does RedFox Hub, which relies on
 the JSON printed by `list --json` and `install|remove --json`:
 
   list --json      {"version": 1, "packs": [{"id", "name", "description",
-                    "hidden", "includes": [...], "items": [{"id", "kind",
-                    "name", "summary", "installed", "icon"}]}]}
+                    "section", "hidden", "includes": [...], "items": [{"id",
+                    "kind", "name", "summary", "installed", "icon"}]}]}
+                   Items that need hardware this computer doesn't have (an
+                   item's `gpu`) are left out.
   install|remove --json ID...
                    one JSON object per line:
                      {"event": "start", "id": ...}
@@ -31,6 +33,10 @@ VERSION = "1.0.0"
 CONTRACT_VERSION = 1
 DEFAULT_CATALOG = "/usr/share/redfox/software.yaml"
 KINDS = ("flatpak", "redfox-app", "recipe")
+# Where a pack shows in RedFox Hub's Software page, in this order.
+SECTIONS = ("packs", "dev", "gaming", "hardware", "other")
+# PCI vendor ids of the graphics makers an item can ask for with `gpu`.
+GPU_VENDORS = {"amd": "0x1002", "nvidia": "0x10de", "intel": "0x8086"}
 REDFOX_APPS_UPDATER = "/usr/bin/update-redfox-apps"
 FLATHUB = "flathub"
 
@@ -60,6 +66,8 @@ class Catalog:
                 for key in ("install", "remove", "check"):
                     if not item.get(key):
                         raise CatalogError(f"{iid}: a recipe needs {key}")
+            if item.get("gpu") is not None and item["gpu"] not in GPU_VENDORS:
+                raise CatalogError(f"{iid}: unknown gpu {item['gpu']!r}")
             self.items[iid] = item
 
         self.packs = []
@@ -77,6 +85,9 @@ class Catalog:
                     raise CatalogError(f"pack {pid}: missing {key}")
             pack.setdefault("includes", [])
             pack.setdefault("items", [])
+            pack.setdefault("section", "packs")
+            if pack["section"] not in SECTIONS:
+                raise CatalogError(f"pack {pid}: unknown section {pack['section']!r}")
             pack["hidden"] = bool(pack.get("hidden", False))
             for iid in pack["items"]:
                 if iid not in self.items:
@@ -140,6 +151,33 @@ def installed_flatpaks():
     if res.returncode != 0:
         return set()
     return {line.strip() for line in res.stdout.splitlines() if line.strip()}
+
+
+def gpu_vendors():
+    """The graphics makers in this computer, as GPU_VENDORS keys.
+
+    $REDFOX_GPU_VENDORS (space-separated keys) overrides it, for tests."""
+    override = os.environ.get("REDFOX_GPU_VENDORS")
+    if override is not None:
+        return set(override.split())
+    found = set()
+    try:
+        cards = os.listdir("/sys/class/drm")
+    except OSError:
+        return found
+    for card in cards:
+        try:
+            with open(f"/sys/class/drm/{card}/device/vendor", encoding="ascii") as f:
+                vendor = f.read().strip()
+        except OSError:
+            continue
+        found.update(k for k, v in GPU_VENDORS.items() if v == vendor)
+    return found
+
+
+def available(item, vendors):
+    """Whether this computer has what the item needs."""
+    return item.get("gpu") is None or item["gpu"] in vendors
 
 
 def recipe_installed(item):
@@ -330,11 +368,21 @@ def apply(catalog, verb, ids, json_mode):
     rep = Reporter(catalog, json_mode, verb)
     item_ids = catalog.expand(ids)
     flatpaks = installed_flatpaks()
+    vendors = gpu_vendors()
     results = {}
 
     pending = []
+    # A pack quietly skips items for hardware this computer doesn't have;
+    # asking for such an item by name is an error.
+    item_ids = [i for i in item_ids if i in ids or available(catalog.items[i], vendors)]
     for iid in item_ids:
         item = catalog.items[iid]
+        if verb == "install" and not available(item, vendors):
+            rep.start(iid)
+            rep.log(iid, f"{item['name']} needs {item['gpu'].upper()} graphics, which this computer doesn't have")
+            rep.done(iid, False)
+            results[iid] = False
+            continue
         installed = is_installed(item, flatpaks)
         if (verb == "install") == installed:
             rep.start(iid)
@@ -358,8 +406,11 @@ def apply(catalog, verb, ids, json_mode):
 
 def list_packs(catalog):
     flatpaks = installed_flatpaks()
+    vendors = gpu_vendors()
     state = {}
     for iid, item in catalog.items.items():
+        if not available(item, vendors):
+            continue
         installed = is_installed(item, flatpaks)
         state[iid] = {
             "id": iid,
@@ -375,9 +426,10 @@ def list_packs(catalog):
             "id": pack["id"],
             "name": pack["name"],
             "description": pack["description"],
+            "section": pack["section"],
             "hidden": pack["hidden"],
             "includes": list(pack["includes"]),
-            "items": [dict(state[i]) for i in pack["items"]],
+            "items": [dict(state[i]) for i in pack["items"] if i in state],
         })
     return {"version": CONTRACT_VERSION, "packs": packs}
 

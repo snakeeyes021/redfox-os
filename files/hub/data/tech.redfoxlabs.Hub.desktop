@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
 Name=RedFox Hub
-GenericName=Welcome, Apps and Updates
+GenericName=Welcome, Software and Updates
 Comment=Welcome, apps, updates, settings and help for RedFoxOS
 Exec=redfox-hub
 Icon=tech.redfoxlabs.Hub

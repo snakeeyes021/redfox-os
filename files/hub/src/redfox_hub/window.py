@@ -5,7 +5,7 @@ from gi.repository import Adw, Gio, Gtk
 SECTIONS = [
     # id, title, icon
     ("welcome", "Welcome", "user-home-symbolic"),
-    ("apps", "Apps", "view-app-grid-symbolic"),
+    ("apps", "Software", "view-app-grid-symbolic"),
     ("updates", "Updates", "software-update-available-symbolic"),
     ("settings", "Settings", "preferences-system-symbolic"),
     ("manual", "Manual", "help-browser-symbolic"),

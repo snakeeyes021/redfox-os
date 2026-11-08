@@ -2,7 +2,7 @@
 
 A few full-window pages, each with one picture, a headline and a sentence or
 two, that end in links to the rest of Hub. It sets nothing up itself. The
-words are a draft for Matt.
+words are placeholders.
 
 At first login /usr/libexec/redfox-hub-first-login runs `redfox-hub
 --first-login`, which shows it once per user (a marker in

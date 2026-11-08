@@ -1,7 +1,8 @@
-"""Apps: RedFox's software packs, ticked and installed from a list.
+"""Software: RedFox's software packs, ticked and installed from a list.
 
 A front end to redfox-software, which reads the catalog in
 /usr/share/redfox/software.yaml (the same lists the install-* recipes use).
+Each pack's `section` puts it on one of the tabs below.
 """
 
 from gi.repository import Adw, Gtk
@@ -10,6 +11,15 @@ from . import host
 from .window import Section
 
 BAZAAR = "io.github.kolunmi.Bazaar"
+
+# Catalog sections, in tab order: id, title, icon.
+SECTIONS = [
+    ("packs", "Packs", "view-app-grid-symbolic"),
+    ("dev", "Dev", "utilities-terminal-symbolic"),
+    ("gaming", "Gaming", "input-gaming-symbolic"),
+    ("hardware", "Hardware", "computer-symbolic"),
+    ("other", "Other", "view-more-symbolic"),
+]
 
 
 class AppsSection(Section):
@@ -31,10 +41,23 @@ class AppsSection(Section):
         self.error.set_child(retry)
         self.stack.add_named(self.error, "error")
 
-        self.page = Adw.PreferencesPage(
-            description="RedFox's packs of favourite apps. Ticked apps are "
-                        "installed: tick or untick, then Apply.")
-        self.stack.add_named(self.page, "list")
+        # One page per section, shown as tabs; a tab only appears once its
+        # section has something in it.
+        self.tabs = Adw.ViewStack(vexpand=True)
+        self.pages = {}
+        for section_id, title, icon in SECTIONS:
+            page = Adw.PreferencesPage(
+                description="Ticked items are installed: tick or untick, then Apply."
+                if section_id == "packs" else None)
+            self.tabs.add_titled_with_icon(page, section_id, title, icon)
+            self.pages[section_id] = page
+        switcher = Adw.InlineViewSwitcher(stack=self.tabs, halign=Gtk.Align.CENTER,
+                                          margin_top=12, margin_start=12, margin_end=12)
+        tabbed = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        tabbed.append(switcher)
+        tabbed.append(self.tabs)
+        self.page = self.pages["packs"]
+        self.stack.add_named(tabbed, "list")
         self.groups = []
 
         # Bazaar, if it's installed.
@@ -70,7 +93,7 @@ class AppsSection(Section):
         self.stack.set_vexpand(True)
         root.append(self.stack)
         root.append(self.bar)
-        super().__init__(window, "Apps", root)
+        super().__init__(window, "Software", root)
         self.loaded = False
 
     def shown(self):
@@ -87,13 +110,15 @@ class AppsSection(Section):
             self.stack.set_visible_child_name("error")
             return
         self.loaded = True
-        for group in self.groups:
-            self.page.remove(group)
+        for page, group in self.groups:
+            page.remove(group)
         self.groups, self.items, self.checks, self.spinners = [], {}, {}, {}
         self.wanted = {}
+        used = set()
         for pack in data.get("packs", []):
             if pack.get("hidden") or not pack.get("items"):
                 continue
+            page = self.pages.get(pack.get("section"), self.pages["packs"])
             group = Adw.PreferencesGroup(title=pack["name"],
                                          description=pack.get("description"))
             all_button = Gtk.Button(label="Tick All", valign=Gtk.Align.CENTER)
@@ -102,8 +127,11 @@ class AppsSection(Section):
             group.set_header_suffix(all_button)
             for item in pack["items"]:
                 group.add(self._row(item))
-            self.page.add(group)
-            self.groups.append(group)
+            page.add(group)
+            self.groups.append((page, group))
+            used.add(page)
+        for section_id, page in self.pages.items():
+            self.tabs.get_page(page).set_visible(section_id == "packs" or page in used)
         self._update_bar()
         self.stack.set_visible_child_name("list")
 

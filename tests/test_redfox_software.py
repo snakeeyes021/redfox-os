@@ -33,7 +33,7 @@ TODAY = {
     "compatibility": ['com.usebottles.bottles'],
     "creative": ['ch.theologeek.Manuskript', 'com.github.unrud.VideoDownloader', 'com.obsproject.Studio', 'com.orama_interactive.Pixelorama', 'info.puredata.Pd', 'io.github.wartybix.Constrict', 'net.pixieditor.PixiEditor', 'net.purrdata.PurrData', 'net.sourceforge.VMPK', 'nl.hjdskes.gcolor3', 'org.ardour.Ardour', 'org.audacityteam.Audacity', 'org.blender.Blender', 'org.bunkus.mkvtoolnix-gui', 'org.cvfosammmm.Setzer', 'org.darktable.Darktable', 'org.frescobaldi.Frescobaldi', 'org.gimp.GIMP', 'org.gnome.gitlab.YaLTeR.VideoTrimmer', 'org.inkscape.Inkscape', 'org.kde.digikam', 'org.kde.kdenlive', 'org.kde.krita', 'org.musescore.MuseScore', 'org.pipewire.Helvum', 'soundthread', 'tech.redfoxlabs.Pianola'],
     "daily": ['com.github.geigi.cozy', 'com.github.johnfactotum.Foliate', 'com.spotify.Client', 'dev.geopjr.Tuba', 'io.gitlab.news_flash.NewsFlash', 'org.gnome.Music'],
-    "dev": ['antigravity-cli', 'ca.desrt.dconf-editor', 'io.podman_desktop.PodmanDesktop', 'org.gnome.Builder', 'org.gnome.dspy', 're.sonny.Workbench', 'zed'],
+    "dev": ['ca.desrt.dconf-editor', 'io.podman_desktop.PodmanDesktop', 'org.gnome.Builder', 'org.gnome.dspy', 're.sonny.Workbench', 'zed'],
     "dewy": ['app.drey.Warp', 'be.alexandervanhee.gradia', 'com.bambulab.BambuStudio', 'com.brave.Browser', 'com.dropbox.Client', 'com.slack.Slack', 'com.spotify.Client', 'dev.vencord.Vesktop', 'net.cozic.joplin_desktop', 'net.pixieditor.PixiEditor', 'org.gnome.SimpleScan', 'org.libreoffice.LibreOffice', 'org.signal.Signal', 'org.texstudio.TeXstudio', 'org.videolan.VLC', 'texlive', 'zed'],
     "gnome-dev": ['org.gnome.Builder', 're.sonny.Workbench'],
     "graphics": ['com.orama_interactive.Pixelorama', 'net.pixieditor.PixiEditor', 'nl.hjdskes.gcolor3', 'org.blender.Blender', 'org.gimp.GIMP', 'org.inkscape.Inkscape', 'org.kde.krita'],
@@ -109,7 +109,10 @@ class TestCatalog(unittest.TestCase):
     def test_bundles_match_the_old_recipes(self):
         for pack_id, expected in TODAY.items():
             self.assertEqual(sorted(self.catalog.resolve(pack_id)), sorted(expected), pack_id)
-        self.assertEqual(set(TODAY), set(self.catalog.pack_by_id))
+        # The Gaming and Hardware packs are new, built from Bazzite's own
+        # recipes; every other pack replaced an install-* recipe.
+        self.assertEqual(set(TODAY), {pid for pid, pack in self.catalog.pack_by_id.items()
+                                      if pack["section"] in ("packs", "dev")})
 
     def test_hidden_packs(self):
         hidden = {p["id"] for p in self.catalog.packs if p["hidden"]}
@@ -146,7 +149,8 @@ class TestList(unittest.TestCase):
     def test_list_json_contract(self):
         run = fake_run(recipes_installed=("SoundThread",))
         with unittest.mock.patch.object(rs.subprocess, "run", run), \
-                unittest.mock.patch.dict(os.environ, {"REDFOX_SOFTWARE_CATALOG": str(CATALOG_PATH)}):
+                unittest.mock.patch.dict(os.environ, {"REDFOX_SOFTWARE_CATALOG": str(CATALOG_PATH),
+                                                      "REDFOX_GPU_VENDORS": "nvidia"}):
             buf = io.StringIO()
             with redirect_stdout(buf):
                 self.assertEqual(rs.main(["list", "--json"]), 0)
@@ -160,7 +164,9 @@ class TestList(unittest.TestCase):
         self.assertEqual([p["id"] for p in data["packs"]], [p["id"] for p in self.catalog.packs])
         seen = {}
         for pack in data["packs"]:
-            self.assertEqual(set(pack), {"id", "name", "description", "hidden", "includes", "items"})
+            self.assertEqual(set(pack), {"id", "name", "description", "section", "hidden",
+                                         "includes", "items"})
+            self.assertIn(pack["section"], rs.SECTIONS)
             for key in ("id", "name", "description"):
                 self.assertIsInstance(pack[key], str)
             self.assertIsInstance(pack["hidden"], bool)
@@ -182,6 +188,34 @@ class TestList(unittest.TestCase):
         self.assertIsNone(seen["zed"]["icon"])
         self.assertTrue(next(p for p in data["packs"] if p["id"] == "matt")["hidden"])
         self.assertEqual(next(p for p in data["packs"] if p["id"] == "creative")["items"], [])
+
+    def test_sections(self):
+        sections = {p["id"]: p["section"] for p in self.catalog.packs}
+        self.assertEqual(sections["basic"], "packs")
+        for pack_id in ("dev", "gnome-dev", "bluefin-dx"):
+            self.assertEqual(sections[pack_id], "dev")
+        self.assertEqual(sections["gaming"], "gaming")
+        self.assertEqual(sections["hardware"], "hardware")
+        with self.assertRaises(rs.CatalogError):
+            rs.Catalog({"items": [], "packs": [
+                {"id": "p", "name": "P", "description": "d", "section": "nowhere"}]})
+
+    def test_gpu_items_only_listed_with_that_gpu(self):
+        def listed(vendors):
+            with unittest.mock.patch.object(rs.subprocess, "run", fake_run()), \
+                    unittest.mock.patch.dict(os.environ, {"REDFOX_GPU_VENDORS": vendors}):
+                data = rs.list_packs(self.catalog)
+            gaming = next(p for p in data["packs"] if p["id"] == "gaming")
+            return {i["id"] for i in gaming["items"]}
+        on_nvidia, on_amd = listed("nvidia intel"), listed("amd")
+        self.assertIn("proton-dlss-upgrade", on_nvidia)
+        self.assertNotIn("proton-fsr4-upgrade", on_nvidia)
+        self.assertIn("proton-fsr4-upgrade", on_amd)
+        self.assertIn("proton-fsr4-rdna3-upgrade", on_amd)
+        self.assertNotIn("proton-dlss-upgrade", on_amd)
+        with self.assertRaises(rs.CatalogError):
+            rs.Catalog({"items": [{"id": "x", "kind": "flatpak", "name": "X",
+                                   "summary": "s", "gpu": "voodoo"}], "packs": []})
 
     def test_version(self):
         buf = io.StringIO()

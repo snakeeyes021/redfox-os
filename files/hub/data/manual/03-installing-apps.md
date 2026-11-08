@@ -6,7 +6,7 @@ Get desktop apps from Bazaar, command-line tools from Homebrew, and anything els
 
 **Bazaar** is the app store. It installs apps from [Flathub](https://flathub.org) as Flatpaks, which run alongside the system rather than inside it, are updated with it, and never get in the way of a system update. Look here first.
 
-[Hub › Apps](hub:apps) has RedFox's packs of favourites (Productivity, Creative, Dev and others), ready to tick and install.
+[Hub › Software](hub:apps) has RedFox's packs of favourites (Productivity, Creative, Dev and others), ready to tick and install.
 
 To install a Flatpak from a terminal:
 

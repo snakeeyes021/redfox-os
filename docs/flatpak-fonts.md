@@ -9,7 +9,7 @@
 
 Upstream: [freedesktop-sdk#1563](https://gitlab.com/freedesktop-sdk/freedesktop-sdk/-/issues/1563). Clearing an app's font cache doesn't help: it's rebuilt the same way.
 
-**RedFoxOS's fix (`fix/flatpak-system-fonts`):**
+**RedFoxOS's fix:**
 - `/usr/share/redfox/flatpak-fonts/fonts.conf` loads the runtime's normal fontconfig setup, then gives `/run/host/fonts` its own name again, with its own cache folder (`fontconfig-redfox`).
 - `redfox-flatpak-fonts.service` (a boot-time oneshot) runs `/usr/libexec/redfox-flatpak-fonts apply`. That copies the file to `/var/lib/redfox/flatpak-fonts/`, where apps can be given read access (not `/usr` or `/etc`). It then adds one system-wide Flatpak override, in `/var/lib/flatpak/overrides/global`:
   - `--filesystem=/var/lib/redfox/flatpak-fonts:ro`

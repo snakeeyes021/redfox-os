@@ -1,4 +1,9 @@
-"""Settings: the layout picker, extra dimming, apps at login, and the MIDI archive."""
+"""Settings: the layout picker, extra dimming, apps at login, services,
+storage, and sound & music (with the MIDI archive).
+
+The on/off settings in Services, Storage and Sound & Music come from
+`redfox-toggles`, which also changes them (asking for a password through
+polkit for the system-wide ones)."""
 
 from gi.repository import Adw, Gio, GLib, Gtk
 
@@ -11,6 +16,9 @@ from .window import Section
 RFL = "org.gnome.shell.extensions.redfox-layouts"
 # RedFox Dim, turned on and off with gnome-extensions like any extension.
 DIM = "redfox-dim@redfoxlabs.tech"
+# redfox-toggles groups, in page order: id, title.
+TOGGLE_GROUPS = [("services", "Services"), ("storage", "Storage"),
+                 ("sound", "Sound & Music")]
 
 
 class SettingsSection(Section):
@@ -45,23 +53,29 @@ class SettingsSection(Section):
         self.login_rows = []
         page.add(self.login_group)
 
-        # Midikeep records everything played on a MIDI keyboard. The group
-        # shows once `midikeep data-dir` answers.
-        self.midi_group = Adw.PreferencesGroup(
-            title="MIDI Archive", visible=False,
-            description="Midikeep records everything you play on a MIDI keyboard. "
-                        "Pianola opens the same archive.")
-        self.midi_row = Adw.ActionRow(title="Archive Folder", subtitle="…")
+        # On/off settings from redfox-toggles, in these groups. A group shows
+        # once it has rows.
+        self.toggle_groups = {}
+        for group_id, title in TOGGLE_GROUPS:
+            # Group titles are markup ("Sound & Music").
+            group = Adw.PreferencesGroup(title=GLib.markup_escape_text(title), visible=False)
+            page.add(group)
+            self.toggle_groups[group_id] = group
+        self.toggle_rows = []
+
+        # The MIDI archive folder sits under the Midikeep switch, in Sound &
+        # Music. It shows once `midikeep data-dir` answers.
+        self.midi_row = Adw.ActionRow(title="MIDI Archive Folder", subtitle="…",
+                                      visible=False)
         self.midi_row.add_css_class("property")
         choose = Gtk.Button(label="Choose…", valign=Gtk.Align.CENTER)
         choose.connect("clicked", self._on_choose_midi)
         self.midi_row.add_suffix(choose)
-        self.midi_group.add(self.midi_row)
-        page.add(self.midi_group)
         self.midi_dir = None
 
     def shown(self):
         host.run_json(["redfox-autostart", "list", "--json"], self._on_autostart)
+        host.run_json(["redfox-toggles", "list", "--json"], self._on_toggles)
         host.run_json(["midikeep", "data-dir", "--json"], self._on_midi)
         host.run(["gnome-extensions", "info", DIM], on_done=self._on_dim_info)
 
@@ -90,10 +104,53 @@ class SettingsSection(Section):
 
         host.run(["gnome-extensions", verb, DIM], on_done=done)
 
+    # Services, Storage, Sound & Music
+
+    def _on_toggles(self, data, error):
+        for group, row in self.toggle_rows:
+            group.remove(row)
+        self.toggle_rows = []
+        if self.midi_row.get_parent():
+            self.toggle_groups["sound"].remove(self.midi_row)
+        if error:
+            return
+        for toggle in data.get("toggles", []):
+            group = self.toggle_groups.get(toggle["group"])
+            if group is None:
+                continue
+            row = Adw.SwitchRow(title=toggle["title"], subtitle=toggle["subtitle"])
+            if toggle["on"] is None:
+                row.set_sensitive(False)
+            else:
+                row.set_active(toggle["on"])
+            row.connect("notify::active", self._on_toggled, toggle["id"])
+            group.add(row)
+            group.set_visible(True)
+            self.toggle_rows.append((group, row))
+            if toggle["id"] == "midikeep":
+                group.add(self.midi_row)
+
+    def _on_toggled(self, row, _param, toggle_id):
+        if not row.get_sensitive() or getattr(row, "_busy", False):
+            return
+        row._busy = True
+        row.set_sensitive(False)
+        verb = "on" if row.get_active() else "off"
+
+        def done(returncode, output):
+            if returncode != 0:
+                lines = output.strip().splitlines()
+                self.window.toast(lines[-1] if lines else "That didn't change")
+            # Read every state back: a change can turn on something else
+            # (Cockpit turns on remote login).
+            host.run_json(["redfox-toggles", "list", "--json"], self._on_toggles)
+
+        host.run(["redfox-toggles", verb, toggle_id], on_done=done)
+
     # MIDI archive
 
     def _on_midi(self, data, error):
-        self.midi_group.set_visible(not error)
+        self.midi_row.set_visible(not error)
         if not error:
             self.midi_row.set_subtitle(data["data_dir"])
             self.midi_dir = data["data_dir"]

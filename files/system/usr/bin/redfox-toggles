@@ -1,0 +1,147 @@
+#!/usr/bin/python3
+"""redfox-toggles: list, turn on and turn off RedFox Hub's on/off settings.
+
+Most are Bazzite's own `ujust` recipes; this gives them one interface:
+
+  list [--json]   {"version": 1, "toggles": [{"id", "group", "title",
+                   "subtitle", "system", "on"}]}
+                  "on" is true or false, or null when the state couldn't be
+                  read (the toggle's software isn't there, for instance).
+  on|off ID       exits 0 when it worked.
+
+System-wide toggles (system: true) change through
+/usr/libexec/redfox-system-toggle, run with pkexec, which asks for a password
+in GNOME's own dialog (polkit action tech.redfoxlabs.hub.system-toggles).
+The others change only your own settings and need no password.
+"""
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+from concurrent.futures import ThreadPoolExecutor
+
+VERSION = "1.0.0"
+CONTRACT_VERSION = 1
+SYSTEM_HELPER = "/usr/libexec/redfox-system-toggle"
+
+
+def ujust_status(recipe, on_tokens):
+    """A Bazzite recipe's `status` token, as on (True) or off (False)."""
+    return {"status": ["ujust", recipe, "status"], "on_tokens": on_tokens}
+
+
+# Display order. Each toggle: group, title, subtitle, how to read its state,
+# and how to change it (a system helper name, or the user's own commands).
+TOGGLES = [
+    # Services
+    dict(id="tailscale", group="services", title="Tailscale",
+         subtitle="A private network between your devices",
+         system=True, **ujust_status("tailscale", {"enable"})),
+    dict(id="ssh", group="services", title="Remote Login (SSH)",
+         subtitle="Other computers can log in to this one over the network",
+         system=True, **ujust_status("ssh", {"enable"})),
+    dict(id="cockpit", group="services", title="Cockpit",
+         subtitle="Manage this computer from a web browser. Also turns on remote login.",
+         system=True, **ujust_status("cockpit", {"enable"})),
+    dict(id="wake-on-lan", group="services", title="Wake-on-LAN",
+         subtitle="Another device on the network can turn this computer on (wired network only)",
+         system=True, **ujust_status("wol", {"enable", "force-enable"})),
+    # Storage
+    dict(id="snapshots", group="storage", title="Home Folder Snapshots",
+         subtitle="Regular snapshots of your files, so you can get earlier versions back. "
+                  "They take up disk space over time.",
+         system=True, **ujust_status("configure-snapshots", {"enable"})),
+    dict(id="automount", group="storage", title="Mount Internal Drives at Startup",
+         subtitle="Labelled partitions on other internal drives open under /run/media/system",
+         system=True, **ujust_status("automounting", {"enable"})),
+    # Sound & Music
+    dict(id="midikeep", group="sound", title="Record MIDI Keyboards",
+         subtitle="Midikeep saves everything you play on a MIDI keyboard to the archive folder",
+         system=False, status=["systemctl", "--user", "is-enabled", "midikeep.service"],
+         on_tokens={"enabled"},
+         on=["ujust", "enable-midikeep"], off=["ujust", "disable-midikeep"]),
+    dict(id="virtual-channels", group="sound", title="Virtual Audio Channels",
+         subtitle="Separate Game, Voice, Browser and Music outputs, for routing audio "
+                  "in OBS and similar apps",
+         system=False, **ujust_status("setup-virtual-channels", {"create"}),
+         on=["ujust", "setup-virtual-channels", "create"],
+         off=["ujust", "setup-virtual-channels", "remove"]),
+    dict(id="virtual-surround", group="sound", title="Virtual Surround for Headphones",
+         subtitle="A 7.1 surround output for headphones",
+         system=False, **ujust_status("setup-virtual-surround", {"enable"}),
+         on=["ujust", "setup-virtual-surround", "enable"],
+         off=["ujust", "setup-virtual-surround", "disable"]),
+    dict(id="bt-mic", group="sound", title="Bluetooth Headsets: Best Sound",
+         subtitle="Keeps headset microphones off, so playback stays in high quality",
+         system=True, **ujust_status("toggle-bt-mic", {"enable"})),
+]
+BY_ID = {t["id"]: t for t in TOGGLES}
+
+
+def _env():
+    env = dict(os.environ)
+    env["LC_ALL"] = "C.UTF-8"
+    return env
+
+
+def read_state(toggle):
+    try:
+        res = subprocess.run(toggle["status"], capture_output=True, text=True,
+                             stdin=subprocess.DEVNULL, env=_env(), check=False, timeout=60)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    words = res.stdout.split()
+    if not words:
+        return None
+    return words[-1] in toggle["on_tokens"]
+
+
+def list_toggles():
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        states = list(pool.map(read_state, TOGGLES))
+    return {"version": CONTRACT_VERSION, "toggles": [
+        {"id": t["id"], "group": t["group"], "title": t["title"], "subtitle": t["subtitle"],
+         "system": t["system"], "on": on}
+        for t, on in zip(TOGGLES, states)]}
+
+
+def change(toggle_id, turn_on):
+    toggle = BY_ID[toggle_id]
+    if toggle["system"]:
+        argv = ["pkexec", SYSTEM_HELPER, toggle_id, "on" if turn_on else "off"]
+    else:
+        argv = toggle["on"] if turn_on else toggle["off"]
+    try:
+        return subprocess.run(argv, stdin=subprocess.DEVNULL, env=_env(), check=False).returncode
+    except OSError as error:
+        print(f"redfox-toggles: couldn't run {argv[0]}: {error.strerror}", file=sys.stderr)
+        return 127
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(prog="redfox-toggles", description=__doc__.splitlines()[0])
+    parser.add_argument("--version", action="version", version=f"%(prog)s {VERSION}")
+    sub = parser.add_subparsers(dest="command", required=True)
+    p_list = sub.add_parser("list", help="show every toggle and whether it's on")
+    p_list.add_argument("--json", action="store_true")
+    for verb in ("on", "off"):
+        p = sub.add_parser(verb, help=f"turn a toggle {verb}")
+        p.add_argument("id", choices=list(BY_ID))
+    args = parser.parse_args(argv)
+
+    if args.command == "list":
+        data = list_toggles()
+        if args.json:
+            print(json.dumps(data))
+        else:
+            for t in data["toggles"]:
+                state = {True: "on", False: "off", None: "?"}[t["on"]]
+                print(f"{t['id']:18} {state:3}  {t['title']}")
+        return 0
+    return change(args.id, args.command == "on")
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -2,6 +2,10 @@
 
 ![Platform](https://img.shields.io/badge/Platform-BlueBuild%20%2F%20bootc-blue) ![Packaging](https://img.shields.io/badge/Packaging-OCI%20image-orange) ![License](https://img.shields.io/badge/License-Apache%202.0-blue) ![Release](https://img.shields.io/github/v/release/snakeeyes021/redfox-os?label=Release)
 
+![The RedFoxOS desktop: the RedFox layout's floating dock on the left, Files, and a terminal showing the RedFoxOS welcome message](docs/screenshots/desktop.jpg)
+
+*The RedFoxOS desktop with the RedFox layout.*
+
 ## Purpose
 The purpose of RedFoxOS is to round out the offerings of Bazzite, both with some of the features included in Bluefin DX (and therefore Bazzite DX) as well as a few features, apps, and configs not present in either.
 
@@ -15,13 +19,17 @@ Its primary raison d'être is to provide driver support for Pascal-series Nvidia
 - [x] **Development:** VS Code (system install), Android Tools, BPF Tools (bpftop, bpftrace), Sysprof, pixi/uv
 - [x] **CLI Utilities:** zsh, restic, rclone, ccache
 - [x] **Editor:** Zed (ujust recipe installer)
-- [ ] **AI Utilities:** Cursor (system), Antigravity (system), Antigravity IDE (system), ramalama (system), Ollama (system), OpenClaw (ujust)
+- [ ] **AI Utilities:** Cursor (system), ramalama (system), Ollama (system), OpenClaw (ujust)
 
 ### Desktop & Media
 - [x] **NVIDIA Pascal Support:** Built on `bazzite-gnome-nvidia` for legacy driver support
 - [x] **Curated App Packs:** Creative, Productivity, Dev, and several other curated app bundle installers, all installable via simple ujust recipes
 - [ ] **GNOME config:** Several preset desktop environment configs, including a mostly "vanilla" GNOME config, all available via simple ujust recipes
 - [ ] **More:** Wallpaper, keyboard shortcuts, shell prompt, etc.
+
+![GNOME Settings, System › About, on RedFoxOS: the RedFoxOS logo and name, GNOME Shell 51.1 and the build date](docs/screenshots/about.png)
+
+*Settings › System › About on RedFoxOS (in a virtual machine).*
 
 ## Installation
 
@@ -37,11 +45,15 @@ We have three images available, depending on your hardware:
 > [!TIP]
 > **Not sure which one to pick?**
 >
-> Run this command in your terminal to automatically detect your GPU and see which image is right for you:
+> The [download page](https://redfoxlabs.tech/download/) can tell you. Or run this in a terminal on the computer:
 >
 > ```bash
 > curl -sL https://raw.githubusercontent.com/snakeeyes021/redfox-os/main/extras/identify_gpu.sh | bash
 > ```
+>
+> On Windows, in PowerShell: `irm https://raw.githubusercontent.com/snakeeyes021/redfox-os/main/extras/identify_gpu.ps1 | iex`
+>
+> Either prints your graphics and a short code. Paste the code into the download page, which shows the image that suits them. RedFox Hub marks the same image "(Recommended)": both use [`gpu-rules.json`](files/system/usr/share/redfox/gpu-rules.json).
 
 ### Rebasing from Bluefin or Bazzite (GNOME)
 To switch to RedFoxOS from an existing GNOME-based Universal Blue installation, choose the command that corresponds to your hardware:
@@ -107,3 +119,11 @@ For this reason, we do not currently have ISOs available for download, and even 
 3.  Immediately run one of the above commands to rebase to your preferred version of RedFoxOS.
 4.  Reboot.
 5.  Profit.
+
+## Secure Boot
+
+RedFoxOS uses Bazzite's kernel, which is signed with Universal Blue's key. With Secure Boot on, the computer needs that key enrolled once: run `ujust enroll-secure-boot-key`, and at the next restart, a blue **MOK management** screen appears:
+
+1. Choose **Enroll MOK**, then **Continue**, then **Yes**.
+2. Type the password `universalblue`.
+3. Choose **Reboot**.
