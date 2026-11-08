@@ -33,8 +33,9 @@ HELPER = "redfox-layouts@redfoxlabs.tech"
 BLUR_MY_SHELL = "blur-my-shell@aunetx"
 
 # Extensions a layout may turn on. Applying a layout turns off the ones it
-# doesn't list. The helper is always on; it does nothing unless asked to.
-MANAGED_EXTENSIONS = [DASH_TO_DOCK, DASH_TO_PANEL, ARCMENU, SMOOTH_OVERVIEW]
+# doesn't list. The helper and smooth-overview are always on; each does
+# nothing unless it's needed.
+MANAGED_EXTENSIONS = [DASH_TO_DOCK, DASH_TO_PANEL, ARCMENU]
 
 DTD = "org.gnome.shell.extensions.dash-to-dock"
 DTP = "org.gnome.shell.extensions.dash-to-panel"
@@ -163,7 +164,7 @@ LAYOUTS = {
     "redfox": {
         "title": "RedFox",
         "description": "A floating dock on the left on big screens; the GNOME dash on small ones.",
-        "extensions": [SMOOTH_OVERVIEW],
+        "extensions": [],
         # Dash to Dock is turned on and off by the helper extension.
         "auto_dock": True,
         "settings": {
@@ -194,7 +195,7 @@ LAYOUTS = {
     "cal": {
         "title": "Cal",
         "description": "A floating dock along the bottom, window buttons on the left.",
-        "extensions": [DASH_TO_DOCK, SMOOTH_OVERVIEW],
+        "extensions": [DASH_TO_DOCK],
         "settings": {
             DTD: {
                 "dock-position": "BOTTOM",
@@ -388,7 +389,10 @@ def apply_layout(name):
     remove_old_dock_copy()
     warn_shadowed_copies()
     layout = LAYOUTS[name]
-    wanted = [HELPER, *layout["extensions"]]
+    # The helper and smooth-overview are always on. smooth-overview decides
+    # for itself: it fills in the overview only while Dash to Dock runs with a
+    # dock that stops short of the screen edges (not in panel mode).
+    wanted = [HELPER, SMOOTH_OVERVIEW, *layout["extensions"]]
 
     # 1. Turn off what this layout doesn't use, so an old dock or panel
     #    isn't rebuilt for every setting changed below.
