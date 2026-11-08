@@ -135,8 +135,12 @@ def dash_to_panel(elements, **extra):
             "panel-positions": per_monitor("BOTTOM"),
             # 52 px with 8 px around each icon: the icons stay 36 px, with more
             # room above and below them than 44 px and Dash to Panel's 4.
+            # The padding applies on all sides, so the margin between icons
+            # drops from 8 to 4 to keep their side-to-side spacing as it was
+            # (2 x margin + 2 x padding = 24 px either way).
             "panel-sizes": per_monitor(52),
             "appicon-padding": 8,
+            "appicon-margin": 4,
             "panel-element-positions": per_monitor(elements),
             "stockgs-keep-top-panel": False,
             "hide-overview-on-startup": True,
