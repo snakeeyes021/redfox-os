@@ -49,7 +49,7 @@ Then, for a release only, the publish job (after all three ISOs built):
 3. Moves the new ones over the current names: the ISOs first, then the checksums, signatures and `RELEASE` (the release's tag). The names never change, so the download links keep working.
 4. Deletes anything else at the top of the bucket.
 
-So the bucket holds the current release and the one before it (about 45 GB, roughly $0.55 a month). `previous/` isn't served; it's there to put back by hand if a release has to be pulled.
+So the bucket holds the current release and the one before it (about 45 GB, roughly $0.55 a month). The Worker serves the older one at `previous/<file name>` (for example `https://download.redfoxlabs.tech/previous/redfox-os.iso`), for when the current build won't install on a machine. It's an older build, not a stable or long-term one, so the download page and README don't link to it; anywhere it's ever mentioned, it should be described that way. It can also be put back by hand if a release has to be pulled.
 
 Each ISO takes about 30–40 minutes and is about 7–8 GB.
 

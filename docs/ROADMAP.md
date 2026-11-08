@@ -183,6 +183,7 @@
 *One app for RedFox's own tooling, **RedFox Hub** (`tech.redfoxlabs.Hub`), with Welcome, Apps, Updates, Settings and Manual sections.*
 
 - [ ] **Welcome:** a short, cheerful tour of RedFoxOS at first login, in the spirit of GNOME Tour, ending in links to Apps, Settings and the Manual. Runs after Bazzite Portal.
+    - [ ] **Proposed, to discuss:** apps still install at the first boot (they would make the ISOs too big). Once they're in, maybe at the second login, a follow-up that helps arrange them. The app grid is already alphabetical by default.
 - [ ] **Settings:** a front end to `redfox-config` / `config.yaml` and RedFox's settings, services and actions (see the setup-GUIs item in Fixups), including the layout picker with the RedFox layout names and previews.
     - [ ] **"Start in tray at login" toggles, per app** (Signal, Joplin, and any others that support it). Long term there's no automatic autostart: each one is turned on in Hub, and the toggles write or remove the same autostart entries as `ujust configure-autostart-tray`.
     - [ ] **"MIDI archive folder" setting:** a folder chooser that writes `data_dir` to `~/.config/midikeep/config.yaml` and restarts the `midikeep` user service. Pianola should get the same in its preferences, since it reads the same file.
