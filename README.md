@@ -111,3 +111,11 @@ For this reason, we do not currently have ISOs available for download, and even 
 3.  Immediately run one of the above commands to rebase to your preferred version of RedFoxOS.
 4.  Reboot.
 5.  Profit.
+
+## Secure Boot
+
+RedFoxOS uses Bazzite's kernel, which is signed with Universal Blue's key. With Secure Boot on, the computer needs that key enrolled once: run `ujust enroll-secure-boot-key`, and at the next restart, a blue **MOK management** screen appears:
+
+1. Choose **Enroll MOK**, then **Continue**, then **Yes**.
+2. Type the password `universalblue`.
+3. Choose **Reboot**.

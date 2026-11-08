@@ -1,0 +1,357 @@
+name: Build live ISOs
+# Live ISOs of the images: each boots into a RedFoxOS desktop with an
+# installer, which puts the image on disk and points it at the signed image
+# on ghcr.io. Built with Universal Blue's Titanoboa; see docs/iso.md.
+#
+# - A published GitHub release builds all three ISOs from that release's
+#   stable images and publishes them to Cloudflare R2 (download.redfoxlabs.tech).
+# - Run by hand (Actions › Build live ISOs › Run workflow) it's a test build
+#   from any tag, kept as a workflow artifact. A manual run never publishes.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Image tag to build from (test build; never published)
+        default: latest
+      follow:
+        description: Channel the installed system follows
+        type: choice
+        default: latest
+        options:
+          - latest
+          - unstable
+      image:
+        description: Which ISO
+        type: choice
+        default: all
+        options:
+          - all
+          - redfox-os
+          - redfox-os-nvidia
+          - redfox-os-nvidia-legacy
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'release' && 'release' || format('{0}-{1}', inputs.tag, inputs.image) }}
+  cancel-in-progress: ${{ github.event_name != 'release' }}
+
+jobs:
+  # Which images, from which tag, and whether this run publishes.
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    permissions:
+      contents: read
+    outputs:
+      images: ${{ steps.plan.outputs.images }}
+      tag: ${{ steps.plan.outputs.tag }}
+      follow: ${{ steps.plan.outputs.follow }}
+      publish: ${{ steps.plan.outputs.publish }}
+      release: ${{ steps.plan.outputs.release }}
+    steps:
+      - name: Checkout
+        if: github.event_name == 'release'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          OWNER: ${{ github.repository_owner }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          PRERELEASE: ${{ github.event.release.prerelease }}
+          IN_TAG: ${{ inputs.tag }}
+          IN_FOLLOW: ${{ inputs.follow }}
+          IN_IMAGE: ${{ inputs.image }}
+        run: |
+          set -euo pipefail
+          all='["redfox-os","redfox-os-nvidia","redfox-os-nvidia-legacy"]'
+          if [ "$EVENT" != release ]; then
+            if [ "$IN_IMAGE" = all ]; then images=$all; else images="[\"$IN_IMAGE\"]"; fi
+            { echo "images=$images"; echo "tag=$IN_TAG"; echo "follow=$IN_FOLLOW"
+              echo "publish=false"; echo "release="; } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "$PRERELEASE" = true ]; then
+            echo "::error::$RELEASE_TAG is a pre-release; only full releases get ISOs."
+            exit 1
+          fi
+          # The release's commit must be on main: that's what the stable image is built from.
+          git fetch -q origin main
+          sha=$(git rev-list -n1 "$RELEASE_TAG")
+          if ! git merge-base --is-ancestor "$sha" origin/main; then
+            echo "::error::$RELEASE_TAG ($sha) isn't on main, so it has no stable image."
+            exit 1
+          fi
+          # BlueBuild tags each main build <sha7>-<fedora>. Wait for that
+          # build of all three images (the release may be published before
+          # it finishes), then build from exactly those images.
+          sha7=${sha:0:7}
+          owner=${OWNER,,}
+          head=$(git rev-parse origin/main)
+          tags_of() { skopeo list-tags "docker://ghcr.io/${owner}/$1" | jq -r '.Tags[]'; }
+          find_tag() {  # the newest <sha7>-<fedora> tag all three images have
+            local t main nvidia legacy
+            # Whole lists first: grep -q on a pipe trips pipefail.
+            main=$(tags_of redfox-os) nvidia=$(tags_of redfox-os-nvidia) legacy=$(tags_of redfox-os-nvidia-legacy)
+            for t in $(grep -E "^${sha7}-[0-9]+$" <<< "$main" | sort -rV); do
+              if grep -qx "$t" <<< "$nvidia" && grep -qx "$t" <<< "$legacy"; then
+                echo "$t"; return 0
+              fi
+            done
+            return 1
+          }
+          tag=""
+          if [ "$sha" = "$head" ]; then
+            # The release may be published while main's build is still running.
+            for attempt in $(seq 1 120); do
+              if tag=$(find_tag); then break; fi
+              tag=""
+              echo "Waiting for the stable images of ${sha7} (${attempt}/120)…"
+              sleep 60
+            done
+          else
+            tag=$(find_tag) || tag=""
+          fi
+          if [ -z "$tag" ]; then
+            echo "::error::No stable images tagged ${sha7}-<fedora> for $RELEASE_TAG. For main's latest commit: did its image build succeed (waited 2 hours)? For an older commit, its images may be gone: release main's latest commit."
+            exit 1
+          fi
+          echo "Building $RELEASE_TAG from the images tagged $tag"
+          { echo "images=$all"; echo "tag=$tag"; echo "follow=latest"
+            echo "publish=true"; echo "release=$RELEASE_TAG"; } >> "$GITHUB_OUTPUT"
+
+  build-iso:
+    name: ${{ matrix.image }} ISO
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      packages: read
+    strategy:
+      fail-fast: true # a release publishes all three or none
+      matrix:
+        image: ${{ fromJson(needs.plan.outputs.images) }}
+    env:
+      OWNER: ${{ github.repository_owner }}
+      TAG: ${{ needs.plan.outputs.tag }}
+      FOLLOW: ${{ needs.plan.outputs.follow }}
+      IMAGE: ${{ matrix.image }}
+      PUBLISH: ${{ needs.plan.outputs.publish }}
+    steps:
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@v2.0.0
+        with:
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false # slow (apt), and the btrfs storage below leaves room
+          docker-images: true
+          swap-storage: false
+
+      # The images are stored twice (the live system, and the image it
+      # installs) and squashed once more, so put podman's storage on a
+      # compressed btrfs file (Bazzite's approach).
+      - name: Container storage on compressed btrfs
+        run: |
+          sudo truncate -s 110G /mnt/podman-storage.img
+          sudo mkfs.btrfs -f -m single -d single /mnt/podman-storage.img
+          sudo podman system reset --force
+          sudo systemctl stop podman.service || true
+          LOOP=$(sudo losetup --find --show --direct-io=on /mnt/podman-storage.img)
+          sudo mkdir -p /mnt/podman-storage
+          sudo mount -o compress-force=zstd:2,discard=async,noatime "$LOOP" /mnt/podman-storage
+          sudo mkdir -p /mnt/podman-storage/storage /mnt/podman-storage/tmp
+          sudo mount --bind /mnt/podman-storage/storage /var/lib/containers/storage
+          df -h / /mnt/podman-storage
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Pull only images signed with RedFoxOS's key (cosign.pub).
+      - name: Require signed RedFoxOS images
+        run: |
+          OWNER=${OWNER,,}
+          sudo mkdir -p /etc/pki/containers /etc/containers/registries.d
+          sudo cp cosign.pub /etc/pki/containers/redfox-os.pub
+          sudo tee "/etc/containers/registries.d/${OWNER}.yaml" > /dev/null <<EOF
+          docker:
+            ghcr.io/${OWNER}:
+              use-sigstore-attachments: true
+          EOF
+          sudo jq --arg repo "ghcr.io/${OWNER}" \
+            '.transports.docker[$repo] = [{"type": "sigstoreSigned", "keyPath": "/etc/pki/containers/redfox-os.pub", "signedIdentity": {"type": "matchRepository"}}]' \
+            /etc/containers/policy.json > policy.json
+          sudo mv policy.json /etc/containers/policy.json
+
+      - name: Pull the images
+        run: |
+          OWNER=${OWNER,,}
+          # The live system is always the Intel/AMD image: the live session
+          # runs Fedora's kernel (for Secure Boot), which the NVIDIA driver
+          # isn't built for, so NVIDIA cards get nouveau there.
+          echo "LIVE_IMAGE=ghcr.io/${OWNER}/redfox-os:${TAG}" >> "$GITHUB_ENV"
+          echo "INSTALL_IMAGE=ghcr.io/${OWNER}/${IMAGE}:${TAG}" >> "$GITHUB_ENV"
+          echo "FOLLOW_IMAGE=ghcr.io/${OWNER}/${IMAGE}:${FOLLOW}" >> "$GITHUB_ENV"
+          sudo podman pull "ghcr.io/${OWNER}/redfox-os:${TAG}"
+          [ "$IMAGE" = redfox-os ] || sudo podman pull "ghcr.io/${OWNER}/${IMAGE}:${TAG}"
+
+      - name: Build the live system
+        run: |
+          sudo env TMPDIR=/mnt/podman-storage/tmp podman build \
+            --cap-add sys_admin --security-opt label=disable \
+            -v /var/lib/containers/storage:/run/host-storage:ro \
+            --build-arg LIVE_IMAGE="$LIVE_IMAGE" \
+            --build-arg INSTALL_IMAGE="$INSTALL_IMAGE" \
+            --build-arg FOLLOW_IMAGE="$FOLLOW_IMAGE" \
+            -t localhost/redfox-live:latest installer/
+          # Only the live system is needed from here on.
+          sudo podman rmi -f "$INSTALL_IMAGE" "$LIVE_IMAGE" || true
+          sudo df -h /mnt/podman-storage
+
+      - name: Name the ISO
+        run: |
+          # A release keeps the fixed names the download page links to.
+          if [ "$PUBLISH" = true ] || [ "$TAG" = latest ]; then name="$IMAGE"; else name="$IMAGE-$TAG"; fi
+          echo "ISO_NAME=${name}.iso" >> "$GITHUB_ENV"
+
+      - name: Build the ISO
+        id: build
+        uses: ublue-os/titanoboa@5c457c3d0518bd17e754be0fd98a60d29d26abb4
+        with:
+          image-ref: localhost/redfox-live:latest
+          iso-dest: ${{ env.ISO_NAME }}
+
+      # Titanoboa resolves iso-dest against its own folder; its output says where.
+      - name: Checksum
+        env:
+          BUILT_ISO: ${{ steps.build.outputs.iso-dest }}
+        run: |
+          set -o pipefail
+          mkdir -p upload
+          mv "$BUILT_ISO" "upload/$ISO_NAME"
+          cd upload
+          sha256sum "$ISO_NAME" | tee "${ISO_NAME}-CHECKSUM"
+          ls -l
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign
+        working-directory: upload
+        env:
+          SIGNING_KEY: ${{ secrets.SIGNING_SECRET }}
+        run: cosign sign-blob -y --key env://SIGNING_KEY "$ISO_NAME" --output-signature "${ISO_NAME}.sig"
+
+      - name: Keep as a workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ISO_NAME }}
+          path: upload/
+          if-no-files-found: error
+          retention-days: 3
+          compression-level: 0
+
+  # Only after all three ISOs built: upload them, keep the release before as
+  # previous/, and delete anything older. A manual run never gets here.
+  publish:
+    needs: [plan, build-iso]
+    if: github.event_name == 'release' && needs.plan.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    concurrency:
+      group: publish-live-isos
+      cancel-in-progress: false
+    env:
+      RELEASE: ${{ needs.plan.outputs.release }}
+      RCLONE_CONFIG_R2_TYPE: s3
+      RCLONE_CONFIG_R2_PROVIDER: Cloudflare
+      RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      RCLONE_CONFIG_R2_REGION: auto
+      RCLONE_CONFIG_R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+      R2_BUCKET: ${{ vars.R2_BUCKET }}
+    steps:
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@v2.0.0
+        with:
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          docker-images: true
+          swap-storage: false
+
+      - name: Download the three ISOs
+        uses: actions/download-artifact@v4
+        with:
+          path: isos
+          merge-multiple: true
+
+      - name: Check them
+        working-directory: isos
+        run: |
+          set -euo pipefail
+          for image in redfox-os redfox-os-nvidia redfox-os-nvidia-legacy; do
+            for f in "$image.iso" "$image.iso-CHECKSUM" "$image.iso.sig"; do
+              [ -s "$f" ] || { echo "::error::$f is missing"; exit 1; }
+            done
+            sha256sum -c "$image.iso-CHECKSUM"
+          done
+          echo "$RELEASE" > RELEASE
+          ls -l
+
+      - name: Install rclone
+        run: |
+          [ -n "$R2_BUCKET" ] || { echo "::error::Set the R2_BUCKET repository variable"; exit 1; }
+          sudo apt-get update -q && sudo apt-get install -yq rclone
+
+      # The bucket: the current release's files at the top (the names the
+      # download page links to), the release before it in previous/, and
+      # nothing older. Uploads go to staging/ first, so a failed upload
+      # leaves the published files as they were.
+      - name: Upload to staging
+        working-directory: isos
+        run: |
+          set -euo pipefail
+          rclone purge "R2:${R2_BUCKET}/staging" 2>/dev/null || true
+          rclone copy --s3-upload-concurrency 8 --s3-chunk-size 64M --include "*.iso" . "R2:${R2_BUCKET}/staging/"
+          rclone copy --include "*-CHECKSUM" --include "*.sig" --include RELEASE . "R2:${R2_BUCKET}/staging/"
+          rclone check --one-way --size-only . "R2:${R2_BUCKET}/staging/" --include "*.iso"
+
+      - name: Publish (current to previous/, staging to current)
+        run: |
+          set -euo pipefail
+          R="R2:${R2_BUCKET}"
+          files=()
+          for image in redfox-os redfox-os-nvidia redfox-os-nvidia-legacy; do
+            files+=("$image.iso" "$image.iso-CHECKSUM" "$image.iso.sig")
+          done
+          files+=(RELEASE)
+          # The release that was current becomes previous/ (server-side
+          # copies; the current files stay in place meanwhile).
+          rclone purge "$R/previous" 2>/dev/null || true
+          for f in "${files[@]}"; do
+            if rclone lsf "$R/$f" 2>/dev/null | grep -q .; then rclone copyto "$R/$f" "$R/previous/$f"; fi
+          done
+          # Then each staged file replaces the current one: the ISOs first,
+          # then the checksums, signatures and RELEASE.
+          for f in "${files[@]}"; do case "$f" in *.iso) rclone moveto "$R/staging/$f" "$R/$f" ;; esac; done
+          for f in "${files[@]}"; do case "$f" in *.iso) ;; *) rclone moveto "$R/staging/$f" "$R/$f" ;; esac; done
+          rclone purge "$R/staging" 2>/dev/null || true
+          # Anything else at the top level is from an older layout: delete it.
+          rclone lsf --files-only --max-depth 1 "$R/" | while read -r f; do
+            keep=no
+            for k in "${files[@]}"; do [ "$f" = "$k" ] && keep=yes; done
+            [ "$keep" = yes ] || rclone deletefile "$R/$f"
+          done
+          echo "Published $RELEASE:"
+          rclone lsl "$R/"
