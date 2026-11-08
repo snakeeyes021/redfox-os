@@ -7,8 +7,9 @@
 // straight to the response, so a multi-gigabyte download uses no more CPU
 // than a small one. See docs/iso.md.
 
-// Flat file names only, e.g. redfox-os.iso, redfox-os.iso-CHECKSUM.
-const KEY = /^[A-Za-z0-9][A-Za-z0-9._-]{0,200}$/;
+// Flat file names, e.g. redfox-os.iso, redfox-os.iso-CHECKSUM, optionally under
+// previous/ (the release before the current one). Nothing else is reachable.
+const KEY = /^(previous\/)?[A-Za-z0-9][A-Za-z0-9._-]{0,200}$/;
 
 function contentType(key, stored) {
   if (stored) return stored;
