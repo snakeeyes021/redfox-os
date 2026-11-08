@@ -188,6 +188,8 @@
 - [ ] **Manual:** a very short help guide, only for where RedFoxOS differs from mainline Linux (it's immutable) or from other immutable distros (the conveniences and tools we chose). For example: "I want to install a Flatpak / a CLI tool, what do I do?", "My collaborators and I need identical dev setups with a specific Node version", "I need a Python environment; what are my options?" (uv, and whatever else we provide).
 
 - [ ] **Graphical front ends in Hub for RedFox's CLI tools** (later): proper graphical controls for the command-line tools and ujust recipes RedFox ships (for example the Nord configurator), so nobody needs a terminal for them.
+- [ ] **Full setup in one click:** a button in Hub, or at the end of the Welcome, that runs RedFox's full bootstrap for the person's setup (apps, layout, settings), with progress shown and a summary at the end of what was done or skipped.
+- [ ] **Personal config export and import:** save a person's own setup to one file (profile picture, machine-specific tweaks, the VPN server fleet and similar) and use it during bootstrap on a new machine. Passwords and keys in the file are encrypted, and only settings that make sense on another machine are restored.
 
 ## 🖍️ Maniculos (screenshot markup)
 *RedFox's own screenshot markup app, **Maniculos** (`tech.redfoxlabs.Maniculos`), in Python and libadwaita, in the Hub family. Capture stays with GNOME's screenshot tool, and Gradia (Flathub) covers markup until Maniculos ships.*
