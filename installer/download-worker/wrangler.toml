@@ -1,0 +1,18 @@
+# RedFoxOS downloads Worker (see docs/iso.md). Deployed from the dashboard
+# by hand; this file records the same settings, for `wrangler dev` tests and
+# for `wrangler deploy` if that's ever preferred.
+name = "redfox-downloads"
+main = "src/index.js"
+compatibility_date = "2026-05-01"
+
+# Only the custom domain serves it: no workers.dev address, no preview URLs.
+workers_dev = false
+preview_urls = false
+
+routes = [
+  { pattern = "download.redfoxlabs.tech", custom_domain = true },
+]
+
+[[r2_buckets]]
+binding = "DOWNLOADS"
+bucket_name = "redfox-iso"

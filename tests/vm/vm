@@ -66,6 +66,10 @@ push() {
         mkdir -p "${stage}/usr/share/gnome-shell/extensions/${uuid}"
         curl -fsSL "https://extensions.gnome.org$(jq -r .download_url <<<"${info}")" -o "${stage}/ext.zip"
         unzip -q -o "${stage}/ext.zip" -d "${stage}/usr/share/gnome-shell/extensions/${uuid}"
+        # extensions.gnome.org ships metadata.json as owner-only; the image's
+        # gnome-extensions module makes every file 0644, so do the same.
+        find "${stage}/usr/share/gnome-shell/extensions/${uuid}" -type d -exec chmod 0755 {} +
+        find "${stage}/usr/share/gnome-shell/extensions/${uuid}" -type f -exec chmod 0644 {} +
         rm -f "${stage}/ext.zip"
         # The image's gnome-extensions module puts schemas in the global dir.
         if [ -d "${stage}/usr/share/gnome-shell/extensions/${uuid}/schemas" ]; then

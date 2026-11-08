@@ -1,0 +1,26 @@
+/* SPDX-License-Identifier: LGPL-2.1-or-later */
+/* RedFoxOS's look for Anaconda's web interface. Adapted from Bazzite's. */
+#badge {
+    inline-size: 80px;
+    block-size: 80px;
+    background-image: url("logo.png");
+    background-size: contain;
+    background-repeat: no-repeat;
+}
+
+.anaconda {
+    --brand-default-light: #b22234;
+    --brand-default: #b22234;
+    --brand-default-dark: #e0485a;
+
+    .logo {
+        background-image: url("logo.png");
+        filter: unset;
+    }
+
+    /* Hide "Enable root account": RedFoxOS uses sudo. Until Anaconda has an
+     * option for it: https://bugzilla.redhat.com/show_bug.cgi?id=2464088 */
+    .pf-v6-c-form__section:has(#anaconda-screen-accounts-root-account-enable-root-account) {
+        display: none;
+    }
+}

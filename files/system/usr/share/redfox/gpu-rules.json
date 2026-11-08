@@ -1,0 +1,23 @@
+{
+  "about": "Which RedFoxOS image suits a computer, from its PCI display devices (vendor and device id, lower-case hex without 0x). The one rule set for RedFox Hub's '(Recommended)' (redfox-rollback-helper) and the download page on redfoxlabs.tech. Each display device gets the first class it matches (in order), or 'other'; then the first rule whose 'all' classes are all present and whose 'none' classes are all absent gives the answer. image null means no recommendation. hybrid marks built-in graphics next to an NVIDIA card (a laptop, usually). Test cases: tests/gpu-cases.json.",
+  "version": 1,
+  "classes": [
+    { "id": "nvidia-modern", "vendors": ["10de"], "device_from": "1e00", "note": "Turing and newer: GTX 16xx, RTX 20xx and newer" },
+    { "id": "nvidia-legacy", "vendors": ["10de"], "device_from": "1340", "note": "Maxwell, Pascal and Volta: GTX 750, GTX 900 and GTX 10xx; NVIDIA's legacy driver" },
+    { "id": "nvidia-old", "vendors": ["10de"], "note": "older than Maxwell (Kepler, Fermi and before): no NVIDIA driver for current systems" },
+    { "id": "intel-amd", "vendors": ["8086", "1002", "1022"] }
+  ],
+  "rules": [
+    { "all": ["nvidia-modern", "nvidia-legacy"], "image": null, "why": "NVIDIA cards of different generations" },
+    { "all": ["nvidia-modern", "nvidia-old"], "image": null, "why": "NVIDIA cards of different generations" },
+    { "all": ["nvidia-legacy", "nvidia-old"], "image": null, "why": "NVIDIA cards of different generations" },
+    { "all": ["nvidia-modern", "intel-amd"], "image": "redfox-os-nvidia", "hybrid": true, "why": "an NVIDIA GTX 16xx, RTX 20xx or newer card, with built-in graphics" },
+    { "all": ["nvidia-modern"], "image": "redfox-os-nvidia", "why": "an NVIDIA GTX 16xx, RTX 20xx or newer card" },
+    { "all": ["nvidia-legacy", "intel-amd"], "image": "redfox-os-nvidia-legacy", "hybrid": true, "why": "an NVIDIA GTX 900 or 1000 series card, with built-in graphics" },
+    { "all": ["nvidia-legacy"], "image": "redfox-os-nvidia-legacy", "why": "an NVIDIA GTX 900 or 1000 series card" },
+    { "all": ["nvidia-old"], "none": ["other"], "image": "redfox-os", "why": "an NVIDIA card older than the GTX 900 series, which NVIDIA's drivers no longer support, so it runs on the open-source driver built into RedFoxOS" },
+    { "all": ["intel-amd"], "none": ["other"], "image": "redfox-os", "why": "Intel or AMD graphics" },
+    { "all": ["other"], "image": null, "why": "graphics it doesn't recognise (a virtual machine?)" },
+    { "all": [], "image": null, "why": "no graphics device" }
+  ]
+}
