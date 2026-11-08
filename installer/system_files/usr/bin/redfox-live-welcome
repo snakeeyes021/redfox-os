@@ -17,7 +17,7 @@ fi
 
 yad --on-top --no-escape --center --title="Welcome to RedFoxOS" \
     --window-icon=redfox-logo --image=redfox-logo --buttons-layout=center \
-    --text="<big><b>Welcome to RedFoxOS</b></big>\n\nThis is the live system: try RedFoxOS, then install it.\nIt runs from the USB stick, so it's slower than the installed system,\nand your apps are added after installation, at the first start.${memory_note}" \
+    --text="<big><b>Welcome to RedFoxOS</b></big>\n\nThis is the live system: try RedFoxOS, then install it.\nIt runs from the USB stick, so it's slower than the installed system,\nand several apps are added after installation, at the first start.${memory_note}" \
     --button="Install RedFoxOS:10" --button="Try It First:0"
 if [[ $? -eq 10 ]]; then
     liveinst &
