@@ -89,8 +89,10 @@
     - [x] `set-window-controls-right-full` (Deviation): Sets `:minimize,maximize,close`.
     - [x] `set-window-controls-right-gnome` (Deviation): Sets `:close`.
     - [x] `set-window-controls-left-gnome` (Reset): Sets `close:` (reverts to system default).
-    - [x] `sort-app-grid` (Deviation): Removes folders and sorts alphabetically.
-    - [ ] `default-app-grid` (Reset): Restores folders and sorts with default sorting.
+    - [x] `sort-app-grid` (Hybrid): Keeps the app grid alphabetical (Alphabetical App Grid, on by default) and shows dock apps in it.
+    - [x] `default-app-grid` (Deviation): GNOME's own order; new apps go at the end.
+    - [x] `flatten-app-folders` (Deviation): Puts every app in the main grid, with no folders.
+    - [x] `default-app-folders` (Reset): Restores the default app folders.
     - [x] `preset-dock-gnome` (Reset): Reset to default Gnome Dash (dash in overview)
     - [ ] `_preset-dock-redfox` (Hybrid): TODO: A hacky stub of a recipe has been implemented; it works, but should be considered a proof of concept.
         - Default behavior will be to automatically switch between GNOME style dash and redfox style dock depending on monitor size (and scaling) -- this means we may need to create an additional recipe that sets the user to the default switching behavior and likely a systemd service to monitor monitor size(s)
@@ -140,10 +142,10 @@
 
 - [ ] **Layout Molecules (UX/Behavior/Positioning):**
     - [ ] `layout-matt` (Renamed from theme-matt):
-        - [x] runs `sort-app-grid`.
+        - [x] runs `sort-app-grid` and `flatten-app-folders`.
         - [x] runs `set-window-controls-left-gnome`.
     - [ ] `layout-dewy` (Renamed from theme-dewy):
-        - [x] Runs `sort-app-grid`.
+        - [x] Runs `sort-app-grid` and `flatten-app-folders`.
         - [x] Runs `set-window-controls-right-full`.
         - [x] Runs `preset-dock-ubuntu` (or custom Dewy dock settings).
     - [ ] `layout-fedora`: "Reset" recipe to restore Vanilla Fedora layout.
