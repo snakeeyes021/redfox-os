@@ -51,6 +51,14 @@ The upload step needs:
 - repository secrets `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` (an R2 API token with Object Read & Write on the bucket) and `R2_ENDPOINT` (`https://<account id>.r2.cloudflarestorage.com`);
 - a repository variable `R2_BUCKET` with the bucket's name.
 
+### Downloads (download.redfoxlabs.tech)
+
+The bucket has no public address of its own. Downloads go through a small Worker, `installer/download-worker/`, attached to the custom domain `download.redfoxlabs.tech`, with the bucket bound as `DOWNLOADS`.
+- It answers GET and HEAD for a file name: Range requests (one range), `If-Range`, `If-None-Match` and `If-Modified-Since`, with `Content-Length`, `Content-Type`, `Content-Disposition` and an `ETag`. A missing name is 404 and there's no listing; other methods get 405.
+- It passes R2's stream straight through, so a 7 GB download uses no more of the Worker's CPU time than a small file (time spent waiting on I/O doesn't count).
+- On the Workers Free plan, an account gets 100,000 requests a day; past that Cloudflare answers with error 1027 until midnight UTC. A custom domain has no origin behind it, so nothing gets past the limit. That caps reads at about 3 million a month, inside R2's free 10 million, so the bucket only ever costs its storage.
+- `installer/download-worker/test.sh <url> [local copy]` checks it, locally (`wrangler dev` with a local bucket) or live.
+
 ## Testing an ISO
 
 Download the artifact from the workflow run, then boot it in a UEFI VM with a blank disk, for example:
