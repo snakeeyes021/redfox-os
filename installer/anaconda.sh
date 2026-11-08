@@ -5,6 +5,9 @@
 set -exo pipefail
 
 INSTALL_IMAGE=${INSTALL_IMAGE:?}
+# The registry image the installed system follows for updates, e.g. :latest
+# while INSTALL_IMAGE is the release's pinned tag.
+FOLLOW_IMAGE=${FOLLOW_IMAGE:-$INSTALL_IMAGE}
 SECUREBOOT_KEY=/usr/share/ublue-os/sb_pubkey.der
 SECUREBOOT_DOC_URL=https://github.com/snakeeyes021/redfox-os#secure-boot
 SECUREBOOT_DOC_URL_QR=/usr/share/ublue-os/secure_boot_qr.png
@@ -58,7 +61,7 @@ EOF
 # RedFoxOS's signing key (the image's /etc/containers/policy.json).
 cat >/usr/share/anaconda/post-scripts/redfox-switch-to-registry.ks <<EOF
 %post --erroronfail --log=/tmp/anaconda_custom_logs/bootc-switch.log
-bootc switch --mutate-in-place --enforce-container-sigpolicy --transport registry $INSTALL_IMAGE
+bootc switch --mutate-in-place --enforce-container-sigpolicy --transport registry $FOLLOW_IMAGE
 %end
 EOF
 

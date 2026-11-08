@@ -13,7 +13,7 @@ const KEY = /^[A-Za-z0-9][A-Za-z0-9._-]{0,200}$/;
 function contentType(key, stored) {
   if (stored) return stored;
   if (key.endsWith(".iso")) return "application/x-iso9660-image";
-  if (key.endsWith("-CHECKSUM") || key.endsWith(".sig") || key.endsWith(".txt")) {
+  if (key === "RELEASE" || key.endsWith("-CHECKSUM") || key.endsWith(".sig") || key.endsWith(".txt")) {
     return "text/plain; charset=utf-8";
   }
   return "application/octet-stream";

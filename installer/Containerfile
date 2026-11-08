@@ -12,5 +12,7 @@ ARG LIVE_IMAGE=ghcr.io/snakeeyes021/redfox-os:latest
 FROM ${LIVE_IMAGE}
 ARG LIVE_IMAGE
 ARG INSTALL_IMAGE
+# What the installed system follows for updates (defaults to INSTALL_IMAGE).
+ARG FOLLOW_IMAGE
 RUN --mount=type=bind,source=./.,target=/src \
-    env LIVE_IMAGE="${LIVE_IMAGE}" INSTALL_IMAGE="${INSTALL_IMAGE}" /src/build.sh
+    env LIVE_IMAGE="${LIVE_IMAGE}" INSTALL_IMAGE="${INSTALL_IMAGE}" FOLLOW_IMAGE="${FOLLOW_IMAGE:-${INSTALL_IMAGE}}" /src/build.sh

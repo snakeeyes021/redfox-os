@@ -7,6 +7,7 @@ set -exo pipefail
 SRC=/src
 LIVE_IMAGE=${LIVE_IMAGE:?}
 INSTALL_IMAGE=${INSTALL_IMAGE:?}
+FOLLOW_IMAGE=${FOLLOW_IMAGE:-$INSTALL_IMAGE}
 
 # Create the directory that /root is symlinked to
 mkdir -p "$(realpath /root)"
@@ -44,7 +45,7 @@ dnf install -y livesys-scripts
 sed -i "s/^livesys_session=.*/livesys_session=gnome/" /etc/sysconfig/livesys
 systemctl enable livesys.service livesys-late.service
 
-INSTALL_IMAGE="$INSTALL_IMAGE" "$SRC/anaconda.sh"
+INSTALL_IMAGE="$INSTALL_IMAGE" FOLLOW_IMAGE="$FOLLOW_IMAGE" "$SRC/anaconda.sh"
 
 cp -af "$SRC/overrides/." /
 

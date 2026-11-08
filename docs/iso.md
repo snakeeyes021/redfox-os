@@ -32,16 +32,26 @@ The installer is Anaconda's web interface.
 
 ## How it's built
 
-`.github/workflows/build-live-iso.yml`, run by hand: *Actions › Build live ISOs › Run workflow*. Pick the tag (`latest`), one ISO or all three, and whether to publish.
+`.github/workflows/build-live-iso.yml` runs in two ways:
+- **A published release** (a GitHub release from `main`, not a pre-release) builds all three ISOs and publishes them. The workflow finds the release's commit, waits for main's image build of that commit (BlueBuild tags it `<sha7>-<fedora>`), and builds from exactly those images. The installed system then follows `:latest`. If the images don't appear within 2 hours, or any of the three ISOs fails, nothing is uploaded or deleted and the run is red.
+- **By hand** (*Actions › Build live ISOs › Run workflow*): a test build from any tag, with the channel the installed system should follow (`latest` or `unstable`) and one ISO or all three. It's kept as a workflow artifact for 3 days and **never published**.
 
+Each build:
 1. Frees the runner's disk, and puts podman's storage on a compressed btrfs file.
 2. Pulls the images, accepting only ones signed with `cosign.pub`.
 3. Builds the live system from `installer/Containerfile`. `installer/build.sh` adds the image to install, Fedora's kernel (`kernel.sh`), a live initramfs, livesys, and Anaconda with its kickstart (`anaconda.sh`).
 4. [Titanoboa](https://github.com/ublue-os/titanoboa) (Universal Blue's live ISO builder, pinned to a commit) squashes it into the ISO.
 5. Writes the checksum, signs the ISO with `SIGNING_SECRET`, and keeps all three files as a workflow artifact for 3 days.
-6. With *publish* on, and only from `main`, uploads them to Cloudflare R2: the ISO first, then its checksum and signature. Each upload replaces the previous ISO of the same name, so the download links stay the same.
 
-Each ISO takes about 30–40 minutes and is about 6–8 GB.
+Then, for a release only, the publish job (after all three ISOs built):
+1. Uploads them to `staging/` in the bucket and checks the sizes. A failure here leaves the published files untouched.
+2. Copies the files that were current into `previous/`, replacing what was there.
+3. Moves the new ones over the current names: the ISOs first, then the checksums, signatures and `RELEASE` (the release's tag). The names never change, so the download links keep working.
+4. Deletes anything else at the top of the bucket.
+
+So the bucket holds the current release and the one before it (about 45 GB, roughly $0.55 a month). `previous/` isn't served; it's there to put back by hand if a release has to be pulled.
+
+Each ISO takes about 30–40 minutes and is about 7–8 GB.
 
 The installer is adapted from [Bazzite's](https://github.com/ublue-os/bazzite/tree/main/installer) (Apache-2.0). When Bazzite's ISO changes, compare `installer/` with theirs.
 
