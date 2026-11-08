@@ -34,6 +34,7 @@
     - [ ] **Behavior:** Sort alphabetically (no folders).
         - [ ] Add behavior to keep user's folders saved, so they can go back to them if they want
     - [ ] **Behavior:** Pinning to dock must not remove from grid.
+- [ ] **Default dock apps:** a RedFox set of dock favourites (`org.gnome.shell favorite-apps`) in place of the set inherited from Bazzite, chosen from apps that are installed at the first boot. Each layout keeps its own set.
 
 ## 📦 Default Software
 - [x] **Dropbox:** Install official Dropbox client (flatpak)
@@ -43,6 +44,7 @@
 - [x] **No Winboat:** its install and uninstall recipes are gone, and so is FreeRDP, which was only there for it.
 - [ ] **Replace Mission Center** (slow to start, frozen at first, heavy on memory) with a better system monitor: Resources (`net.nokyan.Resources`) for new setups and the Dewy dock. Ctrl+Shift+Esc, Ctrl+Alt+Del on the keypad and Logo Menu's button open it through `redfox-system-monitor`, which falls back to Mission Center where that's all there is.
 - [x] **VS Code:** install the Antigravity extension (`Google.google-antigravity`).
+- [ ] **No Antigravity app or Antigravity IDE in the image:** both stop being installed. The Antigravity CLI (`agy`) is installed per user and only on request (`ujust install-antigravity-cli`, Hub's Dev pack); whether it stays is still open.
 - [ ] **Implement** Starship terminal prompt by default with light-theme terminal (steal from Bluefin)
     - [ ] **Implement** ujust "configure" recipes for starship bluefin (system default, "reset"), starship bazzite (deviation), starship off (deviation)
 
