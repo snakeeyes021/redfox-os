@@ -785,7 +785,7 @@ install-gnome-dev:
         re.sonny.Workbench
 
 # Install Development Apps
-install-dev: install-gnome-dev install-zed install-antigravity-cli
+install-dev: install-gnome-dev install-zed
     flatpak install -y flathub \
         io.podman_desktop.PodmanDesktop \
         org.gnome.dspy \
