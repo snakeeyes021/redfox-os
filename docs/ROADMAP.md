@@ -47,6 +47,7 @@
 - [x] **No Antigravity app or Antigravity IDE in the image:** VS Code with the Antigravity extension takes the IDE's place. The Antigravity CLI (`agy`) is installed per user only on request, with `ujust install-antigravity-cli`; it isn't part of `install-dev`.
 - [ ] **Proposed: T3 Code as the agent app,** in place of the Antigravity app: offered as an install (a `ujust` recipe, and in RedFox Hub).
 - [ ] **Implement** Starship terminal prompt by default with light-theme terminal (steal from Bluefin)
+    - [x] **Terminal extras, opt-in:** `redfox-terminal` turns two things on or off for bash, zsh and fish: a styled prompt (Starship with RedFox's look, colours that read on light terminals too) and modern command-line tools (eza, ugrep, atuin, zoxide). RedFox Hub's Settings › Terminal has a switch for each.
     - [ ] **Implement** ujust "configure" recipes for starship bluefin (system default, "reset"), starship bazzite (deviation), starship off (deviation)
 
 ## 🌳 The `ujust` Architecture Tree
