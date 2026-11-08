@@ -11,9 +11,13 @@ REPO_URL="https://github.com/snakeeyes021/smooth-overview"
 REF="main"
 TEMP_DIR="/tmp/smooth-overview"
 
-# 1. Clone the repository
+# 1. Clone the repository, and keep only what GNOME Shell loads: the code,
+#    metadata, stylesheet, settings schemas and licence (not the README, its
+#    screenshots or the repository's other files).
 git clone --depth 1 --branch "$REF" "$REPO_URL" "$TEMP_DIR"
-rm -rf "$TEMP_DIR/.git" "$TEMP_DIR/README.md" "$TEMP_DIR/LICENSE"
+find "$TEMP_DIR" -mindepth 1 -maxdepth 1 \
+    ! -name '*.js' ! -name metadata.json ! -name stylesheet.css ! -name schemas ! -name LICENSE \
+    -exec rm -rf {} +
 
 # 2. Extract UUID from metadata.json
 # We'll use a simple grep/sed to avoid dependency on jq if it's not present
