@@ -1,7 +1,7 @@
 """Manual: short help pages, from the Markdown files in Hub's data/manual.
 
-The pages use a small subset of Markdown (see docs/redfox-apps-design.md,
-"Manual"): a `# Title` line, a one-sentence summary, `## Section` headings,
+The pages use a small subset of Markdown:
+a `# Title` line, a one-sentence summary, `## Section` headings,
 paragraphs, `-` and `1.` lists, **bold**, `code`, links, and ```sh blocks
 of commands, which get a copy button. Links to `manual:slug` open another
 page; `hub:updates` and the like open a part of Hub.

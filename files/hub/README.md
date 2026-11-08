@@ -1,6 +1,6 @@
 # RedFox Hub
 
-RedFoxOS's own app: Welcome, Apps, Updates, Settings and Manual. Python, GTK 4 and libadwaita; the design is in [`docs/redfox-apps-design.md`](../../docs/redfox-apps-design.md).
+RedFoxOS's own app: Welcome, Apps, Updates, Settings and Manual. Python, GTK 4 and libadwaita.
 
 It's a meson project:
 
@@ -20,4 +20,4 @@ To try it from the source tree without installing: `python3 -c 'import sys; sys.
 
 ## Packaging
 
-Hub is part of the image, not a Flatpak (Matt, 11-04: "It is specific to the OS and wouldn't be helpful to others on a different OS"). It runs the image's commands directly: `redfox-updates`, `redfox-autostart`, `redfox-layout`, `redfox-software`, `redfox-rollback-helper`, `midikeep`, `gsettings`, `flatpak` and `systemctl`. Those commands belong to the image, not to Hub, and work the same in a terminal.
+Hub is part of the image, not a Flatpak: it's specific to RedFoxOS and wouldn't help on another system. It runs the image's commands directly: `redfox-updates`, `redfox-autostart`, `redfox-layout`, `redfox-software`, `redfox-rollback-helper`, `midikeep`, `gsettings`, `flatpak` and `systemctl`. Those commands belong to the image, not to Hub, and work the same in a terminal.
