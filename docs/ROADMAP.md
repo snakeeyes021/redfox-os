@@ -170,6 +170,7 @@
 - [ ] **More layouts, built from scratch:** today only the Ubuntu-style layout (and Dewy's variant) is finished. Build the rest of the presets above (`preset-dock-nostalgia`, `preset-dock-wash`, `preset-dock-cal`, the `_preset-dock-redfox` hybrid proof of concept) plus any others we want, all written from scratch for RedFox.
 - [ ] **Switching layouts works live:** moving between presets shouldn't need a logout or restart. Some switches depend on smooth-overview, and something there may need a restart (possibly because the extension is built from source at image build time: `files/scripts/install-smooth-overview.sh`). Find out and fix it.
 - [ ] **smooth-overview, hardened:** InjectionManager, safe to enable and disable twice, only the overview's and top bar's own lookups change, and the clock stays centred. Still to do: publish it on extensions.gnome.org.
+- [ ] **Proposed: maximize under a floating dock.** On the floating-dock layouts (Cal, RedFox), a maximized window fills the whole screen except the top bar, covering the dock and its gaps, which is the same area as the smooth-overview work area. Tiled windows, including the full tile from dragging to the top, keep exactly the area and gaps they have today. Other layouts and fullscreen are unchanged. Possible route: the dock stops reserving space and hides while a window is maximized, and Tiling Shell keeps being given the area beside the dock.
 
 ## 💿 RedFoxOS ISO
 *Today the only way to get RedFoxOS is to rebase onto it. The plan: a live ISO per image. See [`docs/iso.md`](iso.md).*
