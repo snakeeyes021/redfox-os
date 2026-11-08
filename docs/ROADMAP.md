@@ -183,6 +183,7 @@
     - [ ] **Branding the installer:** RedFox's name, colours and fox in Anaconda.
     - [ ] **Secure Boot and NVIDIA variants:** one ISO per image; the installer queues Universal Blue's key for enrolment.
     - [ ] **Testing in a VM:** install each ISO on a blank disk with Secure Boot on, then check boot, login, updates and rollback.
+    - [ ] **Before the download page goes live:** RedFox Hub, with its image picker for switching between the graphics images, is in the image. The page tells people they can switch to another image later from RedFox Hub.
 
 ## 🧩 RedFox Hub
 *One app for RedFox's own tooling, **RedFox Hub** (`tech.redfoxlabs.Hub`), with Welcome, Apps, Updates, Settings and Manual sections.*
