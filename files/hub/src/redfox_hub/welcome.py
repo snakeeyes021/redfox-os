@@ -9,8 +9,11 @@ At first login /usr/libexec/redfox-hub-first-login runs `redfox-hub
 ~/.local/state/redfox/).
 """
 
+from pathlib import Path
+
 from gi.repository import Adw, Gtk
 
+from . import host
 from .paths import LAYOUTS, host_state_dir
 from .window import Section
 
@@ -29,6 +32,52 @@ def mark_seen():
         MARKER.touch()
     except OSError:
         pass
+
+
+# The apps every RedFoxOS machine gets, installed in the background after the
+# first boot (BlueBuild's default-flatpaks; this is its list).
+DEFAULT_APPS = Path("/usr/share/bluebuild/default-flatpaks/configuration.yaml")
+
+# Placeholder text.
+APPS_NOTE = ("Your basic apps are being installed in the background. "
+             "RedFoxOS does this on every new computer; they appear in the app grid as they arrive.")
+
+
+def default_apps():
+    """The app ids in the default-flatpaks list ("install:" items)."""
+    try:
+        lines = DEFAULT_APPS.read_text().splitlines()
+    except OSError:
+        return []
+    apps, in_install = [], False
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("install:"):
+            in_install = True
+            continue
+        if in_install and stripped.startswith("- "):
+            apps.append(stripped[2:].strip().strip('"\''))
+        elif in_install and stripped and not stripped.startswith("#"):
+            in_install = False
+    return apps
+
+
+def apps_note():
+    """A note that shows itself while some default apps aren't installed yet."""
+    note = Gtk.Label(label=APPS_NOTE, wrap=True, justify=Gtk.Justification.CENTER,
+                     max_width_chars=50, visible=False)
+    note.add_css_class("caption")
+    note.add_css_class("dim-label")
+    wanted = default_apps()
+    if not wanted:
+        return note
+
+    def done(returncode, output):
+        installed = set(output.split())
+        note.set_visible(returncode == 0 and any(a not in installed for a in wanted))
+
+    host.run(["flatpak", "list", "--system", "--app", "--columns=application"], on_done=done)
+    return note
 
 
 def hero_icon(icon_name):
@@ -106,6 +155,10 @@ class Tour(Gtk.Box):
             later.add_css_class("pill")
             later.connect("clicked", lambda *_: self.on_finish(None))
             start.append(later)
+        first = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18,
+                        halign=Gtk.Align.CENTER)
+        first.append(start)
+        first.append(apps_note())
 
         links = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12,
                         halign=Gtk.Align.CENTER)
@@ -125,7 +178,7 @@ class Tour(Gtk.Box):
 
         pages = [
             TourPage(fox(), "Welcome to RedFoxOS",
-                     "A fast, friendly desktop that looks after itself.", start),
+                     "A fast, friendly desktop that looks after itself.", first),
             TourPage(hero_icon("software-update-available-symbolic"),
                      "Updates You Never Have to Think About",
                      "RedFoxOS updates itself in the background, all in one piece. "
