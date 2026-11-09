@@ -53,7 +53,7 @@ We have three images available, depending on your hardware:
 >
 > On Windows, in PowerShell: `irm https://raw.githubusercontent.com/snakeeyes021/redfox-os/main/extras/identify_gpu.ps1 | iex`
 >
-> Either prints your graphics and a short code. Paste the code into the download page, which shows the image that suits them. RedFox Hub marks the same image "(Recommended)": both use [`gpu-rules.json`](files/system/usr/share/redfox/gpu-rules.json).
+> Either names the download that works best on your machine and prints a link that opens the download page with it picked, plus a short code you can paste there instead. RedFox Hub's image picker marks the same image "(Works best on your machine)": both use [`gpu-rules.json`](files/system/usr/share/redfox/gpu-rules.json).
 
 ### Rebasing from Bluefin or Bazzite (GNOME)
 To switch to RedFoxOS from an existing GNOME-based Universal Blue installation, choose the command that corresponds to your hardware:

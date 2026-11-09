@@ -33,8 +33,9 @@ HELPER = "redfox-layouts@redfoxlabs.tech"
 BLUR_MY_SHELL = "blur-my-shell@aunetx"
 
 # Extensions a layout may turn on. Applying a layout turns off the ones it
-# doesn't list. The helper is always on; it does nothing unless asked to.
-MANAGED_EXTENSIONS = [DASH_TO_DOCK, DASH_TO_PANEL, ARCMENU, SMOOTH_OVERVIEW]
+# doesn't list. The helper and smooth-overview are always on; each does
+# nothing unless it's needed.
+MANAGED_EXTENSIONS = [DASH_TO_DOCK, DASH_TO_PANEL, ARCMENU]
 
 DTD = "org.gnome.shell.extensions.dash-to-dock"
 DTP = "org.gnome.shell.extensions.dash-to-panel"
@@ -43,6 +44,10 @@ ARC = "org.gnome.shell.extensions.arcmenu"
 # a little larger than ArcMenu's 20 px default so the ears and swirl read.
 ARC_BUTTON = ({"menu-button-icon": "redfox-logo-symbolic", "menu-button-icon-size": 32}
               if os.path.exists("/usr/share/icons/hicolor/scalable/apps/redfox-logo-symbolic.svg") else {})
+# Both taskbar layouts: the start button on every monitor's panel, and
+# GNOME's Activities (overview) button left visible, since ArcMenu hides it
+# by default and Super opens the start menu instead of the overview.
+ARC_ALL = {"multi-monitor": True, "show-activities-button": True, **ARC_BUTTON}
 RFL = "org.gnome.shell.extensions.redfox-layouts"
 BMS = "org.gnome.shell.extensions.blur-my-shell"
 BMS_DOCK = "org.gnome.shell.extensions.blur-my-shell.dash-to-dock"
@@ -87,12 +92,14 @@ def panel_elements(*elements):
     return [{"element": e, "visible": v, "position": p} for e, v, p in elements]
 
 
-# Nostalgia (like Windows 10): start button and pinned/running apps from the left; on the
-# right the tray, the status icons, then the clock, as Windows has them.
+# Nostalgia (like Windows 10): start button, overview button and pinned/running
+# apps from the left; on the right the tray, the status icons, then the clock,
+# as Windows has them. Super opens the start menu (ArcMenu), so the overview
+# gets a button of its own next to it.
 NOSTALGIA_ELEMENTS = panel_elements(
     ("showAppsButton", False, "stackedTL"),
-    ("activitiesButton", False, "stackedTL"),
     ("leftBox", True, "stackedTL"),
+    ("activitiesButton", True, "stackedTL"),
     ("taskbar", True, "stackedTL"),
     ("centerBox", True, "stackedBR"),
     ("rightBox", True, "stackedBR"),
@@ -101,11 +108,11 @@ NOSTALGIA_ELEMENTS = panel_elements(
     ("desktopButton", True, "stackedBR"),
 )
 
-# Wash (like Windows 11): start button and apps centred together.
+# Wash (like Windows 11): start button, overview button and apps centred together.
 WASH_ELEMENTS = panel_elements(
     ("showAppsButton", False, "stackedTL"),
-    ("activitiesButton", False, "stackedTL"),
     ("leftBox", True, "centerMonitor"),
+    ("activitiesButton", True, "centerMonitor"),
     ("taskbar", True, "centerMonitor"),
     ("centerBox", True, "stackedBR"),
     ("rightBox", True, "stackedBR"),
@@ -127,7 +134,14 @@ def dash_to_panel(elements, **extra):
     return {
         DTP: {
             "panel-positions": per_monitor("BOTTOM"),
-            "panel-sizes": per_monitor(44),
+            # 52 px with 8 px around each icon: the icons stay 36 px, with more
+            # room above and below them than 44 px and Dash to Panel's 4.
+            # The padding applies on all sides, so the margin between icons
+            # drops from 8 to 4 to keep their side-to-side spacing as it was
+            # (2 x margin + 2 x padding = 24 px either way).
+            "panel-sizes": per_monitor(52),
+            "appicon-padding": 8,
+            "appicon-margin": 4,
             "panel-element-positions": per_monitor(elements),
             "stockgs-keep-top-panel": False,
             "hide-overview-on-startup": True,
@@ -141,8 +155,6 @@ def dash_to_panel(elements, **extra):
             "trans-panel-opacity": 0.4,
             **extra,
         },
-        # Tiling Shell's button goes just after the start button.
-        RFL: {"tiling-button-by-start": True},
     }
 
 
@@ -152,7 +164,7 @@ LAYOUTS = {
     "redfox": {
         "title": "RedFox",
         "description": "A floating dock on the left on big screens; the GNOME dash on small ones.",
-        "extensions": [SMOOTH_OVERVIEW],
+        "extensions": [],
         # Dash to Dock is turned on and off by the helper extension.
         "auto_dock": True,
         "settings": {
@@ -183,7 +195,7 @@ LAYOUTS = {
     "cal": {
         "title": "Cal",
         "description": "A floating dock along the bottom, window buttons on the left.",
-        "extensions": [DASH_TO_DOCK, SMOOTH_OVERVIEW],
+        "extensions": [DASH_TO_DOCK],
         "settings": {
             DTD: {
                 "dock-position": "BOTTOM",
@@ -203,7 +215,7 @@ LAYOUTS = {
         "extensions": [DASH_TO_PANEL, ARCMENU],
         "settings": {
             **dash_to_panel(WASH_ELEMENTS),
-            ARC: {"menu-layout": "11", **ARC_BUTTON},
+            ARC: {"menu-layout": "11", "force-menu-location": "BottomCentered", **ARC_ALL},
             WM: {"button-layout": BUTTONS_RIGHT},
         },
     },
@@ -213,7 +225,7 @@ LAYOUTS = {
         "extensions": [DASH_TO_PANEL, ARCMENU],
         "settings": {
             **dash_to_panel(NOSTALGIA_ELEMENTS),
-            ARC: {"menu-layout": "windows", **ARC_BUTTON},
+            ARC: {"menu-layout": "windows", **ARC_ALL},
             WM: {"button-layout": BUTTONS_RIGHT},
         },
     },
@@ -377,7 +389,10 @@ def apply_layout(name):
     remove_old_dock_copy()
     warn_shadowed_copies()
     layout = LAYOUTS[name]
-    wanted = [HELPER, *layout["extensions"]]
+    # The helper and smooth-overview are always on. smooth-overview decides
+    # for itself: it fills in the overview only while Dash to Dock runs with a
+    # dock that stops short of the screen edges (not in panel mode).
+    wanted = [HELPER, SMOOTH_OVERVIEW, *layout["extensions"]]
 
     # 1. Turn off what this layout doesn't use, so an old dock or panel
     #    isn't rebuilt for every setting changed below.

@@ -133,7 +133,6 @@ packs:
     includes: [gnome-dev]
     items:
       - zed
-      - antigravity-cli
       - io.podman_desktop.PodmanDesktop
       - org.gnome.dspy
       - ca.desrt.dconf-editor
@@ -169,6 +168,7 @@ packs:
     hidden: true
     includes: [redfox-app-fleet, dev, bluefin-dx, creative, daily, productivity, compatibility, basic, comms]
     items:
+      - antigravity-cli
       - com.jeffser.Alpaca
 
   - id: dewy

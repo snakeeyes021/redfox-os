@@ -3,6 +3,15 @@
 
 "$schema" = "https://starship.rs/config-schema.json"
 
+# Yellow and cyan, used by many of Starship's modules (languages, packages,
+# durations), are hard to read on a light terminal. This palette swaps in
+# darker shades that read on light and dark backgrounds alike.
+palette = "redfox"
+
+[palettes.redfox]
+yellow = "#9a6700"
+cyan = "#0a7d8c"
+
 # Show which OS this is, as the RedFox fox. Starship learns the OS from
 # /etc/os-release's ID. It doesn't know "redfox", so it falls back to
 # Fedora's release file and reports Fedora; older RedFox images said
@@ -17,3 +26,20 @@ Bazzite = "🦊 "
 Fedora = "🦊 "
 Linux = "🦊 "
 Unknown = "🦊 "
+
+# Colours that read on light and dark terminals alike. Starship's defaults
+# (yellow names, cyan folders) are hard to read on a light background, such
+# as Tilix's default.
+[username]
+style_user = "bold red"
+style_root = "bold red"
+
+[hostname]
+style = "bold green"
+
+[directory]
+style = "bold blue"
+read_only_style = "red"
+
+[cmd_duration]
+style = "bold purple"

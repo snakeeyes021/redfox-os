@@ -81,6 +81,7 @@ modules:
       - 1414 # Unblank lock screen
       - 1160 # Dash to Panel (Windows layouts; off unless a layout turns it on)
       - 3628 # ArcMenu (Windows layouts; off unless a layout turns it on)
+      - 5733 # One-Click BIOS: hold Shift in the power menu to restart into firmware settings
 
   - type: default-flatpaks
     configurations:
@@ -126,5 +127,5 @@ modules:
       - install-smooth-overview.sh
       - install-redfox-hub.sh
       - stamp-redfox-dim.sh
-      - install-antigravity.sh
+      - no-bazzite-portal-autostart.sh
       - branding.sh # last: RedFoxOS names, image-info, and the boot splash (rebuilds the initramfs)
