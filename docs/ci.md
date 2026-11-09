@@ -7,7 +7,8 @@ All builds use BlueBuild with the three recipes (`recipe-main.yml`, `recipe-nvid
 | `build.yml` | pushes to `main`, daily at 06:00 UTC, PRs into `main` | `latest`, dated, `<sha7>-<fedora>`; PRs `pr-<n>-<fedora>` |
 | `build-unstable.yml` | pushes to `unstable`, daily (dispatched by `schedule-unstable.yml`), PRs into `unstable` | `unstable`, `br-unstable-<fedora>`, `<sha7>-<fedora>`; PRs `pr-<n>-<fedora>` |
 | `build-feature.yml` | pushes to `feature/**` branches (no daily rebuild) | `br-<branch, / as _>-<fedora>`, `fb-<branch>-<sha7>-<fedora>` |
-| `build-live-iso.yml` | a published release on `main` (builds the three live ISOs and publishes them for the download page), and by hand (test builds, never published) | ISO files (see `iso.md`) |
+| `build-live-iso.yml` | a published release on `main` (builds the three live ISOs and publishes them for the download page, with `publish-live-isos.yml`), and by hand (test builds, never published) | ISO files (see `iso.md`) |
+| `publish-live-isos.yml` | called by `build-live-iso.yml` for a release, and by hand on `main` to publish a release run's ISOs again from its artifacts | the ISOs on R2 (see `iso.md`) |
 
 Pushes that change only `.md` files don't build.
 
