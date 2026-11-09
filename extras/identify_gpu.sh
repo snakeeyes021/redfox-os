@@ -3,15 +3,13 @@
 #
 #   curl -sL https://raw.githubusercontent.com/snakeeyes021/redfox-os/main/extras/identify_gpu.sh | bash
 #
-# Lists this computer's display devices and says which RedFoxOS download
-# works best on it, with a link to it. It reads only each display device's PCI
-# vendor and device id. It downloads RedFoxOS's graphics rules
+# Lists this computer's graphics and says which RedFoxOS download to get,
+# by the name on its card on the download page. It reads only each display
+# device's PCI vendor and device id, downloads RedFoxOS's graphics rules
 # (files/system/usr/share/redfox/gpu-rules.json, the same rules the download
-# page and RedFox Hub's image picker use) and decides here; nothing about
-# this computer is sent anywhere. The link carries the ids after a "#", which
-# browsers keep to themselves, so opening it doesn't send them either.
-# If the rules can't be downloaded, it prints a code to paste into the
-# download page instead. The Windows version is identify_gpu.ps1.
+# page and RedFox Hub's image picker use) and decides here: nothing about
+# this computer is sent anywhere. identify_gpu.ps1 does the same on Windows,
+# with the same output.
 #
 # For tests: RFX_DEVICES="8086:46a6 10de:1c03" stands in for the computer's
 # devices, and RFX_RULES_FILE=path reads the rules from a file.
@@ -36,22 +34,21 @@ else
     done
 fi
 
+echo "RedFoxOS graphics check"
+echo
 if [ "${#ids[@]}" -eq 0 ]; then
-    echo "No graphics device found."
+    echo "No graphics found."
 else
     echo "Graphics found:"
     for id in "${ids[@]}"; do
         name=""
         if [ -z "${RFX_DEVICES+set}" ] && command -v lspci >/dev/null 2>&1; then
-            name="$(lspci -d "$id" 2>/dev/null | head -n1 | cut -d' ' -f2-)"
+            name="$(lspci -d "$id" 2>/dev/null | head -n1 | cut -d' ' -f2- | sed 's/^[^:]*: //')"
         fi
-        echo "  ${id}${name:+  ${name}}"
+        if [ -n "$name" ]; then echo "  ${name} (${id})"; else echo "  ${id}"; fi
     done
 fi
 echo
-
-code="RFX1 ${ids[*]:-none}"
-link="${PAGE}#gpu=${code// /+}"
 
 rules=""
 if [ -n "${RFX_RULES_FILE:-}" ]; then
@@ -67,10 +64,9 @@ else
     done
 fi
 
-# The decision, the same way the download page makes it (download/gpu-rules.js
-# on redfoxlabs.tech): each device gets the first class it matches, then the
-# first rule whose classes all fit wins. Prints the image id, then the reason,
-# then "hybrid" or nothing.
+# The decision, the same way the download page and Hub make it: each device
+# gets the first class it matches, then the first rule whose classes all fit
+# wins. Prints the image id, then the reason, then "hybrid" or nothing.
 decide() {
     python3 -c '
 import json, sys
@@ -99,47 +95,65 @@ if [ -n "$rules" ] && command -v python3 >/dev/null 2>&1; then
 fi
 
 if [ -z "$result" ]; then
-    # No rules (offline?) or no Python: the page can decide from the code.
-    echo "Couldn't decide here. Your code for the download page:"
+    if [ -n "$rules" ]; then
+        echo "This check needs Python 3, which this computer doesn't have,"
+    else
+        echo "Couldn't download RedFoxOS's graphics rules (is this computer online?),"
+    fi
+    echo "so it can't say which download to get. Choose by your graphics at"
+    echo "  ${PAGE}"
     echo
-    echo "    ${code}"
-    echo
-    echo "Paste it at ${PAGE} to see which RedFoxOS works best on your machine,"
-    echo "or open this link, which shows the same:"
-    echo "    ${link}"
+    echo "Nothing about this computer has been sent anywhere."
     exit 0
 fi
 
 image="$(sed -n 1p <<< "$result")"
 why="$(sed -n 2p <<< "$result")"
 hybrid="$(sed -n 3p <<< "$result")"
+# The download's name, as on the download page and in RedFox Hub
 case "$image" in
-    redfox-os) title="RedFoxOS (AMD & Intel)" ;;
-    redfox-os-nvidia) title="RedFoxOS NVIDIA" ;;
-    redfox-os-nvidia-legacy) title="RedFoxOS NVIDIA Legacy" ;;
-    *) title="" ;;
+    redfox-os) download="RedFoxOS (AMD & Intel)" ;;
+    redfox-os-nvidia) download="RedFoxOS NVIDIA (GTX 16xx, RTX 20xx and newer)" ;;
+    redfox-os-nvidia-legacy) download="RedFoxOS NVIDIA Legacy (GTX 10xx, 9xx and 750)" ;;
+    *) download="" ;;
 esac
 
-if [ -n "$title" ]; then
-    echo "Works best on your machine: ${title}"
-    echo "  It has ${why}."
+# Prints text in lines of up to 76 characters, indented by two spaces. (The
+# Windows version wraps the same way, so both print the same.)
+wrap() {
+    local line="" word
+    set -f
+    for word in $1; do
+        if [ -z "$line" ]; then
+            line="$word"
+        elif [ $((${#line} + 1 + ${#word})) -le 76 ]; then
+            line="$line $word"
+        else
+            echo "  $line"
+            line="$word"
+        fi
+    done
+    set +f
+    [ -z "$line" ] || echo "  $line"
+}
+
+if [ -n "$download" ]; then
+    echo "The download to get:"
+    echo "  ${download}"
+    echo
+    echo "Why:"
+    wrap "This computer has ${why}."
 else
-    echo "No single download works best on your machine: it has ${why}."
-    echo "  Pick the one for the graphics you want to use."
+    echo "No single download works best on your machine:"
+    wrap "It has ${why}. Choose the download for the graphics you want to use."
 fi
 if [ "$hybrid" = hybrid ]; then
     echo
-    echo "Two graphics chips: this computer has built-in graphics next to its NVIDIA card,"
-    echo "like most laptops with NVIDIA. The NVIDIA download drives the card with NVIDIA's"
-    echo "driver, and the built-in graphics keep working. If the screen stays black when the"
-    echo "USB stick starts, choose \"Start RedFoxOS (basic graphics)\" in its menu."
+    echo "Two graphics chips:"
+    wrap "This computer has built-in graphics next to its NVIDIA card, like most laptops with NVIDIA. The NVIDIA download drives the card with NVIDIA's driver, and the built-in graphics keep working. If the screen stays black when the USB stick starts, choose \"Start RedFoxOS (basic graphics)\" in its menu."
 fi
 echo
-if [ -n "$title" ]; then
-    echo "Download it here (the page opens with it picked):"
-else
-    echo "The downloads (the page opens with this computer's graphics checked):"
-fi
-echo "    ${link}"
+if [ -n "$download" ]; then echo "Get it at:"; else echo "The downloads are at:"; fi
+echo "  ${PAGE}"
 echo
-echo "Nothing about this computer has been sent anywhere. Code, if you'd rather paste it: ${code}"
+echo "Nothing about this computer has been sent anywhere."
