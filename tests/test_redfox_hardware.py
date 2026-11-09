@@ -59,7 +59,7 @@ class TestHardware(unittest.TestCase):
             env = dict(os.environ, HOME=home)
             self.assertEqual(run([HARDWARE, "boxtron", "status"], env).stdout.strip(),
                              "not-installed")
-            Path(home, ".steam/root/compatibilitytools.d/boxtron").mkdir(parents=True)
+            Path(home, ".local/share/Steam/compatibilitytools.d/boxtron").mkdir(parents=True)
             self.assertEqual(run([HARDWARE, "boxtron", "status"], env).stdout.strip(), "installed")
             self.assertEqual(run([HARDWARE, "openrazer", "status"], env).stdout.strip(),
                              "not-installed")

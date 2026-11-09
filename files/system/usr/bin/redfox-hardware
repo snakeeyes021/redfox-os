@@ -47,7 +47,12 @@ coolercontrol_status() { [ -f /etc/containers/systemd/coolercontrol.container ];
 
 displaylink_install() { root displaylink install; }
 displaylink_remove() { root displaylink remove; }
-displaylink_status() { layered displaylink; }
+# Added from negativo17's package file (redfox-hardware-root), or as a
+# repository package by Bazzite's recipe.
+displaylink_status() {
+    layered displaylink || rpm-ostree status --json | jq -e \
+        '.deployments[0] | (.["requested-local-packages"] // []) | any(startswith("displaylink-"))' >/dev/null
+}
 
 # OpenRazer: the daemon from its latest release, installed in your home
 # folder (Bazzite's kernel has OpenRazer's drivers), plus the plugdev group.
@@ -66,6 +71,11 @@ openrazer_install() {
     mkdir -p "$HOME/.config/systemd/user"
     mv -f "$HOME/.local/lib/systemd/user/openrazer-daemon.service" "$HOME/.config/systemd/user/"
     python3 -m pip install --user --quiet daemonize
+    # The daemon looks for its example settings under /usr/share; installed in
+    # the home folder it finds none and stops, so give it a settings file.
+    mkdir -p "$HOME/.config/openrazer"
+    [ -f "$HOME/.config/openrazer/razer.conf" ] \
+        || cp "$HOME/.local/share/openrazer/razer.conf.example" "$HOME/.config/openrazer/razer.conf"
     root openrazer install
     "${FLATHUB[@]}" app.polychromatic.controller
     systemctl --user daemon-reload
@@ -123,7 +133,13 @@ opentabletdriver_status() { [ -f "$OTD_SERVICE" ]; }
 # Boxtron: a Steam compatibility tool, with DOSBox from the Fedora distrobox
 # (Bazzite's own "fedora" box, made if it isn't there yet). No root needed.
 BOXTRON_VERSION=0.5.4
-STEAM_TOOLS=$HOME/.steam/root/compatibilitytools.d
+# ~/.steam/root is a link Steam makes to its folder; before Steam has run,
+# use the folder itself (making ~/.steam/root here would break Steam's link).
+if [ -d "$HOME/.steam/root" ]; then
+    STEAM_TOOLS=$HOME/.steam/root/compatibilitytools.d
+else
+    STEAM_TOOLS=$HOME/.local/share/Steam/compatibilitytools.d
+fi
 
 boxtron_install() {
     if ! distrobox list --no-color 2>/dev/null | awk -F'|' '{gsub(/ /,"",$2); print $2}' | grep -qx fedora; then

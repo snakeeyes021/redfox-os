@@ -181,22 +181,75 @@ coolercontrol_remove() {
 }
 
 # DisplayLink: the driver package from negativo17's multimedia repository,
-# added to the system (it takes effect after a restart).
-NEGATIVO=/etc/yum.repos.d/negativo17-fedora-multimedia.repo
+# added to the system (it takes effect after a restart). The image already
+# has the evdi kernel module and libevdi it needs.
+#
+# Bazzite's recipe enables that repository and runs `rpm-ostree install
+# displaylink`, but on RedFoxOS rpm-ostree leaves the repository out and
+# can't find the package. So this fetches the newest package itself, checks
+# it against the repository's checksum and negativo17's signing key, and adds
+# the file. (A package added from a file isn't updated with the system; doing
+# this again gets the newest one.)
+NEGATIVO_BASE=https://negativo17.org/repos/multimedia/fedora-%s/x86_64
+NEGATIVO_KEY=https://negativo17.org/repos/RPM-GPG-KEY-slaanesh
+
+displaylink_local() { # the added DisplayLink package (name-version-release), if any
+    rpm-ostree status --json | jq -r \
+        '.deployments[0] | (.["requested-local-packages"] // [])[] | select(startswith("displaylink-"))' | head -n1
+}
 
 displaylink_install() {
-    if layered displaylink; then
-        echo "DisplayLink is already set to install."
+    if [ -n "$(displaylink_local)" ] || layered displaylink; then
+        echo "DisplayLink is already set up."
         return
     fi
-    if [ -f "$NEGATIVO" ] && grep -q "enabled=0" "$NEGATIVO"; then
-        sed -i 's@enabled=0@enabled=1@g' "$NEGATIVO"
-    fi
-    rpm-ostree install -y displaylink
+    workdir
+    local version base primary found name sha
+    version=$(. /usr/lib/os-release && echo "$VERSION_ID")
+    # shellcheck disable=SC2059
+    base=$(printf "$NEGATIVO_BASE" "$version")
+    echo "Downloading DisplayLink…"
+    primary=$(curl -fsSL "$base/repodata/repomd.xml" | grep -o 'repodata/[^"]*primary.xml.gz' | head -n1)
+    curl -fsSL "$base/$primary" | gunzip > "$WORK/primary.xml"
+    # The newest displaylink package: its file name and SHA-256
+    found=$(python3 -I - "$WORK/primary.xml" <<'PY'
+import sys
+import xml.etree.ElementTree as ET
+ns = {"c": "http://linux.duke.edu/metadata/common"}
+best = None
+for pkg in ET.parse(sys.argv[1]).getroot().findall("c:package", ns):
+    if pkg.findtext("c:name", namespaces=ns) != "displaylink" or pkg.findtext("c:arch", namespaces=ns) != "x86_64":
+        continue
+    v = pkg.find("c:version", ns)
+    key = tuple(int(p) if p.isdigit() else 0 for p in (v.get("ver") + "." + v.get("rel").split(".")[0]).split("."))
+    checksum = pkg.find("c:checksum", ns)
+    if checksum.get("type") == "sha256" and (best is None or key > best[0]):
+        best = (key, pkg.find("c:location", ns).get("href"), checksum.text)
+if best:
+    print(best[1], best[2])
+PY
+)
+    [ -n "$found" ] || { echo "DisplayLink isn't in negativo17's repository for Fedora $version" >&2; exit 1; }
+    read -r name sha <<< "$found"
+    case "$name" in */*|..*) echo "Unexpected file name: $name" >&2; exit 1 ;; esac
+    curl -fsSL -o "$WORK/$name" "$base/$name"
+    echo "$sha  $WORK/$name" | sha256sum --check --quiet
+    # negativo17's signature, checked in a keyring of its own
+    curl -fsSL -o "$WORK/negativo17.key" "$NEGATIVO_KEY"
+    rpmkeys --dbpath "$WORK/rpmdb" --import "$WORK/negativo17.key"
+    rpmkeys --dbpath "$WORK/rpmdb" --checksig "$WORK/$name" | grep -q 'digests signatures OK' \
+        || { echo "DisplayLink's package signature didn't check out" >&2; exit 1; }
+    rpm-ostree install -y "$WORK/$name"
 }
 
 displaylink_remove() {
-    if layered displaylink; then rpm-ostree uninstall -y displaylink; fi
+    local nevra
+    nevra=$(displaylink_local)
+    if [ -n "$nevra" ]; then
+        rpm-ostree uninstall -y "$nevra"
+    elif layered displaylink; then
+        rpm-ostree uninstall -y displaylink
+    fi
 }
 
 # OpenRazer: the person who asked joins the plugdev group, which the daemon
