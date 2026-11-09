@@ -18,12 +18,12 @@ The name is **RedFoxOS** (as in the README and the wordmark); the short name is 
 | Terminal banner (MOTD) | `/usr/share/ublue-os/motd/template.md`, `tips/20-redfox.md` | Bazzite's tips (gaming, Bazzite docs links) are removed at build. Swedish locales, which Bazzite gives its own banner, get RedFox's (`template.sv.md` links to `template.md`). |
 | fastfetch | `/usr/share/ublue-os/bazzite/fastfetch.jsonc`, `logo.txt`, `/usr/libexec/bazzite-fetch-image` | A sitting nine-tailed fox in RedFox reds, drawn for the terminal (truecolour half blocks, 34×20 so it fits a default 80×24 terminal; see Artwork). The image line shows the image actually booted, e.g. `ghcr.io/snakeeyes021/redfox-os:unstable`. Keys still follow the GNOME accent colour. |
 | Symbolic icon | `/usr/share/icons/hicolor/scalable/apps/redfox-logo-symbolic.svg` | The swirl: three swirling tails with fox ears, one colour. ArcMenu's start button in the Windows layouts, and anything that asks for `redfox-logo-symbolic`. |
-| Starship | `/usr/share/redfox/starship.toml`, used when you have no `~/.config/starship.toml` | Turns on the `os` module with a 🦊. Starship isn't installed by default yet (see the roadmap). |
+| Starship | `/usr/share/redfox/starship.toml`, used when you have no `~/.config/starship.toml` | Turns on the `os` module with a 🦊. Starship isn't installed by default: RedFox Hub's prompt switch (Settings › Terminal) installs it and turns it on. |
 | Fedora's logo files (`fedora-logo*.png`, `fedora_whitelogo*`, `system-logo-white.png`) | `files/system/usr/share/pixmaps` | Shown by the installer, initial setup and some About dialogs. |
 
 ### Left as Bazzite on purpose
 
-- **Bazzite Portal** (the first-run app, `yafti`) and **Bazzite Announcements**. Their content is Bazzite's own (Bazzite docs, Discord, Bazzite actions and news), so renaming them would mislead. RedFox Hub's Welcome runs after it.
+- **Bazzite Announcements** (the mechanism; Bazzite's own messages are removed at build). Bazzite Portal, the first-run app, is removed: RedFox Hub does its job.
 - **`ujust` recipe names.**
 
 ## Identifiers tooling reads (kept)
