@@ -192,7 +192,7 @@ image_name() {
 }
 image_description() {
     case "$1" in
-        redfox-os) echo "Intel and AMD graphics" ;;
+        redfox-os) echo "AMD and Intel graphics" ;;
         redfox-os-nvidia) echo "NVIDIA GTX 16xx, RTX 20xx and newer" ;;
         redfox-os-nvidia-legacy) echo "NVIDIA GTX 10xx and older" ;;
     esac
@@ -290,7 +290,7 @@ switch_image() {
         else
             echo "No recommendation: found ${why}."
         fi
-        picked="$(choose "Mainline${r1}: Intel and AMD graphics" \
+        picked="$(choose "Mainline${r1}: AMD and Intel graphics" \
             "NVIDIA${r2}: GTX 16xx, RTX 20xx and newer" \
             "NVIDIA legacy${r3}: GTX 10xx and older" "Cancel")" || exit 0
         case "$picked" in
