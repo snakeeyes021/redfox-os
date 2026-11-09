@@ -181,7 +181,7 @@ class Tour(Gtk.Box):
             TourPage(hero_icon("software-update-available-symbolic"),
                      "Updates You Never Have to Think About",
                      "RedFoxOS updates itself in the background and whenever you tell it to. "
-                     "If something goes wrong, the update safely aborts. If anything is "
+                     "If a system update goes wrong, it safely aborts. If anything is "
                      "ever weird after an update, roll back from the Hub."),
             TourPage(hero_icon("view-app-grid-symbolic"), "Apps for Everything",
                      "RedFox curates packs of our favorite apps. Bazaar has thousands "
