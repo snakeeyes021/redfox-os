@@ -175,6 +175,13 @@ class UpdatesSection(Section):
         factory.connect("setup", self._graphics_item_setup)
         factory.connect("bind", self._graphics_item_bind)
         self.graphics_row.set_list_factory(factory)
+        # The selected name in full ("RedFoxOS (AMD & Intel)" is cut short by
+        # the default label); the subtitle wraps instead.
+        shown = Gtk.SignalListItemFactory()
+        shown.connect("setup", lambda _f, item: item.set_child(Gtk.Label(xalign=1)))
+        shown.connect("bind", lambda _f, item: item.get_child().set_label(item.get_item().get_string()))
+        self.graphics_row.set_factory(shown)
+        self.graphics_row.set_use_markup(False)
         self._graphics_checks = set()
         self.graphics_row.connect("notify::selected", self._sync_graphics_checks)
         channel.add(self.graphics_row)
@@ -498,7 +505,7 @@ class UpdatesSection(Section):
             subtitle = image["description"]
             if image["id"] == self.recommended:
                 subtitle += f" · {WORKS_BEST}"
-            self.graphics_row.set_subtitle(GLib.markup_escape_text(subtitle))
+            self.graphics_row.set_subtitle(subtitle)
 
     def _select_booted_graphics(self):
         ids = [i["id"] for i in self.images]
