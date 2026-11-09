@@ -1,0 +1,68 @@
+/* RedFox Hub */
+
+.welcome-disc {
+  border-radius: 9999px;
+  background-color: alpha(var(--accent-bg-color), 0.14);
+  color: var(--accent-color);
+}
+
+.welcome-body {
+  font-size: 1.1em;
+}
+
+.welcome-link {
+  min-width: 240px;
+}
+
+.welcome-arrow {
+  min-width: 40px;
+  min-height: 40px;
+}
+
+.layout-preview {
+  border-radius: 6px;
+}
+
+/* The layout picker, as in assets/layouts/picker.html: the picture lifts on
+   hover, and the current layout has an accent outline. */
+.layout-card {
+  padding: 6px;
+  border-radius: 12px;
+  background: none;
+}
+
+.layout-card .layout-preview {
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.layout-card:hover .layout-preview,
+.layout-card:focus-visible .layout-preview {
+  transform: translateY(-3px) scale(1.03);
+  box-shadow: 0 6px 18px alpha(black, 0.22);
+}
+
+.layout-card.current .layout-preview {
+  outline: 3px solid var(--accent-bg-color);
+  outline-offset: 3px;
+}
+
+.layout-card:focus-visible {
+  outline: none;
+}
+
+.hub-log {
+  font-size: 0.85em;
+  background: transparent;
+}
+
+.manual-code {
+  padding: 6px 6px 6px 12px;
+}
+
+.manual-summary {
+  font-size: 1.1em;
+}
+
+.hub-action-bar > revealer > box {
+  padding: 6px 12px;
+}

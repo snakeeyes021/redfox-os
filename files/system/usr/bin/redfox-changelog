@@ -1,0 +1,36 @@
+#!/usr/bin/bash
+# redfox-changelog: RedFoxOS's release notes, from its GitHub releases.
+#
+#   redfox-changelog              the latest stable release's notes
+#   redfox-changelog --unstable   the latest pre-release's notes
+#   redfox-changelog --check      exit 0 if there are notes to show, 1 if not
+#
+# RedFoxOS shows its own notes or none: never Bazzite's (Bazzite's notes
+# talk about Bazzite's images and its rollback helper).
+set -uo pipefail
+
+API="https://api.github.com/repos/snakeeyes021/redfox-os/releases?per_page=20"
+prerelease=false
+check=false
+for arg in "$@"; do
+    case "$arg" in
+        --unstable|--testing) prerelease=true ;;
+        --check) check=true ;;
+        -h|--help) sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    esac
+done
+
+body="$(curl -fsSL --max-time 10 "$API" 2>/dev/null |
+    jq -r --argjson pre "$prerelease" \
+        'map(select(.draft | not) | select(.prerelease == $pre)) | .[0] | select(.) | "# \(.name // .tag_name)\n\n\(.body // "")"' 2>/dev/null)"
+
+if [ -z "$body" ]; then
+    $check || echo "RedFoxOS has no release notes for this channel yet."
+    exit 1
+fi
+$check && exit 0
+if command -v glow >/dev/null && [ -t 1 ]; then
+    printf '%s\n' "$body" | glow -
+else
+    printf '%s\n' "$body"
+fi

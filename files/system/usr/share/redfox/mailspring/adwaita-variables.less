@@ -1,0 +1,98 @@
+// RedFox Adwaita: Mailspring's theme variables, set from the libadwaita
+// palette that each variant's ui-variables.less defines (@adw-*).
+// Variables only: Mailspring imports this into every stylesheet it compiles.
+
+@accent-primary: var(--system-accent, @adw-accent-bg);
+@accent-primary-dark: var(--system-accent-dark, darken(@adw-accent-bg, 8%));
+
+@black: @adw-text;
+
+@background-primary: @adw-view-bg;
+@background-off-primary: @adw-view-bg;
+@background-secondary: @adw-window-bg;
+@background-tertiary: @adw-sidebar-bg;
+@background-gradient: none;
+
+@color-info: @adw-accent-text;
+@color-success: @adw-green;
+@color-warning: @adw-yellow;
+@color-error: @adw-red;
+@color-danger: @adw-red;
+@background-color-info: @adw-accent-bg;
+@background-color-success: @adw-green;
+@background-color-warning: @adw-yellow;
+@background-color-error: @adw-red;
+
+@border-color-primary: @adw-border;
+@border-color-secondary: @adw-border;
+@border-color-tertiary: @adw-border;
+@border-color-divider: @adw-border;
+
+@text-color: @adw-text;
+@text-color-subtle: fadeout(@adw-text, 25%);
+@text-color-very-subtle: @adw-dim;
+@text-color-inverse: #ffffff;
+@text-color-inverse-subtle: fadeout(#ffffff, 20%);
+@text-color-inverse-very-subtle: fadeout(#ffffff, 50%);
+@text-color-heading: @adw-text;
+@text-color-link: @adw-accent-text;
+@text-color-link-hover: @adw-accent-text;
+@text-color-link-active: @adw-accent-text;
+@text-color-selected: #ffffff;
+
+@font-family-sans-serif: 'Adwaita Sans', 'Cantarell', 'Noto Sans', sans-serif;
+@font-family-monospace: 'Adwaita Mono', 'Source Code Pro', 'DejaVu Sans Mono', monospace;
+@font-family: @font-family-sans-serif;
+@font-family-heading: @font-family-sans-serif;
+
+@border-radius-base: 6px;
+@border-radius-large: 12px;
+@border-radius-small: 4px;
+@component-border-radius: 6px;
+
+@standard-shadow-color: @adw-shade;
+@standard-shadow: 0 1px 3px 0 @adw-shade;
+@standard-shadow-up: 0 -1px 3px 0 @adw-shade;
+
+@btn-border-color: transparent;
+@btn-default-bg-color: @adw-button-bg;
+@btn-default-text-color: @adw-text;
+@btn-icon-color: @adw-text;
+@btn-action-bg-color: @adw-accent-bg;
+@btn-action-text-color: #ffffff;
+@btn-emphasis-bg-color: @adw-accent-bg;
+@btn-emphasis-text-color: #ffffff;
+@btn-danger-bg-color: @adw-red;
+@btn-danger-text-color: #ffffff;
+
+@dropdown-default-bg-color: @adw-card-bg;
+@dropdown-default-text-color: @adw-text;
+@dropdown-default-border-color: @adw-border;
+
+@input-bg: @adw-button-bg;
+@input-bg-disabled: @adw-hover;
+@input-border-color: transparent;
+@input-border-color-blurred: transparent;
+@input-border: transparent;
+
+@toolbar-background-color: @adw-headerbar-bg;
+@panel-background-color: @adw-sidebar-bg;
+@source-list-bg: @adw-sidebar-bg;
+@source-list-active-bg: @adw-sidebar-selected;
+@source-list-active-color: @adw-text;
+@source-list-inset-bg: @adw-sidebar-bg;
+
+@list-bg: @adw-view-bg;
+@list-border: @adw-border;
+@list-hover-bg: @adw-hover;
+// libadwaita selects rows with a neutral tint, not the accent colour.
+@list-focused-color: @adw-text;
+@list-focused-bg: @adw-row-selected;
+@list-focused-border: @adw-view-bg;
+@list-selected-color: @adw-text;
+@list-selected-bg: @adw-row-selected;
+@list-selected-border: @adw-view-bg;
+
+@menu-item-color-hover: @adw-hover;
+@menu-item-color-selected: @accent-primary;
+@menu-text-color-selected: #ffffff;

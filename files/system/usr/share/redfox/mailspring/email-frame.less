@@ -1,0 +1,11 @@
+// RedFox Adwaita: inside the message body (Mailspring adds every stylesheet
+// whose path contains "email-frame.less" to the email's frame). Plain-text
+// mail in GNOME's own font rather than monospace, at libadwaita's size.
+@import 'ui-variables';
+
+#inbox-plain-wrapper,
+pre.nylas-plaintext {
+  font-family: @font-family-sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+}

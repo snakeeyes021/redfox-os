@@ -59,8 +59,9 @@ _print-bootstrap-recap:
 redfox-reset-config:
     /usr/bin/redfox-config reset
 
-# Set hostname: this machine's name from config.yaml (machines.<id>.hostname), otherwise
-# "redfox" if the hostname is still an upstream default. Never overrides a name you picked.
+# This machine's name from config.yaml (machines.<id>.hostname); otherwise "redfox"
+# if the name is still an upstream default. A name you picked is never changed.
+# Set the computer's name (from config.yaml, or "redfox" in place of an upstream default)
 reset-hostname:
     #!/usr/bin/bash
     set -euo pipefail
@@ -107,10 +108,6 @@ configure-vscode:
 # Configure Cursor
 configure-cursor:
     echo "TODO: Implement configure-cursor"
-
-# Configure Antigravity IDE
-configure-antigravity:
-    echo "TODO: Implement configure-antigravity"
 
 # Configure Text Editor Dev Mode (Indentation)
 configure-text-editor-dev:
@@ -168,40 +165,19 @@ theme-text-editor-default:
 
 # Install Zed
 install-zed:
-    echo "Installing Zed..."
-    bash -c "set -euo pipefail; curl -f https://zed.dev/install.sh | sh"
-    echo "Zed installed!"
+    /usr/bin/redfox-software install zed
 
 # Uninstall Zed
 uninstall-zed:
-    echo "Uninstalling Zed..."
-    if command -v zed &> /dev/null; then \
-        zed --uninstall; \
-    elif [ -x "$HOME/.local/bin/zed" ]; then \
-        "$HOME/.local/bin/zed" --uninstall; \
-    else \
-        echo "Zed executable not found."; \
-    fi
-    if ! command -v zed &> /dev/null && [ ! -x "$HOME/.local/bin/zed" ]; then \
-        echo "Zed uninstalled successfully!"; \
-    else \
-        echo "Zed was not removed (possibly cancelled or error)."; \
-    fi
-
+    /usr/bin/redfox-software remove zed
 
 # Install Antigravity CLI
 install-antigravity-cli:
-    echo "Installing Antigravity CLI (agy)..."
-    bash -c "set -euo pipefail; curl -fsSL https://antigravity.google/cli/install.sh | bash"
-    ln -sf "$HOME/.local/bin/agy" "$HOME/.local/bin/antigravity-cli"
-    echo "Antigravity CLI installed as 'agy' (alias 'antigravity-cli')!"
+    /usr/bin/redfox-software install antigravity-cli
 
 # Uninstall Antigravity CLI
 uninstall-antigravity-cli:
-    echo "Uninstalling Antigravity CLI..."
-    rm -f "$HOME/.local/bin/agy" "$HOME/.local/bin/antigravity-cli"
-    rm -rf "$HOME/.cache/antigravity"
-    echo "Antigravity CLI uninstalled!"
+    /usr/bin/redfox-software remove antigravity-cli
 
 # Configure Heroic
 configure-heroic:
@@ -209,51 +185,51 @@ configure-heroic:
 
 # Install SoundThread
 install-soundthread:
-    /usr/bin/update-soundthread
+    /usr/bin/redfox-software install soundthread
 
 # Uninstall SoundThread
 uninstall-soundthread:
-    /usr/bin/uninstall-soundthread
+    /usr/bin/redfox-software remove soundthread
 
 # Update all installed RedFox Labs applications
 update-redfox-apps:
     /usr/bin/update-redfox-apps
 
 # Install RedFox App Fleet (all RedFox Labs Flatpak applications)
-install-redfox-app-fleet: install-pianola install-thirties
+install-redfox-app-fleet:
+    /usr/bin/redfox-software install redfox-app-fleet
 
 # Uninstall RedFox App Fleet
-uninstall-redfox-app-fleet: uninstall-pianola uninstall-thirties
+uninstall-redfox-app-fleet:
+    /usr/bin/redfox-software remove redfox-app-fleet
 
 # Install Pianola (MIDI viewer & archive playback Flatpak)
 install-pianola:
-    /usr/bin/update-redfox-apps tech.redfoxlabs.Pianola
+    /usr/bin/redfox-software install tech.redfoxlabs.Pianola
 
 # Uninstall Pianola
 uninstall-pianola:
-    echo "Uninstalling Pianola..."
-    if flatpak info --user tech.redfoxlabs.Pianola &> /dev/null; then \
-        flatpak uninstall --user -y tech.redfoxlabs.Pianola; \
-        echo "Pianola uninstalled successfully!"; \
-    else \
-        echo "Pianola is not installed."; \
-    fi
-    rm -f "${XDG_DATA_HOME:-$HOME/.local/share}/redfox-apps/tech.redfoxlabs.Pianola.tag"
+    /usr/bin/redfox-software remove tech.redfoxlabs.Pianola
 
 # Install Thirties (half-hour block AI scheduling assistant Flatpak)
 install-thirties:
-    /usr/bin/update-redfox-apps tech.redfoxlabs.Thirties
+    /usr/bin/redfox-software install tech.redfoxlabs.Thirties
 
 # Uninstall Thirties
 uninstall-thirties:
-    echo "Uninstalling Thirties..."
-    if flatpak info --user tech.redfoxlabs.Thirties &> /dev/null; then \
-        flatpak uninstall --user -y tech.redfoxlabs.Thirties; \
-        echo "Thirties uninstalled successfully!"; \
-    else \
-        echo "Thirties is not installed."; \
-    fi
-    rm -f "${XDG_DATA_HOME:-$HOME/.local/share}/redfox-apps/tech.redfoxlabs.Thirties.tag"
+    /usr/bin/redfox-software remove tech.redfoxlabs.Thirties
+
+# Roll back, or move to another RedFoxOS build (latest, unstable, a dated or commit build)
+rollback-helper *ARGS:
+    /usr/bin/redfox-rollback-helper {{ ARGS }}
+
+# Switch image: the graphics (AMD & Intel, NVIDIA, NVIDIA Legacy) and the channel (latest or unstable). Asks, then confirms.
+switch-image *ARGS:
+    /usr/bin/redfox-rollback-helper switch-image {{ ARGS }}
+
+# Feature branches with a test build (unsupported, for developers); rebase with: ujust rollback-helper rebase pr-N-FEDORA
+list-feature-branches:
+    /usr/bin/redfox-rollback-helper branches
 
 # Run the optional Bazzite graphical updater
 update-gui:
@@ -264,17 +240,13 @@ update-gui:
 update-appimages:
     /usr/bin/update-appimages
 
-# Install Winboat (Example: GitHub Source)
-install-winboat:
-    /usr/bin/install-appimage \
-      "WinBoat" \
-      "GithubUpdater" \
-      "https://github.com/TibixDev/winboat" \
-      "winboat-*-x86_64.AppImage"
+# Start Signal and Joplin in the tray at login, if they're installed. Opened any other way, they open normally.
+configure-autostart-tray:
+    /usr/bin/redfox-autostart on org.signal.Signal net.cozic.joplin_desktop
 
-# Uninstall Winboat
-uninstall-winboat:
-    /usr/bin/uninstall-appimage "WinBoat"
+# Undo configure-autostart-tray
+reset-autostart-tray:
+    /usr/bin/redfox-autostart off org.signal.Signal net.cozic.joplin_desktop
 
 # UI/UX Atoms
 fix-flatpak-theming:
@@ -337,21 +309,26 @@ theme-default-corners:
     
     echo "Reverted to default rounded corners. Please restart your applications."
 
+# Use GNOME's own sound theme
 theme-sound-fedora:
     gsettings reset org.gnome.desktop.sound theme-name
 
 theme-sound-bazzite:
     gsettings set org.gnome.desktop.sound theme-name 'steam'
 
+# Window buttons on the right: minimise, maximise and close
 set-window-controls-right-full:
     gsettings set org.gnome.desktop.wm.preferences button-layout ':minimize,maximize,close'
 
+# Window buttons on the right: close only
 set-window-controls-right-gnome:
     gsettings set org.gnome.desktop.wm.preferences button-layout ':close'
 
+# Window buttons back to the default: close, on the left
 set-window-controls-left-gnome:
     gsettings reset org.gnome.desktop.wm.preferences button-layout
 
+# Tiling: no gaps between windows, no snap assistant
 layout-tiling-dewy:
     gsettings set org.gnome.shell.extensions.tilingshell show-indicator true
     gsettings set org.gnome.shell.extensions.tilingshell inner-gaps 0
@@ -367,6 +344,7 @@ layout-tiling-dewy:
     gsettings set org.gnome.shell.extensions.tilingshell move-window-right "['<Super>Right']"
     gsettings set org.gnome.shell.extensions.tilingshell cycle-layouts "['<Control>Right']"
 
+# Tiling: back to the default gaps, snap assistant and shortcuts
 layout-tiling-default:
     gsettings reset org.gnome.shell.extensions.tilingshell show-indicator
     gsettings reset org.gnome.shell.extensions.tilingshell inner-gaps
@@ -382,121 +360,62 @@ layout-tiling-default:
     gsettings reset org.gnome.shell.extensions.tilingshell move-window-right
     gsettings reset org.gnome.shell.extensions.tilingshell cycle-layouts
 
-# Flatten folders, alphabetize grid, and force dock apps to show
+# App grid order and folders are separate choices.
+# The grid is alphabetical by default (Alphabetical App Grid, on in the image's
+# default extensions), with GNOME's folders. These recipes change one or the other.
+
+# Keep the app grid alphabetical, and show dock apps in it too
 sort-app-grid:
-    # 1. Flatten folders
-    # This sets the list of folders to 'empty', dumping all apps into the root grid.
-    gsettings set org.gnome.desktop.app-folders folder-children "[]"
-    
-    # 2. Force alphabetical sort
-    # This does a one-time sort immediately so it looks right even before extensions load.
+    # A one-time sort now, so it looks right before the extension loads.
     gsettings reset org.gnome.shell app-picker-layout
-
-    # 3. Enable extensions    
-    # Extension A: Alphabetical App Grid (Maintains the sort order persistently)
+    # Alphabetical App Grid keeps it sorted, apps installed later included.
     gnome-extensions enable AlphabeticalAppGrid@stuarthayhurst
-
-    # Extension B: Keep Pinned Apps (Forces dock apps back into the grid)
+    # Pinned Apps in App Grid keeps dock apps in the grid as well.
     gnome-extensions enable pinned-apps-in-appgrid@brunosilva.io
 
+# GNOME's own app grid order: new apps go at the end, and icons can be arranged by hand
 default-app-grid:
-    echo "TODO: Implement default-app-grid"
+    gnome-extensions disable AlphabeticalAppGrid@stuarthayhurst || true
+    gnome-extensions disable pinned-apps-in-appgrid@brunosilva.io || true
+    gsettings reset org.gnome.shell app-picker-layout
 
-preset-dock-ubuntu: _disable-redfox-dock-hacks
-    gsettings reset-recursively org.gnome.shell.extensions.dash-to-dock
-    gnome-extensions enable dash-to-dock@micxgx.gmail.com
+# Put every app in the main grid, with no folders
+flatten-app-folders:
+    gsettings set org.gnome.desktop.app-folders folder-children "[]"
 
-preset-dock-gnome: _disable-redfox-dock-hacks
-    gnome-extensions disable dash-to-dock@micxgx.gmail.com
+# Bring back the default app folders
+default-app-folders:
+    gsettings reset org.gnome.desktop.app-folders folder-children
 
-# Dock preset: Windows (classic) (not implemented yet)
-preset-dock-win-classic:
-    # TODO: add back the `_disable-redfox-dock-hacks` dependency when this preset is implemented
-    echo "TODO: Implement preset-dock-win-classic"
+# --- LAYOUT PRESETS ---
+# Each preset applies live through `redfox-layout` (see `redfox-layout list`);
+# no logout needed. Switching presets resets the dock/panel settings first.
 
-# Dock preset: Windows (11-style) (not implemented yet)
-preset-dock-win-new:
-    # TODO: add back the `_disable-redfox-dock-hacks` dependency when this preset is implemented
-    echo "TODO: Implement preset-dock-win-new"
+# Layout preset: RedFox (floating dock on big screens, GNOME dash on small ones)
+preset-dock-redfox GAP="8":
+    redfox-layout set redfox
+    gsettings set org.gnome.shell.extensions.redfox-layouts floating-dock-gap {{ GAP }}
 
-# Dock preset: macOS (not implemented yet)
-preset-dock-macos:
-    # TODO: add back the `_disable-redfox-dock-hacks` dependency when this preset is implemented
-    echo "TODO: Implement preset-dock-macos"
+# Layout preset: GNOME (no dock; the dash lives in the overview)
+preset-dock-gnome:
+    redfox-layout set gnome
 
-# --- REDFOX DOCK PRESET RECIPE AND UTILITIES ---
+# Layout preset: Ubuntu (full-height dock on the left)
+preset-dock-ubuntu:
+    redfox-layout set ubuntu
 
-# Enable the Dash to Dock floating gap hack (Alpha) - Supports optional pixel argument
-_enable-dash-to-dock-gap-hack GAP="8":
-    #!/usr/bin/bash
-    EXT_ID="dash-to-dock@micxgx.gmail.com"
-    SYS_PATH="/usr/share/gnome-shell/extensions/${EXT_ID}"
-    LOCAL_PATH="${HOME}/.local/share/gnome-shell/extensions"
-    
-    echo "Applying Dash to Dock gap: {{ GAP }}px"
-    mkdir -p "${LOCAL_PATH}"
-    rm -rf "${LOCAL_PATH}/${EXT_ID}"
-    cp -r "${SYS_PATH}" "${LOCAL_PATH}/"
-    
-    cat << 'EOF' >> "${LOCAL_PATH}/${EXT_ID}/stylesheet.css"
+# Layout preset: Cal (floating dock along the bottom, window buttons on the left)
+preset-dock-cal GAP="8":
+    redfox-layout set cal
+    gsettings set org.gnome.shell.extensions.redfox-layouts floating-dock-gap {{ GAP }}
 
-    /* --- REDFOX OS CUSTOM OVERRIDES --- */
-    /* 1. Zero out the internal margins to remove the 4px phantom gap */
-    #dashtodockContainer #dash .dash-background {
-        margin: 0px !important;
-    }
+# Layout preset: Wash (one taskbar along the bottom, start menu and apps centred)
+preset-dock-wash:
+    redfox-layout set wash
 
-    /* 2. Apply the full gap to screen edges, and 0px to the window-facing edge */
-    #dashtodockContainer.bottom #dash { margin: 0px {{ GAP }}px {{ GAP }}px {{ GAP }}px !important; }
-    #dashtodockContainer.top #dash { margin: {{ GAP }}px {{ GAP }}px 0px {{ GAP }}px !important; }
-    #dashtodockContainer.left #dash { margin: {{ GAP }}px 0px {{ GAP }}px {{ GAP }}px !important; }
-    #dashtodockContainer.right #dash { margin: {{ GAP }}px {{ GAP }}px {{ GAP }}px 0px !important; }
-    EOF
-
-# Disable the Dash to Dock floating gap hack and revert to system default
-_disable-dash-to-dock-gap-hack:
-    #!/usr/bin/bash
-    EXT_ID="dash-to-dock@micxgx.gmail.com"
-    LOCAL_PATH="${HOME}/.local/share/gnome-shell/extensions/${EXT_ID}"
-    
-    if [ -d "${LOCAL_PATH}" ]; then
-        echo "Removing local Dash to Dock override..."
-        rm -rf "${LOCAL_PATH}"
-        echo "Reverted to system default. Please log out and back in."
-    else
-        echo "No local override found. Nothing to do."
-    fi
-
-# Fully apply RedFox Dock aesthetics (Gap Hack, Smooth Overview, Blur My Shell)
-_preset-dock-redfox GAP="8": (_enable-dash-to-dock-gap-hack GAP)
-    #!/usr/bin/bash
-    echo "Deploying RedFox Dock Preset..."
-    
-    # Enable extensions
-    gnome-extensions enable dash-to-dock@micxgx.gmail.com
-    gnome-extensions enable smooth-overview@redfoxlabs.tech
-
-    # Configure Blur My Shell and Dash to Dock via dconf
-    dconf write /org/gnome/shell/extensions/dash-to-dock/extend-height false
-    dconf write /org/gnome/shell/extensions/blur-my-shell/dash-to-dock/pipeline "'pipeline_default_rounded'"
-    dconf write /org/gnome/shell/extensions/blur-my-shell/pipelines "{'pipeline_default': {'name': <'Default'>, 'effects': <[<{'type': <'native_static_gaussian_blur'>, 'id': <'effect_000000000000'>, 'params': <{'radius': <30>, 'brightness': <0.59999999999999998>}>}>]>}, 'pipeline_default_rounded': {'name': <'Default rounded'>, 'effects': <[<{'type': <'native_static_gaussian_blur'>, 'id': <'effect_000000000001'>, 'params': <{'radius': <30>, 'brightness': <0.59999999999999998>}>}>, <{'type': <'corner'>, 'id': <'effect_000000000002'>, 'params': <{'radius': <20>}>}>]>}}"
-
-    echo "RedFox aesthetics applied. Please log out to refresh the Dash to Dock CSS."
-
-# Disable all RedFox dock hacks and return to system defaults
-_disable-redfox-dock-hacks: _disable-dash-to-dock-gap-hack
-    #!/usr/bin/bash
-    echo "Reverting RedFox Dock customizations..."
-
-    # Disable Smooth Overview
-    gnome-extensions disable smooth-overview@redfoxlabs.tech
-
-    # Reset Blur My Shell and Dash to Dock settings
-    dconf write /org/gnome/shell/extensions/dash-to-dock/extend-height false
-    dconf write /org/gnome/shell/extensions/blur-my-shell/dash-to-dock/pipeline "'pipeline_default'"
-    dconf reset /org/gnome/shell/extensions/blur-my-shell/pipelines
-
-    echo "Reverted to defaults. Please log out for a full refresh."
+# Layout preset: Nostalgia (one taskbar along the bottom, start menu and apps on the left)
+preset-dock-nostalgia:
+    redfox-layout set nostalgia
 
 # Hardware Atoms
 fix-oryp9-mouse:
@@ -696,154 +615,84 @@ remove-swap:
 
 
 # Level 1.5: Small-ecules (Software packs)
+# The lists live in /usr/share/redfox/software.yaml; `redfox-software list` shows them.
 
 # Install Basic Apps
 install-basic:
-    flatpak install -y flathub \
-        org.gnome.World.PikaBackup \
-        org.gnome.Calendar \
-        org.gnome.Snapshot \
-        org.gnome.clocks \
-        org.gnome.Contacts \
-        org.gnome.Maps \
-        org.gnome.Weather
+    /usr/bin/redfox-software install basic
 
 # Install Productivity Apps
 install-productivity:
-    flatpak install -y flathub \
-        org.gnome.SimpleScan \
-        org.libreoffice.LibreOffice \
-        com.getmailspring.Mailspring \
-        be.alexandervanhee.gradia \
-        net.cozic.joplin_desktop \
-        app.drey.Warp
+    /usr/bin/redfox-software install productivity
 # Consider OnlyOffice for PDF capabilities
 
 # Install Communication Apps
 install-comms:
-    flatpak install -y flathub \
-        org.signal.Signal \
-        dev.vencord.Vesktop
+    /usr/bin/redfox-software install comms
 
 # Install Daily Apps
 install-daily:
-    flatpak install -y flathub \
-        dev.geopjr.Tuba \
-        io.gitlab.news_flash.NewsFlash \
-        com.github.geigi.cozy \
-        com.github.johnfactotum.Foliate \
-        org.gnome.Music \
-        com.spotify.Client
+    /usr/bin/redfox-software install daily
 
 # Install Audio Production Apps
-install-audio: install-soundthread install-pianola
-    flatpak install -y flathub \
-        org.ardour.Ardour \
-        info.puredata.Pd \
-        net.purrdata.PurrData \
-        org.audacityteam.Audacity \
-        net.sourceforge.VMPK \
-        org.pipewire.Helvum
+install-audio:
+    /usr/bin/redfox-software install audio
 # Consider FamiStudio
 
 # Install Graphics Apps
 install-graphics:
-    flatpak install -y flathub \
-        org.kde.krita \
-        org.blender.Blender \
-        org.inkscape.Inkscape \
-        org.gimp.GIMP \
-        com.orama_interactive.Pixelorama \
-        nl.hjdskes.gcolor3 \
-        net.pixieditor.PixiEditor
+    /usr/bin/redfox-software install graphics
 
 # Install Photography Apps
 install-photos:
-    flatpak install -y flathub \
-        org.kde.digikam \
-        org.darktable.Darktable
+    /usr/bin/redfox-software install photos
 
 # Install Video Production Apps
 install-video:
-    flatpak install -y flathub \
-        org.kde.kdenlive \
-        org.bunkus.mkvtoolnix-gui \
-        org.gnome.gitlab.YaLTeR.VideoTrimmer \
-        com.github.unrud.VideoDownloader \
-        com.obsproject.Studio \
-        io.github.wartybix.Constrict
+    /usr/bin/redfox-software install video
 
 # Install Compatibility Tools
-install-compatibility: install-winboat
-    flatpak install -y flathub \
-        com.usebottles.bottles
+install-compatibility:
+    /usr/bin/redfox-software install compatibility
 
 # Install Music Notation Apps
 install-notation:
-    flatpak install -y flathub \
-        org.musescore.MuseScore \
-        org.frescobaldi.Frescobaldi
+    /usr/bin/redfox-software install notation
 
 # Install Writing Apps
 install-writing:
-    flatpak install -y flathub \
-        org.cvfosammmm.Setzer \
-        ch.theologeek.Manuskript
+    /usr/bin/redfox-software install writing
 
 # Install GNOME Development Apps
 install-gnome-dev:
-    flatpak install -y flathub \
-        org.gnome.Builder \
-        re.sonny.Workbench
+    /usr/bin/redfox-software install gnome-dev
 
 # Install Development Apps
-install-dev: install-gnome-dev install-zed install-antigravity-cli
-    flatpak install -y flathub \
-        io.podman_desktop.PodmanDesktop \
-        org.gnome.dspy \
-        ca.desrt.dconf-editor
+install-dev:
+    /usr/bin/redfox-software install dev
 
 # Install Bluefin DX Extras
 install-bluefin-dx:
-    flatpak install -y flathub \
-        org.freedesktop.Bustle \
-        de.leopoldluley.Clapgrep \
-        io.github.ronniedroid.concessio \
-        me.iepure.devtoolbox \
-        io.github.getnf.embellish \
-        org.pipewire.Helvum
+    /usr/bin/redfox-software install bluefin-dx
 
 # Install Creative Suite
-install-creative: install-audio install-graphics install-photos install-video install-notation install-writing
+install-creative:
+    /usr/bin/redfox-software install creative
 
 
 # Level 2: Molecules (Logical Groups)
 
 # Install Matt's Bundle
-install-matt: install-redfox-app-fleet install-dev install-bluefin-dx install-creative install-daily install-productivity install-compatibility install-basic install-comms
-    flatpak install -y flathub \
-        com.jeffser.Alpaca
+install-matt:
+    /usr/bin/redfox-software install matt
 
 # Install Dewy's Bundle
-install-dewy: install-zed install-comms
-    flatpak install -y flathub \
-        org.videolan.VLC \
-        net.pixieditor.PixiEditor \
-        com.spotify.Client \
-        com.bambulab.BambuStudio \
-        org.gnome.SimpleScan \
-        org.libreoffice.LibreOffice \
-        be.alexandervanhee.gradia \
-        net.cozic.joplin_desktop \
-        app.drey.Warp \
-        org.texstudio.TeXstudio \
-        com.brave.Browser \
-        com.slack.Slack \
-        com.dropbox.Client
-    echo "Installing latest TexLive extension..."
-    flatpak install -y flathub "org.freedesktop.Sdk.Extension.texlive//$(flatpak remote-ls flathub --columns=application,branch | grep org.freedesktop.Sdk.Extension.texlive | awk '{print $2}' | sort -V | tail -n 1)"
+install-dewy:
+    /usr/bin/redfox-software install dewy
+
 # Install Normie Bundle
-install-normie: install-basic install-daily install-productivity install-comms
+install-normie:
+    /usr/bin/redfox-software install normie
 
 
 # Level 3: Organisms (User Bootstraps & Configs)
@@ -998,10 +847,10 @@ configure-music: enable-midikeep
     echo "Configured music workstation."
 
 # Configure Dev Environment
-configure-dev: configure-vscode configure-cursor configure-antigravity
+configure-dev: configure-vscode configure-cursor
 
 # Configure Matt's Environment
-configure-matt: redfox-enforce-config apply-hardware-quirks add-swap configure-nordvpn reset-hostname configure-keybindings-default configure-dev configure-text-editor-dev configure-terminal-default configure-powersaver-no-suspend configure-xway-scale-off configure-music
+configure-matt: redfox-enforce-config apply-hardware-quirks add-swap configure-nordvpn reset-hostname configure-keybindings-default configure-dev configure-text-editor-dev configure-terminal-default configure-powersaver-no-suspend configure-xway-scale-off configure-music configure-autostart-tray
     mkdir -p ~/dev
     gnome-extensions enable unblank@sun.wxg@gmail.com
     # just runs hardware atoms here eventually
@@ -1030,6 +879,7 @@ configure-dewy: redfox-enforce-config configure-keybindings-default configure-te
     gsettings set org.gnome.shell.keybindings show-screenshot-ui "['Print']"
     gsettings set org.gnome.shell.keybindings screenshot "['<Shift><Super>s']"
     gnome-extensions disable unblank@sun.wxg@gmail.com
+    gnome-extensions enable redfox-dim@redfoxlabs.tech
 
 # Configure Fedora's Environment
 configure-fedora: configure-keybindings-default configure-text-editor-reset reset-hostname configure-powersaver-default configure-xway-scale-on
@@ -1043,7 +893,7 @@ configure-normie: configure-keybindings-default configure-text-editor-reset rese
 # --- LAYOUT MOLECULES (UX/Behavior/Positioning) ---
 
 # Layout Matt
-layout-matt: sort-app-grid set-window-controls-left-gnome layout-tiling-default preset-dock-gnome
+layout-matt: sort-app-grid flatten-app-folders layout-tiling-default preset-dock-gnome set-window-controls-left-gnome
     gsettings reset-recursively org.gnome.shell.extensions.dash-to-dock
     gsettings set org.gnome.shell favorite-apps "[\
       'org.gnome.Ptyxis.desktop', \
@@ -1052,7 +902,6 @@ layout-matt: sort-app-grid set-window-controls-left-gnome layout-tiling-default 
       'org.mozilla.firefox.desktop', \
       'org.signal.Signal.desktop', \
       'org.gnome.TextEditor.desktop', \
-      'antigravity-ide.desktop', \
       'com.spotify.Client.desktop', \
       'steam.desktop', \
       'net.cozic.joplin_desktop.desktop', \
@@ -1061,18 +910,18 @@ layout-matt: sort-app-grid set-window-controls-left-gnome layout-tiling-default 
     # Note: Add Gemini Web App ID and Dorico 6 once stabilized.
 
 # Layout Dewy
-layout-dewy: sort-app-grid set-window-controls-right-full layout-tiling-dewy preset-dock-ubuntu
+layout-dewy: sort-app-grid flatten-app-folders layout-tiling-dewy preset-dock-ubuntu set-window-controls-right-full
     gsettings set org.gnome.shell.extensions.dash-to-dock isolate-workspaces true
     gsettings set org.gnome.shell.extensions.dash-to-dock dash-max-icon-size 40
-    gsettings set org.gnome.shell favorite-apps "['org.gnome.Nautilus.desktop', 'io.missioncenter.MissionCenter.desktop', 'org.gnome.Settings.desktop', 'org.gnome.Ptyxis.desktop', 'org.mozilla.firefox.desktop', 'com.brave.Browser.desktop', 'org.gnome.Calculator.desktop', 'org.gnome.TextEditor.desktop', 'dev.zed.Zed.desktop', 'cursor.desktop', 'com.spotify.Client.desktop', 'com.slack.Slack.desktop', 'org.signal.Signal.desktop', 'dev.vencord.Vesktop.desktop']"
+    gsettings set org.gnome.shell favorite-apps "['org.gnome.Nautilus.desktop', 'net.nokyan.Resources.desktop', 'org.gnome.Settings.desktop', 'org.gnome.Ptyxis.desktop', 'org.mozilla.firefox.desktop', 'com.brave.Browser.desktop', 'org.gnome.Calculator.desktop', 'org.gnome.TextEditor.desktop', 'dev.zed.Zed.desktop', 'cursor.desktop', 'com.spotify.Client.desktop', 'com.slack.Slack.desktop', 'org.signal.Signal.desktop', 'dev.vencord.Vesktop.desktop']"
 
 # Layout Fedora (Mostly Vanilla Fedora 43 Defaults)
-layout-fedora: default-app-grid set-window-controls-right-gnome layout-tiling-default preset-dock-gnome
+layout-fedora: default-app-grid default-app-folders layout-tiling-default preset-dock-gnome set-window-controls-right-gnome
     gsettings reset-recursively org.gnome.shell.extensions.dash-to-dock
     gsettings set org.gnome.shell favorite-apps "['org.mozilla.firefox.desktop', 'org.gnome.Calendar.desktop', 'org.gnome.Nautilus.desktop', 'io.github.kolunmi.Bazaar.desktop', 'org.gnome.TextEditor.desktop', 'org.gnome.Calculator.desktop']"
 
 # Layout Normie (Consumer-focused Experience)
-layout-normie: default-app-grid set-window-controls-left-gnome layout-tiling-default
+layout-normie: sort-app-grid default-app-folders set-window-controls-left-gnome layout-tiling-default
     gsettings set org.gnome.shell favorite-apps "[\
       'org.gnome.Nautilus.desktop', \
       'com.getmailspring.Mailspring.desktop', \
@@ -1087,7 +936,8 @@ layout-normie: default-app-grid set-window-controls-left-gnome layout-tiling-def
       'dev.geopjr.Tuba.desktop', \
       'app.drey.Warp.desktop', \
       'io.github.kolunmi.Bazaar.desktop', \
-      'org.gnome.Settings.desktop']"
+      'org.gnome.Settings.desktop', \
+      'tech.redfoxlabs.Hub.desktop']"
 
 # --- THEME MOLECULES (Visuals/Assets) ---
 

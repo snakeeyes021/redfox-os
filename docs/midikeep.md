@@ -71,10 +71,23 @@
   * `sqlite3` for query indexing.
   * Virtual MIDI loopback module (`snd-virmidi`) for automated testing.
 * **Storage Location (XDG Compliant):**
-  * Data Directory: `~/.local/share/midikeep/`
-  * Sessions Directory: `~/.local/share/midikeep/sessions/YYYY/MM/DD/`
-  * Index Database: `~/.local/share/midikeep/index.db`
-  * Config Directory: `~/.config/midikeep/config.yaml`
+  * Config File: `$XDG_CONFIG_HOME/midikeep/config.yaml` (by default `~/.config/midikeep/config.yaml`). Set `$MIDIKEEP_CONFIG` to use another file. **Shared with Pianola**, which reads the same file and the same `data_dir` key to find the archive.
+  * Data Directory (the archive): the `data_dir` key in the config file. `~` and `$VARIABLES` are expanded. If it is unset or empty, the archive is `$XDG_DATA_HOME/midikeep`, by default `~/.local/share/midikeep/`. The daemon's `--data-dir` flag overrides both.
+  * Sessions Directory: `<data_dir>/sessions/`
+  * Index Database: `<data_dir>/index.db`
+  * Crash Journal: `<data_dir>/journal/`
+  * The daemon and every `midikeep` CLI command (`status`, `list`, `mark`, `restart`, `star`, `export`) resolve `data_dir` the same way. Restart the daemon after changing it (`systemctl --user restart midikeep`). Moving an existing archive means moving the folder too.
+  * Example `config.yaml`. The daemon writes one with the defaults the first time it starts.
+    ```yaml
+    data_dir: ~/Music/midikeep     # where takes and index.db live
+    silence_threshold_seconds: 900
+    log_midi_clock: false
+    tempo_bpm: 120
+    division: 480
+    journal_interval_seconds: 5
+    auto_connect: true
+    device_blacklist: []
+    ```
 
 ### 1.2 Hotplug Device Detection & Port Subscription
 * The daemon registers as an ALSA Sequencer client (`midikeep`).
@@ -167,7 +180,8 @@ A modern GTK4/Libadwaita desktop application adhering to GNOME Human Interface G
 * **Distribution Model:** Standalone Flatpak bundle built via GitHub Actions and published via GitHub Releases (`tech.redfoxlabs.Pianola.flatpak`).
 * **OS Integration:** Integrated into RedFox via `ujust install-pianola` and chained into `ujust install-audio` (and `install-creative` / `install-matt`).
 * **Sandboxing & Permissions:**
-  * `--filesystem=xdg-data/midikeep:rw` (Direct access to `~/.local/share/midikeep/index.db` and sessions/journal)
+  * `--filesystem=xdg-config/midikeep:ro` (reads the shared `config.yaml`, including `data_dir`)
+  * `--filesystem=xdg-data/midikeep:create` and `--filesystem=home` (the default archive, or one moved elsewhere with `data_dir`)
   * `--socket=pulseaudio`, `--socket=wayland`, `--socket=fallback-x11`
   * Bundled FluidSynth 2.4.1 and `FluidR3_GM.sf2` SoundFont for instant playback
   * File associations: `audio/midi;audio/x-midi;`

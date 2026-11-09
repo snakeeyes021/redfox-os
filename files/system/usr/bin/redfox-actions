@@ -1,0 +1,223 @@
+#!/usr/bin/python3
+"""redfox-actions: list and run RedFox Hub's one-off actions.
+
+Each action sits in Hub next to the settings it's about (its group), and
+Help lists them all under one heading. Most are Bazzite's own `ujust`
+recipes, run without their questions:
+
+  list [--json]   {"version": 1, "actions": [{"id", "group", "title",
+                   "subtitle", "button", "confirm", "done"}]}
+                  Only the actions this computer can use are listed (NVIDIA
+                  ones need an NVIDIA card, for instance). "confirm" is null,
+                  or {"heading", "body", "button"} for Hub to ask first.
+                  "done" is true for a set-up action that has been done.
+  run ID          runs it; the last line says how it went. Exits 0 when it
+                  worked.
+
+Steps that need root go through /usr/libexec/redfox-system-action, run with
+pkexec, which asks for a password in GNOME's own dialog.
+"""
+
+import argparse
+import json
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+VERSION = "1.0.0"
+CONTRACT_VERSION = 1
+SYSTEM_HELPER = "/usr/libexec/redfox-system-action"
+NVIDIA_SYNC = "/usr/libexec/ublue-nvidia-flatpak-runtime-sync"
+GROUPS = ("sound", "gaming", "updates", "other", "help")
+NVIDIA = "0x10de"
+
+
+def gpu_vendors():
+    """PCI vendor ids of this computer's graphics cards. $REDFOX_GPU_VENDORS
+    (space-separated: nvidia, amd, intel) overrides it, for tests."""
+    override = os.environ.get("REDFOX_GPU_VENDORS")
+    if override is not None:
+        names = {"nvidia": NVIDIA, "amd": "0x1002", "intel": "0x8086"}
+        return {names[n] for n in override.split() if n in names}
+    found = set()
+    try:
+        cards = os.listdir("/sys/class/drm")
+    except OSError:
+        return found
+    for card in cards:
+        try:
+            found.add(Path(f"/sys/class/drm/{card}/device/vendor").read_text().strip())
+        except OSError:
+            continue
+    return found
+
+
+def has_nvidia():
+    return NVIDIA in gpu_vendors()
+
+
+def is_efi():
+    return Path(os.environ.get("REDFOX_EFI_DIR", "/sys/firmware/efi")).is_dir()
+
+
+def steam_dir():
+    return Path.home() / ".local/share/Steam"
+
+
+def waydroid_set_up():
+    return Path(os.environ.get("REDFOX_WAYDROID_CFG", "/var/lib/waydroid/waydroid.cfg")).is_file()
+
+
+def waydroid_subtitle():
+    text = ("Runs Android apps in a window. Setting it up downloads Android, "
+            "about 1 GB, and asks for your password.")
+    if has_nvidia():
+        text += " On NVIDIA graphics it runs without graphics acceleration, so it's slow."
+    return text
+
+
+# Display order within each group.
+ACTIONS = [
+    dict(id="restart-audio", group="sound", title="Restart Audio",
+         subtitle="If sound stops, or a speaker or headset doesn't show up. "
+                  "Anything playing stops for a moment.",
+         button="Restart", steps=[["ujust", "restart-pipewire"]],
+         done_message="Audio restarted"),
+    dict(id="stop-games", group="gaming", title="Stop Stuck Windows Games",
+         subtitle="Ends every running Wine and Proton program, for a game that "
+                  "won't close or won't start again. Unsaved progress is lost.",
+         button="Stop", steps=[["ujust", "fix-proton-hang"]],
+         # killall fails for the programs that weren't running.
+         any_exit=True, done_message="Wine and Proton programs stopped"),
+    dict(id="reset-steam", group="gaming", title="Reset Steam",
+         subtitle="Puts Steam back the way it was when first installed, and signs you "
+                  "out. Your games, saves, music and controller settings stay.",
+         button="Reset…",
+         confirm=dict(heading="Reset Steam?",
+                      body="Steam closes, its own files are removed, and it starts again "
+                           "as if newly installed. You'll need to sign in again. Your "
+                           "games, saves, music, controller settings and compatibility "
+                           "tools stay.",
+                      button="Reset Steam"),
+         available=lambda: steam_dir().is_dir(),
+         # The recipe waits for Enter before it starts; Hub has asked already.
+         # It ends by starting Steam, which would hold the output open, so the
+         # output isn't passed on.
+         steps=[["ujust", "fix-reset-steam"]], stdin="\n", quiet=True,
+         done_message="Steam has been reset"),
+    dict(id="nvidia-flatpak", group="updates", title="Update NVIDIA Libraries for Flatpak Apps",
+         subtitle="Flatpak apps need libraries that match the NVIDIA driver. This "
+                  "normally happens by itself; if Flatpak apps lose graphics "
+                  "acceleration, update them here.",
+         button="Update", available=has_nvidia,
+         steps=[["ujust", "update-nvidia-runtime", "upgrade"]],
+         done_message="NVIDIA libraries for Flatpak apps are up to date"),
+    dict(id="waydroid", group="other", title="Android Apps (Waydroid)",
+         subtitle=waydroid_subtitle, button="Set Up…",
+         available=lambda: shutil.which("waydroid") is not None, done=waydroid_set_up,
+         done_subtitle="Set up. Open Waydroid from the app grid to start Android.",
+         steps=[["pkexec", SYSTEM_HELPER, "waydroid-init"], "waydroid-menu-entry"],
+         done_message="Waydroid is set up. Open it from the app grid."),
+    dict(id="logs", group="help", title="Collect Logs",
+         subtitle="Saves this computer's logs and system details in one zip in "
+                  "Downloads, for someone helping you. Your name, the computer's "
+                  "name, network names and serial numbers are taken out, and "
+                  "nothing is uploaded.",
+         button="Collect", steps=[["redfox-logs", "--show"]],
+         done_message=None),
+    dict(id="firmware", group="help", title="Restart into Firmware Settings",
+         subtitle="The computer's own setup screen (UEFI), for boot order, "
+                  "virtualization or Secure Boot. In the power menu, holding Shift "
+                  "does the same.",
+         button="Restart…", available=is_efi,
+         confirm=dict(heading="Restart into Firmware Settings?",
+                      body="Save your work first. The computer restarts straight away.",
+                      button="Restart"),
+         steps=[["systemctl", "reboot", "--firmware-setup"]],
+         done_message="Restarting…"),
+]
+BY_ID = {a["id"]: a for a in ACTIONS}
+
+
+def _value(x):
+    return x() if callable(x) else x
+
+
+def _env():
+    env = dict(os.environ)
+    env["LC_ALL"] = "C.UTF-8"
+    return env
+
+
+def list_actions():
+    out = []
+    for a in ACTIONS:
+        if not _value(a.get("available", True)):
+            continue
+        done = bool(_value(a.get("done", False)))
+        out.append({
+            "id": a["id"], "group": a["group"], "title": a["title"],
+            "subtitle": a["done_subtitle"] if done else _value(a["subtitle"]),
+            "button": a["button"], "confirm": a.get("confirm"), "done": done})
+    return {"version": CONTRACT_VERSION, "actions": out}
+
+
+def waydroid_menu_entry():
+    """The user half of `ujust configure-waydroid init`: the menu entry that
+    restarts Waydroid's container."""
+    apps = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share")) / "applications"
+    apps.mkdir(parents=True, exist_ok=True)
+    shutil.copy("/usr/share/applications/waydroid-container-restart.desktop", apps)
+    return 0
+
+
+def run(action_id):
+    action = BY_ID[action_id]
+    if not _value(action.get("available", True)):
+        print(f"{action['title']} isn't available on this computer", file=sys.stderr)
+        return 1
+    for step in action["steps"]:
+        try:
+            if step == "waydroid-menu-entry":
+                code = waydroid_menu_entry()
+            else:
+                quiet = subprocess.DEVNULL if action.get("quiet") else None
+                code = subprocess.run(step, input=action.get("stdin"), text=True,
+                                      stdout=quiet, stderr=quiet,
+                                      env=_env(), check=False).returncode
+        except OSError as error:
+            print(f"redfox-actions: couldn't run that: {error.strerror}", file=sys.stderr)
+            return 127
+        if code != 0 and not action.get("any_exit"):
+            print(f"{action['title']} didn't finish", file=sys.stderr)
+            return code
+    if action["done_message"]:   # otherwise the step's own last line says it
+        print(action["done_message"])
+    return 0
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(prog="redfox-actions", description=__doc__.splitlines()[0])
+    parser.add_argument("--version", action="version", version=f"%(prog)s {VERSION}")
+    sub = parser.add_subparsers(dest="command", required=True)
+    p_list = sub.add_parser("list", help="show the actions for this computer")
+    p_list.add_argument("--json", action="store_true")
+    p_run = sub.add_parser("run", help="run an action")
+    p_run.add_argument("id", choices=list(BY_ID))
+    args = parser.parse_args(argv)
+
+    if args.command == "list":
+        data = list_actions()
+        if args.json:
+            print(json.dumps(data))
+        else:
+            for a in data["actions"]:
+                print(f"{a['id']:16} {a['group']:8} {a['title']}{' (done)' if a['done'] else ''}")
+        return 0
+    return run(args.id)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

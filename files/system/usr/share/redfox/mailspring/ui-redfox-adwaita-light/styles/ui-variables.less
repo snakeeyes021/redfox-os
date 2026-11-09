@@ -1,0 +1,33 @@
+// RedFox Adwaita (light): Mailspring in GNOME's libadwaita colours.
+// The RedFox login hook adds the shared adwaita-variables.less (Mailspring's
+// variables, set from these) and adwaita.less (as styles/index.less, the rules).
+@import 'base/ui-variables';
+
+// libadwaita's light palette
+@adw-window-bg: #fafafb;
+@adw-view-bg: #ffffff;
+@adw-headerbar-bg: #ffffff;
+@adw-sidebar-bg: #ebebed;
+@adw-sidebar-selected: #d8d8db; // rgba(0, 0, 6, 0.1) over the sidebar, solid so text can use it
+@adw-card-bg: #ffffff;
+@adw-row-selected: #e6e6e7; // rgba(0, 0, 6, 0.1) over the view, solid so text can use it
+@adw-text: #323233;
+@adw-dim: fadeout(#323233, 45%);
+@adw-border: rgba(0, 0, 6, 0.15);
+@adw-shade: rgba(0, 0, 6, 0.07);
+@adw-hover: rgba(0, 0, 6, 0.05);
+@adw-button-bg: rgba(0, 0, 6, 0.08);
+@adw-accent-bg: #3584e4;
+@adw-accent-text: #1c71d8;
+@adw-red: #e01b24;
+@adw-red-text: #c01c28;
+@adw-green: #2ec27e;
+@adw-green-text: #1b8553;
+@adw-yellow: #e5a50a;
+@adw-yellow-text: #9c6e03;
+@adw-purple: #9141ac;
+
+@adw-is-dark: false;
+
+// Not a .less file, so Mailspring doesn't load it as a stylesheet of its own.
+@import (less) 'adwaita-variables.inc';

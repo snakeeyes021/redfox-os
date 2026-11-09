@@ -74,3 +74,26 @@ jobs:
             --registry-username "$GH_ACTOR" \
             --registry-password "$GH_TOKEN" \
             "${IMAGE_URI}:${TAG}" "${IMAGE_URI}:unstable"
+
+  bazzite-recipes:
+    # RedFox has its own versions of some of Bazzite's ujust recipes
+    # (tests/bazzite-recipes.json). This fails, without stopping the image
+    # build, when Bazzite has changed one, so RedFox's version gets checked.
+    name: Bazzite recipes RedFox follows
+    if: github.event_name == 'pull_request' || github.ref_name == 'unstable'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compare with the base image's recipes
+        run: |
+          BASE=$(awk '/^base-image:/ {print $2}' recipes/recipe-main.yml)
+          TAG=$(awk '/^image-version:/ {print $2}' recipes/recipe-main.yml)
+          docker pull -q "${BASE}:${TAG}"
+          id=$(docker create "${BASE}:${TAG}")
+          docker cp "${id}:/usr/share/ublue-os/just" ./bazzite-just
+          docker rm "$id" >/dev/null
+          python3 tests/check_bazzite_recipes.py ./bazzite-just

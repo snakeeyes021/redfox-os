@@ -77,30 +77,76 @@ logger = logging.getLogger("midikeep-daemon")
 # Path & Configuration Management
 # ---------------------------------------------------------------------------
 
-def get_default_paths():
+def expand_path(value) -> Path:
+    """Expand ~ and $VARS in a path from the config or the environment."""
+    return Path(os.path.expanduser(os.path.expandvars(str(value).strip())))
+
+
+def default_data_dir() -> Path:
     xdg_data = os.environ.get("XDG_DATA_HOME")
     if xdg_data:
-        data_dir = Path(xdg_data) / "midikeep"
-    else:
-        data_dir = Path.home() / ".local" / "share" / "midikeep"
+        return Path(xdg_data) / "midikeep"
+    return Path.home() / ".local" / "share" / "midikeep"
 
+
+def default_config_path() -> Path:
+    """$MIDIKEEP_CONFIG, else $XDG_CONFIG_HOME/midikeep/config.yaml, else
+    ~/.config/midikeep/config.yaml. Pianola reads the same file."""
+    env_config = os.environ.get("MIDIKEEP_CONFIG")
+    if env_config:
+        return expand_path(env_config)
     xdg_config = os.environ.get("XDG_CONFIG_HOME")
     if xdg_config:
-        config_dir = Path(xdg_config) / "midikeep"
-    else:
-        config_dir = Path.home() / ".config" / "midikeep"
+        return Path(xdg_config) / "midikeep" / "config.yaml"
+    return Path.home() / ".config" / "midikeep" / "config.yaml"
 
+
+def resolve_data_dir(config: dict, override: Path | None = None) -> Path:
+    """Where the archive lives: an explicit --data-dir, else a non-empty
+    data_dir in config.yaml, else $XDG_DATA_HOME/midikeep."""
+    if override:
+        return Path(override).expanduser()
+    configured = config.get("data_dir")
+    if configured is not None and str(configured).strip():
+        return expand_path(configured)
+    return default_data_dir()
+
+
+def home_relative(path: Path) -> str:
+    """~/... for paths under the home directory, so a written default stays
+    valid if the config is copied to another machine or user."""
+    try:
+        return "~/" + str(Path(path).relative_to(Path.home()))
+    except ValueError:
+        return str(path)
+
+
+def get_default_paths():
+    data_dir = default_data_dir()
     return {
         "data_dir": data_dir,
         "sessions_dir": data_dir / "sessions",
         "journal_dir": data_dir / "journal",
         "db_path": data_dir / "index.db",
-        "config_path": config_dir / "config.yaml",
+        "config_path": default_config_path(),
     }
+
+
+def strip_inline_comment(value: str) -> str:
+    """Drop a trailing " # comment" that isn't inside quotes."""
+    quote = None
+    for i, ch in enumerate(value):
+        if ch in "\"'" and quote in (None, ch):
+            quote = None if quote else ch
+        elif ch == "#" and quote is None and (i == 0 or value[i - 1].isspace()):
+            return value[:i].rstrip()
+    return value
 
 
 def load_config(config_path: Path) -> dict:
     default_config = {
+        # The archive (index.db, sessions/, journal/). Shared with Pianola.
+        "data_dir": home_relative(default_data_dir()),
         "silence_threshold_seconds": DEFAULT_SILENCE_THRESHOLD,
         "log_midi_clock": False,
         "tempo_bpm": DEFAULT_TEMPO_BPM,
@@ -131,13 +177,15 @@ def load_config(config_path: Path) -> dict:
                     if line and not line.startswith("#") and ":" in line:
                         k, v = line.split(":", 1)
                         k = k.strip()
-                        v = v.strip()
+                        v = strip_inline_comment(v.strip())
                         if v.lower() == "true": data[k] = True
                         elif v.lower() == "false": data[k] = False
                         else:
                             try:
                                 data[k] = float(v) if "." in v else int(v)
                             except ValueError:
+                                if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
+                                    v = v[1:-1]
                                 data[k] = v
         for k, v in default_config.items():
             if k not in data:
@@ -869,14 +917,14 @@ class AlsaSequencerManager:
 
 class MidikeepDaemon:
     def __init__(self, data_dir: Path | None = None, config_path: Path | None = None, silence_threshold: float | None = None):
-        paths = get_default_paths()
-        self.data_dir = data_dir or paths["data_dir"]
+        self.config_path = config_path or default_config_path()
+        self.config = load_config(self.config_path)
+
+        # --data-dir wins, then data_dir from config.yaml, then the default.
+        self.data_dir = resolve_data_dir(self.config, data_dir)
         self.sessions_dir = self.data_dir / "sessions"
         self.journal_dir = self.data_dir / "journal"
         self.db_path = self.data_dir / "index.db"
-        self.config_path = config_path or paths["config_path"]
-
-        self.config = load_config(self.config_path)
         if silence_threshold is not None:
             self.config["silence_threshold_seconds"] = float(silence_threshold)
 
@@ -1110,7 +1158,9 @@ class MidikeepDaemon:
 
 def main():
     parser = argparse.ArgumentParser(description="Midikeep Background MIDI Recording Engine")
-    parser.add_argument("--data-dir", type=Path, help="Override root midikeep data directory")
+    parser.add_argument("--data-dir", type=Path, default=None,
+                        help="Override the archive directory (default: data_dir in config.yaml, "
+                             "else $XDG_DATA_HOME/midikeep)")
     parser.add_argument("--config", type=Path, help="Override path to config.yaml")
     parser.add_argument("--silence-threshold", type=float, help="Override silence threshold in seconds")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose debug logging")

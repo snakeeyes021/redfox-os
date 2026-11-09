@@ -1,0 +1,120 @@
+#!/usr/bin/bash
+# redfox-dedup: btrfs deduplication (bees) for the main drive, on or off,
+# with no questions asked. It sets bees up the same way as Bazzite's
+# `ujust configure-beesd` (which still handles other drives):
+#
+#   redfox-dedup status          on | off | unavailable
+#   redfox-dedup plan [--json]   the drive and the memory bees would use
+#   redfox-dedup on|off          (as root) set it up, or remove it
+#
+# On: /etc/bees/<uuid>.conf, a hash table of 512 MB per TB of drive
+# (between 1 and 4 TB's worth), throttled to an eighth of the CPU threads,
+# and a daily beesd@<uuid>.timer that only starts bees when that much memory
+# is free. Off: the timer, the config and the hash table go; files already
+# merged keep sharing their space until one copy changes.
+# RedFox Hub's Settings › Storage runs on and off through
+# /usr/libexec/redfox-system-toggle.
+set -euo pipefail
+
+readonly MIN_FS_TB=1 MAX_FS_TB=4 HASH_SIZE_MB_PER_TB=512
+ETC=${REDFOX_DEDUP_ETC:-/etc}
+
+# The btrfs filesystem home folders are on (on RedFoxOS, the main drive).
+main_uuid() {
+    if [ -n "${REDFOX_DEDUP_UUID:-}" ]; then echo "$REDFOX_DEDUP_UUID"; return; fi
+    [ "$(findmnt -no FSTYPE -T /var/home 2>/dev/null)" = btrfs ] || return 1
+    findmnt -no UUID -T /var/home
+}
+
+main_size_bytes() {
+    if [ -n "${REDFOX_DEDUP_SIZE:-}" ]; then echo "$REDFOX_DEDUP_SIZE"; return; fi
+    lsblk --bytes --noheadings --nodeps --output SIZE "/dev/disk/by-uuid/$1" | head -n1 | tr -d ' '
+}
+
+# Bazzite's sizing: the drive rounded to whole TB, kept between 1 and 4.
+db_size_bytes() {
+    local size_tb=$((($1 + 500000000000) / 1000 ** 4))
+    size_tb=$((size_tb < MIN_FS_TB ? MIN_FS_TB : size_tb))
+    size_tb=$((size_tb > MAX_FS_TB ? MAX_FS_TB : size_tb))
+    echo $((size_tb * HASH_SIZE_MB_PER_TB * 1024 ** 2))
+}
+
+is_on() {
+    [ -f "$ETC/bees/$1.conf" ] && systemctl is-enabled --quiet "beesd@$1.timer" 2>/dev/null
+}
+
+turn_on() {
+    local uuid=$1 db_size mem_mb
+    db_size=$(db_size_bytes "$(main_size_bytes "$uuid")")
+    mem_mb=$((db_size / 1024 ** 2))
+    mkdir -p "$ETC/bees"
+    cp /usr/etc/bees/beesd.conf.sample "$ETC/bees/$uuid.conf"
+    sed -i -e "s/^UUID=.*/UUID=$uuid/" \
+        -e "s/# DB_SIZE=.*/DB_SIZE=$db_size/" \
+        -e 's/# OPTIONS=.*/OPTIONS="--strip-paths --no-timestamps --thread-factor 0.125 --thread-min 1 --throttle-factor 100 --verbose 5"/' \
+        "$ETC/bees/$uuid.conf"
+    mkdir -p "$ETC/systemd/system/beesd@$uuid.service.d"
+    {
+        echo "[Service]"
+        echo "ExecCondition=/bin/sh -c \"test \$(free -m | awk '/^Mem:/ {print \$7}') -gt $mem_mb\""
+    } > "$ETC/systemd/system/beesd@$uuid.service.d/override.conf"
+    systemctl daemon-reload
+    systemctl enable --now "beesd@$uuid.timer"
+    echo "Deduplication is on. It runs once a day in the background."
+}
+
+turn_off() {
+    local uuid=$1 fs_root="" manual=false id
+    systemctl disable --now "beesd@$uuid.timer" 2>/dev/null || true
+    systemctl stop "beesd@$uuid.service" 2>/dev/null || true
+    rm -f "$ETC/bees/$uuid.conf" "$ETC/systemd/system/beesd@$uuid.service.d/override.conf"
+    rmdir "$ETC/systemd/system/beesd@$uuid.service.d" 2>/dev/null || true
+    # The hash table lives in a .beeshome subvolume at the top of the drive.
+    fs_root=$(findmnt --source "UUID=$uuid" -o TARGET,OPTIONS -n | awk '/subvolid=5([,)]|$)/ {print $1; exit}')
+    if [ -z "$fs_root" ]; then
+        fs_root="/run/bees/mnt/$uuid"
+        mkdir -p "$fs_root"
+        if mount -o subvolid=5 "UUID=$uuid" "$fs_root"; then manual=true; else fs_root=""; fi
+    fi
+    if [ -n "$fs_root" ]; then
+        id=$(btrfs subvolume list -t "$fs_root" | awk '/\.beeshome/ {print $1; exit}')
+        [ -n "$id" ] && btrfs subvolume delete -i "$id" "$fs_root" >/dev/null
+        if $manual; then umount "$fs_root" && rmdir "$fs_root" 2>/dev/null || true; fi
+    fi
+    systemctl daemon-reload
+    echo "Deduplication is off."
+}
+
+need_root() {
+    if [ "$(id -u)" -ne 0 ]; then
+        echo "redfox-dedup: run this as root (RedFox Hub asks for your password)" >&2
+        exit 1
+    fi
+}
+
+cmd=${1:-}
+case "$cmd" in
+    status)
+        if ! uuid=$(main_uuid); then echo unavailable; exit 0; fi
+        if is_on "$uuid"; then echo on; else echo off; fi
+        ;;
+    plan)
+        uuid=$(main_uuid) || { echo "redfox-dedup: the main drive isn't btrfs" >&2; exit 1; }
+        db=$(db_size_bytes "$(main_size_bytes "$uuid")")
+        if [ "${2:-}" = --json ]; then
+            printf '{"uuid": "%s", "memory_mb": %d}\n' "$uuid" $((db / 1024 ** 2))
+        else
+            echo "drive: $uuid"
+            echo "memory while running: $((db / 1024 ** 2)) MB"
+        fi
+        ;;
+    on|off)
+        need_root
+        uuid=$(main_uuid) || { echo "redfox-dedup: the main drive isn't btrfs" >&2; exit 1; }
+        if [ "$cmd" = on ]; then turn_on "$uuid"; else turn_off "$uuid"; fi
+        ;;
+    *)
+        echo "Usage: redfox-dedup status | plan [--json] | on | off" >&2
+        exit 2
+        ;;
+esac

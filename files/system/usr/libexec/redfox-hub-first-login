@@ -1,0 +1,14 @@
+#!/usr/bin/bash
+# Show RedFox Hub's welcome tour once, at a user's first login.
+#
+# Run by /etc/xdg/autostart/tech.redfoxlabs.Hub.welcome.desktop. `redfox-hub
+# --first-login` does nothing once the tour has been seen
+# (~/.local/state/redfox/welcome-seen).
+
+state="${XDG_STATE_HOME:-$HOME/.local/state}/redfox"
+[ -e "$state/welcome-seen" ] && exit 0
+
+# Give the session a moment to start.
+sleep "${REDFOX_WELCOME_DELAY:-8}"
+
+exec /usr/bin/redfox-hub --first-login

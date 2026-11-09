@@ -1,0 +1,41 @@
+{
+  "about": "Bazzite's ujust recipes that RedFox has its own version of, and a hash of each as RedFox's version was written. tests/check_bazzite_recipes.py compares them with the base image's.",
+  "recipes": {
+    "asus": {
+      "ours": "files/system/usr/libexec/redfox-hardware-root",
+      "sha256": "5eec4746478553a5f76b68830dfb44d66bb49fd1e7d500c0672b83789aa2dff1"
+    },
+    "install-coolercontrol": {
+      "ours": "files/system/usr/libexec/redfox-hardware-root",
+      "sha256": "f14787d352593105204f76509aa77448a752884cbf80fbd6cc6e8ed3e5522c2a"
+    },
+    "install-displaylink": {
+      "ours": "files/system/usr/libexec/redfox-hardware-root",
+      "sha256": "3fb82b9dffce3f20d5544d054245fa52560fc358338669fe8826ec812c64385b"
+    },
+    "install-openrazer": {
+      "ours": "files/system/usr/bin/redfox-hardware",
+      "sha256": "1ab462427da738330c791e6ef33936895c95ecae2e91b7d0bd716f8c1ddd82c6"
+    },
+    "opentabletdriver": {
+      "ours": "files/system/usr/bin/redfox-hardware",
+      "sha256": "f7ac15a8a242cac9bcc24aa25f91426134e51bcf161b796fae4ed99909611738"
+    },
+    "install-boxtron": {
+      "ours": "files/system/usr/bin/redfox-hardware",
+      "sha256": "02cbc24d2644974f587ffb1edaea809f8d337e68348a59579184795bb4308abe"
+    },
+    "configure-beesd": {
+      "ours": "files/system/usr/libexec/redfox-dedup",
+      "sha256": "b90602f1ba3fef81eae2c75b9e799db2ca60a366155b9a6256179afa73a91639"
+    },
+    "add-user-to-input-group": {
+      "ours": "files/system/usr/libexec/redfox-system-action",
+      "sha256": "5353e1e56de696536755a0ea78df0c169b907e86735b7697a22a5c2cc2d2c1d3"
+    },
+    "configure-waydroid": {
+      "ours": "files/system/usr/libexec/redfox-system-action",
+      "sha256": "858b19ff1fb15d5706c5c9931e1d786bb6612dc85a5e04d56ed7ed7386553c54"
+    }
+  }
+}

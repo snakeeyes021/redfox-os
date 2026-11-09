@@ -1,0 +1,541 @@
+#!/usr/bin/bash
+# redfox-rollback-helper: roll back, or move to another RedFoxOS build.
+#
+# RedFoxOS's version of Bazzite's bazzite-rollback-helper, which only knows
+# Bazzite's images. Run with no arguments for a menu.
+set -uo pipefail
+
+REGISTRY="ghcr.io/snakeeyes021"
+REPO_API="https://api.github.com/repos/snakeeyes021/redfox-os"
+IMAGES=(redfox-os redfox-os-nvidia redfox-os-nvidia-legacy)
+IMAGE_INFO="/usr/share/ublue-os/image-info.json"
+
+if [ -t 1 ]; then
+    bold=$'\e[1m' red=$'\e[31m' green=$'\e[32m' yellow=$'\e[33m' normal=$'\e[0m'
+else
+    bold='' red='' green='' yellow='' normal=''
+fi
+
+usage() {
+    cat <<EOF
+${bold}RedFoxOS rollback helper${normal}
+
+Go back to the previous system, or move to another RedFoxOS build.
+
+Usage: $(basename "$0") [COMMAND] [ARGUMENTS]
+
+  (no command)        a menu
+  current             what is booted, staged for next boot, and kept for rollback
+  list [CHANNEL] [N]  the last N builds of a channel: latest (stable) or unstable
+                      (default: the channel you are on, 15 builds)
+  rollback            boot the previous system next time (rpm-ostree rollback)
+  images              the six images: graphics (AMD & Intel, NVIDIA, NVIDIA Legacy)
+                      times channel (latest, unstable), and which one is booted
+  switch-image [IMAGE] [CHANNEL]
+                      move to another image, e.g. switch-image redfox-os-nvidia latest
+                      (with no arguments: asks for the graphics, then the channel)
+  branches            feature branches with a test build: unsupported, for
+                      developers (sources: /usr/share/redfox/feature-branches.conf)
+  rebase TARGET       switch to TARGET next boot. TARGET is one of:
+                        latest | unstable                  follow a channel
+                        20261101                           a dated stable build
+                        b00fd74                            the build of a commit
+                        redfox-os-nvidia:latest            another image (IMAGE:TAG)
+                        ostree-image-signed:docker://...   a full reference
+  -y, --yes           don't ask before rebasing or rolling back
+  --json              with list, images and branches: print JSON (for RedFox Hub)
+
+Images: ${IMAGES[*]}
+EOF
+}
+
+die() { echo "${red}$*${normal}" >&2; exit 1; }
+
+ASSUME_YES=false
+JSON=false
+confirm() {
+    $ASSUME_YES && return 0
+    local reply
+    # No answer (no terminal, end of input) means no.
+    read -r -p "$1 [Y/n] " reply || { echo; return 1; }
+    [[ -z "$reply" || "${reply,,}" =~ ^y ]]
+}
+
+# rpm-ostree asks for a password through the desktop's polkit agent. Without
+# a desktop (SSH, a text console) there is no agent, so use sudo.
+as_root() {
+    if [ "$EUID" -eq 0 ] || [ -n "${WAYLAND_DISPLAY:-}${DISPLAY:-}" ]; then
+        "$@"
+    else
+        sudo "$@"
+    fi
+}
+
+# The container image reference of a deployment: booted, staged or rollback.
+deployment_ref() {
+    rpm-ostree status --json | jq -r --arg which "$1" '
+        .deployments[]
+        | select(
+            ($which == "booted" and .booted == true) or
+            ($which == "staged" and .staged == true) or
+            ($which == "rollback" and .booted != true and .staged != true))
+        | .["container-image-reference"] // empty' | head -n1
+}
+
+# ostree-image-signed:docker://ghcr.io/snakeeyes021/redfox-os:latest -> redfox-os:latest
+short_ref() {
+    sed -E 's#^ostree-[a-z-]+(:[a-z-]+)?:(docker://)?##; s#^.*/##' <<< "$1"
+}
+
+current_image() {
+    local ref name
+    ref="$(deployment_ref booted)"
+    name="$(short_ref "$ref")"
+    name="${name%%:*}"
+    for image in "${IMAGES[@]}"; do
+        [ "$name" = "$image" ] && { echo "$image"; return; }
+    done
+    name="$(jq -r '."image-name" // empty' "$IMAGE_INFO" 2>/dev/null)"
+    for image in "${IMAGES[@]}"; do
+        [ "$name" = "$image" ] && { echo "$image"; return; }
+    done
+    echo redfox-os
+}
+
+current_channel() {
+    local tag
+    tag="$(short_ref "$(deployment_ref booted)")"
+    tag="${tag##*:}"
+    case "$tag" in
+        unstable|br-unstable-*) echo unstable ;;
+        *) echo latest ;;
+    esac
+}
+
+show_current() {
+    local booted staged rollback
+    booted="$(deployment_ref booted)"
+    staged="$(deployment_ref staged)"
+    rollback="$(deployment_ref rollback)"
+    echo "${bold}Booted:${normal}   ${green}${booted:-unknown}${normal}"
+    [ -n "$staged" ] && echo "${bold}Next boot:${normal} ${yellow}${staged}${normal}"
+    [ -n "$rollback" ] && echo "${bold}Rollback:${normal} ${rollback}"
+    return 0
+}
+
+registry_tags() {
+    skopeo list-tags "docker://${REGISTRY}/$1" 2>/dev/null | jq -r '.Tags[]' 2>/dev/null
+}
+
+# Recent builds of a channel, newest first, as "TAG<tab>DATE<tab>DESCRIPTION".
+# Builds are tagged with their commit (<sha7>-<fedora>), so walk the branch's
+# commits and keep those that have an image. Stable builds also get a date tag.
+list_builds() {
+    local image="$1" channel="$2" count="$3" branch tags commits
+    case "$channel" in
+        unstable) branch=unstable ;;
+        latest|stable) branch=main ;;
+        *) die "Unknown channel '$channel' (use latest or unstable)." ;;
+    esac
+    tags="$(registry_tags "$image")" || true
+    [ -n "$tags" ] || die "Couldn't list the tags of ${REGISTRY}/${image}. Are you online?"
+    commits="$(curl -fsSL "${REPO_API}/commits?sha=${branch}&per_page=100" 2>/dev/null |
+        jq -r '.[] | [.sha[0:7], .commit.committer.date[0:10], (.commit.message | split("\n")[0])] | @tsv' 2>/dev/null)"
+    [ -n "$commits" ] || die "Couldn't read the ${branch} branch from GitHub (offline, or rate-limited)."
+
+    local n=0 sha date msg tag
+    while IFS=$'\t' read -r sha date msg; do
+        tag="$(grep -m1 -E "^${sha}-[0-9]+$" <<< "$tags")" || continue
+        printf '%s\t%s\t%s\n' "$tag" "$date" "$msg"
+        n=$((n + 1))
+        [ "$n" -ge "$count" ] && break
+    done <<< "$commits"
+}
+
+show_list() {
+    local channel="${1:-$(current_channel)}" count="${2:-15}" image
+    image="$(current_image)"
+    if $JSON; then
+        # For RedFox Hub: [{"tag","commit","date","message"}], newest first.
+        list_builds "$image" "$channel" "$count" | jq -R -s -c \
+            --arg image "$image" --arg channel "$channel" '
+            {version: 1, image: $image, channel: $channel,
+             builds: [split("\n")[] | select(length > 0) | split("\t")
+                      | {tag: .[0], commit: (.[0] | sub("-[0-9]+$"; "")),
+                         date: .[1], message: .[2]}]}' || exit 1
+        return 0
+    fi
+    echo "${bold}Recent ${channel} builds of ${image}${normal} (newest first):"
+    local builds
+    builds="$(list_builds "$image" "$channel" "$count")" || exit 1
+    [ -n "$builds" ] || { echo "  (none found)"; return 0; }
+    while IFS=$'\t' read -r tag date msg; do
+        printf '  %-14s %s  %s\n' "${tag%-*}" "$date" "${msg:0:70}"
+    done <<< "$builds"
+    if [ "$channel" != unstable ]; then
+        local dated
+        dated="$(registry_tags "$image" | grep -E '^[0-9]{8}$' | sort -r | head -n 10 | tr '\n' ' ')"
+        [ -n "$dated" ] && echo "Dated stable builds: ${dated}"
+    fi
+    echo
+    echo "Switch with: $(basename "$0") rebase <commit or date>"
+}
+
+# Each image's name and description, as on the download page's cards.
+image_name() {
+    case "$1" in
+        redfox-os) echo "RedFoxOS (AMD & Intel)" ;;
+        redfox-os-nvidia) echo "RedFoxOS NVIDIA" ;;
+        redfox-os-nvidia-legacy) echo "RedFoxOS NVIDIA Legacy" ;;
+        *) echo "$1" ;;
+    esac
+}
+image_description() {
+    case "$1" in
+        redfox-os) echo "AMD & Intel graphics" ;;
+        redfox-os-nvidia) echo "GTX 16xx, RTX 20xx and newer" ;;
+        redfox-os-nvidia-legacy) echo "GTX 10xx, 9xx and 750" ;;
+    esac
+}
+channel_name() {
+    case "$1" in latest) echo "Stable" ;; unstable) echo "Unstable" ;; *) echo "$1" ;; esac
+}
+
+# The image that works best on this computer's graphics, from the PCI display
+# devices in sysfs (no root needed). Prints "IMAGE|why", or "|why" when it
+# can't tell; the caller then recommends nothing. The rules are in
+# /usr/share/redfox/gpu-rules.json, shared with the download page on
+# redfoxlabs.tech; this applies them with jq_gpu_rules below.
+# REDFOX_PCI_ROOT and REDFOX_GPU_RULES point elsewhere for testing.
+GPU_RULES="${REDFOX_GPU_RULES:-/usr/share/redfox/gpu-rules.json}"
+recommend_image() {
+    local root="${REDFOX_PCI_ROOT:-/sys/bus/pci/devices}" dev class devices=""
+    for dev in "$root"/*; do
+        [ -r "$dev/class" ] || continue
+        class="$(cat "$dev/class")"
+        case "$class" in 0x03*) ;; *) continue ;; esac   # display controllers
+        devices+="$(cat "$dev/vendor" 2>/dev/null) $(cat "$dev/device" 2>/dev/null)"$'\n'
+    done
+    jq -R -s -r --slurpfile rules "$GPU_RULES" "$(jq_gpu_rules)"' |
+        "\(.image // "")|\(.why)"' <<< "$devices" ||
+        printf '|no rules to go by (%s)\n' "$GPU_RULES"
+}
+
+# A jq filter: "vendor device" lines in, the matching rule out.
+jq_gpu_rules() {
+    cat <<'JQ'
+def hexnum: ascii_downcase | ltrimstr("0x") | explode
+    | reduce .[] as $c (0; . * 16 + (if $c >= 97 then $c - 87 else $c - 48 end));
+$rules[0] as $r
+| [split("\n")[] | select(length > 0) | split(" ") | map(ascii_downcase | ltrimstr("0x"))]
+| [.[] as [$vendor, $device]
+    | first(($r.classes[] | select((.vendors | index($vendor)) != null
+        and (.device_from == null or ($device | hexnum) >= (.device_from | hexnum))) | .id),
+        "other")]
+| unique as $have
+| first($r.rules[] | select(all(.all[]; . as $c | $have | index($c) != null)
+    and all((.none // [])[]; . as $c | $have | index($c) == null)))
+JQ
+}
+
+show_images() {
+    local image channel recommended why
+    image="$(current_image)"
+    channel="$(current_channel)"
+    IFS='|' read -r recommended why < <(recommend_image)
+    if $JSON; then
+        local list=()
+        for i in "${IMAGES[@]}"; do
+            list+=("$(jq -cn --arg id "$i" --arg name "$(image_name "$i")" \
+                --arg description "$(image_description "$i")" '{id: $id, name: $name, description: $description}')")
+        done
+        jq -cn --arg image "$image" --arg channel "$channel" --argjson images "[$(IFS=,; echo "${list[*]}")]" \
+            --arg recommended "$recommended" --arg why "$why" \
+            '{version: 1, booted: {image: $image, channel: $channel}, images: $images,
+              recommended: (if $recommended == "" then null else $recommended end), detected: $why,
+              channels: [{id: "latest", name: "Stable"}, {id: "unstable", name: "Unstable"}]}'
+        return 0
+    fi
+    echo "${bold}RedFoxOS images${normal} (graphics × channel); * is the one you're on:"
+    for i in "${IMAGES[@]}"; do
+        local tag=""
+        [ "$i" = "$recommended" ] && tag=" (Works best on your machine)"
+        echo "  $(image_name "$i")${tag}: $(image_description "$i")"
+        for c in latest unstable; do
+            local mark=" "
+            [ "$i" = "$image" ] && [ "$c" = "$channel" ] && mark="*"
+            printf '    %s %-9s %s:%s\n' "$mark" "$(channel_name "$c")" "$i" "$c"
+        done
+    done
+    if [ -n "$recommended" ]; then
+        echo "Works best on your machine: $(image_name "$recommended"), which has ${why}."
+    else
+        echo "No recommendation: found ${why}."
+    fi
+}
+
+switch_image() {
+    local image="${1:-}" channel="${2:-}"
+    if [ -z "$image" ]; then
+        echo "Pick the graphics this computer has, then the channel."
+        local picked recommended why r1="" r2="" r3=""
+        IFS='|' read -r recommended why < <(recommend_image)
+        case "$recommended" in
+            redfox-os) r1=" (Works best on your machine)" ;;
+            redfox-os-nvidia) r2=" (Works best on your machine)" ;;
+            redfox-os-nvidia-legacy) r3=" (Works best on your machine)" ;;
+        esac
+        if [ -n "$recommended" ]; then
+            echo "This computer has ${why}."
+        else
+            echo "No recommendation: found ${why}."
+        fi
+        picked="$(choose "RedFoxOS (AMD & Intel)${r1}" \
+            "RedFoxOS NVIDIA${r2}: GTX 16xx, RTX 20xx and newer" \
+            "RedFoxOS NVIDIA Legacy${r3}: GTX 10xx, 9xx and 750" "Cancel")" || exit 0
+        case "$picked" in
+            "RedFoxOS (AMD"*) image=redfox-os ;;
+            "RedFoxOS NVIDIA Legacy"*) image=redfox-os-nvidia-legacy ;;
+            "RedFoxOS NVIDIA"*) image=redfox-os-nvidia ;;
+            *) echo "Cancelled."; return 1 ;;
+        esac
+    fi
+    if [ -z "$channel" ]; then
+        local picked
+        picked="$(choose "Stable (latest): tested releases" "Unstable: the newest changes first" "Cancel")" || exit 0
+        case "$picked" in
+            Stable*) channel=latest ;;
+            Unstable*) channel=unstable ;;
+            *) echo "Cancelled."; return 1 ;;
+        esac
+    fi
+    case " ${IMAGES[*]} " in *" $image "*) ;; *) die "Unknown image '$image'. Images: ${IMAGES[*]}" ;; esac
+    case "$channel" in latest|unstable) ;; *) die "Unknown channel '$channel' (latest or unstable)." ;; esac
+    do_rebase "${image}:${channel}"
+}
+
+# Feature branches with a test build. Where the list comes from is set in
+# /usr/share/redfox/feature-branches.conf (overridden by
+# /etc/redfox/feature-branches.conf), so it can change without touching Hub:
+#   SOURCES="branches prs"   which sources to ask, in this order
+#   PREFIX="feature/"        the branches that count as feature branches
+# Sources:
+#   branches  pushed branches named PREFIX*, built by CI and tagged
+#             br-<branch with / as _>-<fedora> (BlueBuild's tag for a branch).
+#             Named after the branch; described by the first line of a
+#             .redfox-branch file in it, or else its latest commit's subject.
+#   prs       open, non-draft pull requests into unstable, built by CI and
+#             tagged pr-<number>-<fedora>. Named and described by the PR.
+# Every build is signed like the others; a branch is listed only if it has a
+# build for this image. Each row: {kind, id, title, description, branch,
+# updated, url, tag}.
+FEATURE_SOURCES="branches prs"
+FEATURE_PREFIX="feature/"
+for conf in /usr/share/redfox/feature-branches.conf /etc/redfox/feature-branches.conf; do
+    if [ -r "$conf" ]; then
+        # shellcheck disable=SC1090
+        . "$conf"
+        FEATURE_SOURCES="${SOURCES:-$FEATURE_SOURCES}"
+        FEATURE_PREFIX="${PREFIX:-$FEATURE_PREFIX}"
+    fi
+done
+
+# The tag to use: the newest Fedora version the branch was built on (an
+# older one is a stale build from before the base moved on).
+pick_tag() {
+    local base="$1" tags="$2"
+    grep -E "^${base}-[0-9]+$" <<< "$tags" | sort -V | tail -n1
+}
+
+source_branches() {
+    local tags="$1" list name base tag sha commit described
+    list="$(curl -fsSL "${REPO_API}/branches?per_page=100" 2>/dev/null)" || return 1
+    while IFS= read -r name; do
+        base="br-${name//\//_}"
+        tag="$(pick_tag "$base" "$tags")"
+        [ -n "$tag" ] || continue
+        sha="$(jq -r --arg n "$name" '.[] | select(.name == $n) | .commit.sha' <<< "$list")"
+        commit="$(curl -fsSL "${REPO_API}/commits/${sha}" 2>/dev/null)" || commit="{}"
+        described="$(curl -fsSL "https://raw.githubusercontent.com/${REPO_API#https://api.github.com/repos/}/${sha}/.redfox-branch" 2>/dev/null |
+            sed -n '/[^[:space:]]/{p;q}')" || described=""
+        jq -c --arg name "$name" --arg tag "$tag" --arg described "$described" \
+            --arg url "https://github.com/${REPO_API#https://api.github.com/repos/}/tree/${name}" '
+            {kind: "branch", id: $name, title: $name, branch: $name, tag: $tag, url: $url,
+             updated: (.commit.committer.date // "")[0:10],
+             description: (if $described != "" then $described
+                           else ((.commit.message // "") | split("\n")[0]) end
+                           | if length > 160 then (.[0:160] | sub(" [^ ]*$"; "")) + "…" else . end)}' <<< "$commit"
+    done < <(jq -r --arg p "$FEATURE_PREFIX" '.[] | .name | select(startswith($p))' <<< "$list")
+}
+
+source_prs() {
+    local tags="$1" prs pr n tag
+    prs="$(curl -fsSL "${REPO_API}/pulls?state=open&base=unstable&per_page=50" 2>/dev/null)" || return 1
+    while IFS= read -r pr; do
+        n="$(jq -r .number <<< "$pr")"
+        tag="$(pick_tag "pr-${n}" "$tags")"
+        [ -n "$tag" ] || continue
+        jq -c --arg tag "$tag" '{kind: "pr", id: (.number | tostring),
+            title: "#\(.number) \(.title)", branch: .head.ref, url: .html_url,
+            updated: .updated_at[0:10], tag: $tag,
+            description: ((.body // "") | gsub("\r"; "") | split("\n")
+                | map(select(test("\\S") and (test("^\\s*(#|<!--|[-*=]{3})") | not)))
+                | (.[0] // "") | gsub("[*_`]"; "")
+                | if length > 160 then (.[0:160] | sub(" [^ ]*$"; "")) + "…" else . end)}' <<< "$pr"
+    done < <(jq -c '.[] | select(.draft | not)' <<< "$prs")
+}
+
+list_branches() {
+    local image tags rows=() source failed=() row seen=" "
+    image="$(current_image)"
+    tags="$(registry_tags "$image")" || true
+    [ -n "$tags" ] || die "Couldn't list the tags of ${REGISTRY}/${image}. Are you online?"
+    for source in $FEATURE_SOURCES; do
+        local out
+        case "$source" in
+            branches) out="$(source_branches "$tags")" || { failed+=("$source"); continue; } ;;
+            prs) out="$(source_prs "$tags")" || { failed+=("$source"); continue; } ;;
+            *) continue ;;
+        esac
+        # A branch with both a pushed build and a pull request is listed once,
+        # as the first source names it.
+        while IFS= read -r row; do
+            [ -n "$row" ] || continue
+            local branch
+            branch="$(jq -r .branch <<< "$row")"
+            case "$seen" in *" $branch "*) continue ;; esac
+            seen+="$branch "
+            rows+=("$row")
+        done <<< "$out"
+    done
+    [ "${#failed[@]}" -gt 0 ] && [ "${#rows[@]}" -eq 0 ] &&
+        die "Couldn't read the feature branches from GitHub (offline, or rate-limited)."
+    if $JSON; then
+        jq -cn --arg image "$image" --arg sources "$FEATURE_SOURCES" \
+            --argjson branches "[$(IFS=,; echo "${rows[*]-}")]" \
+            '{version: 2, image: $image, sources: ($sources | split(" ")), branches: $branches}'
+        return 0
+    fi
+    if [ "${#rows[@]}" -eq 0 ]; then
+        echo "No feature branches have a test build right now."
+        return 0
+    fi
+    echo "${bold}Feature branches with a test build of ${image}${normal} (unsupported):"
+    for row in "${rows[@]}"; do
+        jq -r '"  \(.title)\n      \(.description)\n      \(.branch), \(.updated): rebase \(.tag)"' <<< "$row"
+    done
+}
+
+# Turn a TARGET into a full reference.
+resolve_target() {
+    local target="$1" image tags
+    image="$(current_image)"
+    case "$target" in
+        ostree-*) echo "$target"; return ;;
+        */*) echo "ostree-image-signed:docker://${target}"; return ;;
+        *:*) echo "ostree-image-signed:docker://${REGISTRY}/${target}"; return ;;
+        latest|stable) echo "ostree-image-signed:docker://${REGISTRY}/${image}:latest"; return ;;
+        unstable) echo "ostree-image-signed:docker://${REGISTRY}/${image}:unstable"; return ;;
+    esac
+    tags="$(registry_tags "$image")"
+    if grep -qx -- "$target" <<< "$tags"; then
+        echo "ostree-image-signed:docker://${REGISTRY}/${image}:${target}"
+    elif tag="$(grep -m1 -E "^${target:0:7}-[0-9]+$" <<< "$tags")"; then
+        echo "ostree-image-signed:docker://${REGISTRY}/${image}:${tag}"
+    else
+        die "No build '${target}' of ${image}. Try: $(basename "$0") list"
+    fi
+}
+
+do_rebase() {
+    local ref current_name new_name
+    ref="$(resolve_target "$1")" || exit 1
+    current_name="$(current_image)"
+    new_name="$(short_ref "$ref")"
+    new_name="${new_name%%:*}"
+
+    echo "Rebasing to ${bold}${ref}${normal}"
+    if [[ "$ref" != *"${REGISTRY}/redfox-os"* ]]; then
+        echo "${yellow}That isn't a RedFoxOS image. Switching to another OS is up to you; RedFox's settings may not carry over.${normal}"
+    elif [ "$new_name" != "$current_name" ]; then
+        echo "${yellow}This changes the image from ${current_name} to ${new_name}, which has different graphics drivers.${normal}"
+        echo "${yellow}Only do this if it matches your GPU (see README: \"Not sure which one to pick?\").${normal}"
+    fi
+    case "$(short_ref "$ref")" in
+        *:latest|*:unstable) ;;
+        *:pr-*)
+            echo "${red}${bold}This is a feature branch's test build: unsupported, and it may not work.${normal}"
+            echo "${red}It won't update by itself, and it may go away when the branch is merged or closed.${normal}"
+            echo "To go back: pick the previous system in the boot menu, or Updates › Go Back in RedFox Hub,"
+            echo "or $(basename "$0") rollback. To follow a channel again: $(basename "$0") rebase latest (or unstable)."
+            ;;
+        *) echo "This build won't update by itself. To follow updates again: $(basename "$0") rebase latest (or unstable)." ;;
+    esac
+    confirm "Continue?" || { echo "Cancelled."; return 1; }
+    as_root rpm-ostree rebase "$ref" || die "The rebase failed. The build may not exist or may not be signed."
+    echo "${green}Done.${normal} Reboot to start the new system; the current one stays available to roll back to."
+}
+
+do_rollback() {
+    local rollback
+    rollback="$(deployment_ref rollback)"
+    [ -n "$rollback" ] || die "There's no previous system to roll back to."
+    echo "The next boot will use the previous system: ${bold}${rollback}${normal}"
+    confirm "Roll back?" || { echo "Cancelled."; return 1; }
+    as_root rpm-ostree rollback || die "The rollback failed."
+    echo "${green}Done.${normal} Reboot to use it. Updates will move you forward again unless you pin it (see 'sudo ostree admin pin --help')."
+}
+
+choose() {
+    if command -v ugum >/dev/null 2>&1 && [ -t 0 ]; then
+        ugum choose "$@"
+    else
+        local option
+        select option in "$@"; do [ -n "$option" ] && { echo "$option"; return; }; done
+    fi
+}
+
+menu() {
+    show_current
+    echo
+    local action
+    action="$(choose "Roll back to the previous system" "Switch to another build" "Follow latest (stable)" "Follow unstable" "Switch image (graphics and channel)" "Cancel")"
+    case "$action" in
+        "Roll back to the previous system") do_rollback ;;
+        "Follow latest (stable)") do_rebase latest ;;
+        "Follow unstable") do_rebase unstable ;;
+        "Switch image (graphics and channel)") switch_image ;;
+        "Switch to another build")
+            local channel builds picked
+            channel="$(choose latest unstable)" || exit 0
+            builds="$(list_builds "$(current_image)" "$channel" 15)" || exit 1
+            [ -n "$builds" ] || die "No builds found."
+            picked="$(choose $(awk -F'\t' '{print $1}' <<< "$builds" | sed 's/-[0-9]*$//'))" || exit 0
+            [ -n "$picked" ] && do_rebase "$picked"
+            ;;
+        *) echo "Cancelled." ;;
+    esac
+}
+
+ARGS=()
+for arg in "$@"; do
+    case "$arg" in
+        -y|--yes) ASSUME_YES=true ;;
+        --json) JSON=true ;;
+        -h|--help) usage; exit 0 ;;
+        *) ARGS+=("$arg") ;;
+    esac
+done
+set -- "${ARGS[@]+"${ARGS[@]}"}"
+
+case "${1:-}" in
+    "") menu ;;
+    current|status) show_current ;;
+    list) show_list "${2:-}" "${3:-15}" ;;
+    rollback) do_rollback ;;
+    rebase) [ -n "${2:-}" ] || die "rebase needs a TARGET. See --help."; do_rebase "$2" ;;
+    images) show_images ;;
+    switch-image) switch_image "${2:-}" "${3:-}" ;;
+    branches) list_branches ;;
+    *) usage; exit 1 ;;
+esac

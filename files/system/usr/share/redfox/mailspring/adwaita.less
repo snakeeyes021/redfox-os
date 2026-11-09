@@ -1,0 +1,601 @@
+// RedFox Adwaita: the rules. Installed as styles/adwaita.less in both the
+// light and the dark theme package, so it uses only variables. (Not index.less:
+// with no index, Mailspring loads every stylesheet in styles/, which lets the
+// theme add email-frame.less for the message body.)
+@import 'ui-variables';
+
+body {
+  font-family: @font-family-sans-serif;
+}
+
+// Header bar: flat, like libadwaita's, with a hairline under it. Mailspring's
+// Linux rules paint it the content colour (and other platforms a gradient that
+// lightens when the window loses focus), so match their specificity.
+.sheet-toolbar-container,
+body.platform-linux .sheet-toolbar-container,
+body.is-blurred .sheet-toolbar-container,
+body.platform-linux.is-blurred .sheet-toolbar-container {
+  background: @adw-headerbar-bg;
+  background-image: none;
+}
+.nav-rail-frame,
+body.platform-linux .nav-rail-frame {
+  background: @adw-headerbar-bg;
+}
+.sheet-toolbar,
+body.platform-linux .sheet-toolbar {
+  border-bottom: 1px solid @adw-border;
+  box-shadow: none;
+}
+
+// Window buttons: libadwaita's grey circles with a dark glyph, instead of
+// Mailspring's coloured gumdrops.
+// Mailspring's own rules set the gumdrop images per button class, so these
+// use button.close and so on to outrank them. libadwaita's sizes: 24 px
+// circles, 37 px apart. The glyphs are Adwaita's window-*-symbolic icons
+// (adwaita-icons.less); the shapes drawn here are only the fallback for when
+// those can't be found.
+body.platform-linux .toolbar-window-controls button,
+body.platform-linux .toolbar-window-controls button.close,
+body.platform-linux .toolbar-window-controls button.minimize,
+body.platform-linux .toolbar-window-controls button.maximize,
+body.platform-linux .toolbar-window-controls.alt-true button.maximize,
+body.platform-linux.is-blurred .toolbar-window-controls button {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  margin: 0 6.5px;
+  border-radius: 50%;
+  background: @adw-button-bg;
+  background-image: none;
+  box-shadow: none;
+  &:hover {
+    background: fade(@adw-text, 15%);
+    background-image: none;
+  }
+  &:active {
+    background: fade(@adw-text, 22%);
+    background-image: none;
+  }
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    background: @adw-text;
+  }
+  &.close::before,
+  &.close::after {
+    width: 9px;
+    height: 1.5px;
+    margin: -0.75px 0 0 -4.5px;
+  }
+  &.close::before {
+    transform: rotate(45deg);
+  }
+  &.close::after {
+    transform: rotate(-45deg);
+  }
+  &.minimize::before {
+    width: 8px;
+    height: 1.5px;
+    margin: 2px 0 0 -4px;
+  }
+  &.minimize::after {
+    display: none;
+  }
+  &.maximize::before {
+    width: 8px;
+    height: 8px;
+    margin: -5.5px 0 0 -5.5px;
+    background: transparent;
+    border: 1.5px solid @adw-text;
+    border-radius: 0;
+  }
+  &.maximize::after {
+    display: none;
+  }
+}
+
+// Window buttons on the right, where GNOME puts them. Mailspring draws them
+// in its first toolbar column; pin them to the window's top right instead,
+// and keep the last column's own buttons clear of them.
+body.platform-linux .toolbar-window-controls {
+  position: fixed;
+  top: 11px;
+  right: 5px;
+  z-index: 10;
+  margin: 0;
+  order: 0;
+  display: flex;
+}
+// GNOME's order: minimise, maximise, close.
+body.platform-linux .toolbar-window-controls button.minimize { order: 1; }
+body.platform-linux .toolbar-window-controls button.maximize { order: 2; }
+body.platform-linux .toolbar-window-controls button.close { order: 3; }
+
+// libadwaita's header bar is 47 px tall, Mailspring's 34; match it.
+.sheet-toolbar,
+body.platform-linux .sheet-toolbar {
+  height: 46px;
+  min-height: 46px;
+  max-height: 46px;
+}
+.sheet-toolbar .item-container .window-title {
+  line-height: 46px;
+  font-weight: 700;
+}
+body.platform-linux .sheet-toolbar-container > [role='toolbar']:last-child {
+  padding-right: 84px;
+}
+
+// Header bar buttons, as libadwaita draws them: flat 34 px squares, clear
+// until hovered, with rounded corners, 6 px apart and 6 px in from each
+// column's edges, centred in the bar. Icons sit in a 16 px box. A group
+// (star and unread; Reply, Reply all and Forward) is spaced like single
+// buttons rather than joined into a strip.
+// The prefix outranks Mailspring's Linux, blurred-window and button-group
+// rules, the most specific of which is
+// body.platform-linux .sheet-toolbar .button-group .btn.btn-toolbar:not(:first-child).
+@toolbar: ~"body.platform-linux .sheet-toolbar .sheet-toolbar-container > [role='toolbar']";
+.sheet-toolbar-container > [role='toolbar'] {
+  height: 100%;
+}
+@{toolbar} {
+  .item-container {
+    align-items: center;
+    gap: 6px;
+    padding: 0 6px;
+  }
+  .message-toolbar-items > div {
+    align-items: center;
+    gap: 6px;
+  }
+  .button-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: auto;
+    margin: 0;
+    box-shadow: none;
+  }
+  // Mailspring keeps empty groups (Move Actions, when there's nothing to
+  // move to) in the bar; they would add a gap.
+  .button-group:not(:has(.btn)) {
+    display: none;
+  }
+  .btn.btn-toolbar,
+  .button-group .btn.btn-toolbar,
+  .button-group .btn.btn-toolbar:not(:first-child),
+  .button-group .btn.btn-toolbar:not(:last-child) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+    margin: 0;
+    padding: 0;
+    line-height: 34px;
+    border: 0;
+    border-radius: @border-radius-base;
+    background: transparent;
+    background-image: none;
+    box-shadow: none;
+    &:hover {
+      background: fade(@adw-text, 7%);
+    }
+    &:active,
+    &.active {
+      background: fade(@adw-text, 16%);
+    }
+    img.content-mask {
+      flex: none;
+      width: 16px;
+      height: 16px;
+      zoom: 1 !important;
+      opacity: 1;
+      -webkit-mask-size: contain;
+      -webkit-mask-position: center;
+      background-color: @adw-text;
+    }
+  }
+  // The category picker wraps its button in one more element.
+  .button-group > .key-commands-region {
+    display: flex;
+  }
+  .toolbar-menu-control {
+    display: flex;
+    align-items: center;
+  }
+}
+// The person button keeps Mailspring's accent tint while the contact panel is shown.
+@{toolbar} .btn.btn-toolbar.mode-toggle.mode-false img.content-mask {
+  background-color: @accent-primary;
+}
+
+// The search field over the thread list: an entry as tall as the buttons,
+// filling the column but for 6 px at each side. (The column's spacers would
+// share its width, and add gaps.)
+@{toolbar}.toolbar-ThreadList .item-spacer {
+  display: none;
+}
+@{toolbar} .thread-search-bar {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  height: 34px;
+  line-height: 34px;
+  margin: 0;
+  padding: 0 4px 0 10px;
+  border-radius: @border-radius-base;
+  background: @adw-button-bg;
+  box-shadow: none;
+  &:focus,
+  &:focus-within {
+    border: 0;
+    border-radius: @border-radius-base;
+    box-shadow: 0 0 0 2px fade(@adw-accent-bg, 50%);
+  }
+  .search-accessory.search {
+    width: 16px;
+    height: 16px;
+    margin-right: 2px;
+  }
+  .suggestions {
+    top: 38px;
+    border-radius: @border-radius-base;
+  }
+}
+
+// The header bar: the part over the folder sidebar takes the sidebar's colour,
+// so the sidebar runs to the top of the window as in libadwaita's split views.
+.sheet-toolbar-container .toolbar-RootSidebar,
+body.platform-linux .sheet-toolbar-container .toolbar-RootSidebar {
+  background: @adw-sidebar-bg;
+  border-right: 1px solid @adw-border;
+}
+
+// Thread list: no divider lines or selection checkboxes; a selected row is a
+// neutral rounded pill 6 px in from the column's edges and 4 px from the
+// next, as in a libadwaita list. Mailspring sizes the rows in code, so the
+// pill is drawn behind the row (::before) rather than with margins, and the
+// list's own row lines (a repeating background on .list-rows, and a bottom
+// border on each row) are removed.
+.list-container.list-tabular .list-rows {
+  position: relative;
+  top: 4px;
+  background: none !important;
+}
+.list-container.list-tabular .list-item.list-tabular-item {
+  position: relative;
+  isolation: isolate;
+  padding: 0 6px;
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent !important;
+  color: @adw-text;
+  &::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    inset: 2px 6px;
+    border-radius: 8px;
+    background: transparent;
+  }
+  &:hover::before {
+    background: @adw-hover;
+  }
+  &.selected::before,
+  &.focused::before {
+    background: @adw-row-selected;
+  }
+  &.keyboard-cursor::before {
+    box-shadow: inset 0 0 0 2px fade(@adw-accent-bg, 50%);
+  }
+}
+.thread-list .checkmark {
+  display: none;
+}
+
+// The open message's subject, as a libadwaita page title.
+.message-list .message-subject,
+#message-list .message-subject {
+  font-size: 20px;
+  font-weight: 800;
+}
+
+// The open message's small controls, as flat libadwaita buttons: print,
+// show quoted text and pop out beside the subject, and Reply with its menu
+// in the message header. Each is a rounded box round a 16 px icon, a few
+// pixels apart and clear of the card's edge.
+#message-list .message-subject-wrap {
+  padding: 0 6px 0 12px;
+}
+#message-list .message-icons-wrap {
+  gap: 4px;
+  div + div {
+    margin-left: 0;
+  }
+  > div {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: @border-radius-base;
+    &:hover {
+      background: fade(@adw-text, 7%);
+    }
+  }
+  img.content-mask {
+    width: 16px;
+    height: 16px;
+    zoom: 1 !important;
+    -webkit-mask-size: contain;
+    -webkit-mask-position: center;
+    background: @adw-text;
+  }
+}
+// The card and the reply box under it keep Mailspring's centring (auto side
+// margins, a max width) but are 12 px narrower, so they sit about 12 px clear
+// of the column divider and the window edge, in line with the subject. Both
+// use the same rule so their edges stay flush at any window width.
+#message-list .message-item-wrap,
+#message-list .footer-reply-area-wrap {
+  width: calc(100% - 12px);
+}
+#message-list .message-header {
+  // Mailspring's right-hand group is a 1em-high box; centre the 30 px
+  // buttons and the time on the sender's line rather than above it.
+  .message-header-right {
+    align-items: center;
+    top: 4px;
+  }
+  .message-time {
+    min-width: 0;
+    margin-right: 8px;
+  }
+  .message-actions-wrap {
+    display: flex;
+    align-items: center;
+  }
+  .button-dropdown.bordered {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+  .button-dropdown.bordered .primary-item,
+  .button-dropdown.bordered .secondary-picker {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: @border-radius-base;
+    background: transparent;
+    box-shadow: none;
+    &:hover {
+      background: fade(@adw-text, 7%);
+    }
+    &:active {
+      background: fade(@adw-text, 16%);
+    }
+    img.content-mask {
+      background-color: @adw-text;
+    }
+  }
+  .button-dropdown.bordered .primary-item {
+    width: 30px;
+    img.content-mask {
+      width: 16px;
+      height: 16px;
+      zoom: 1 !important;
+      -webkit-mask-size: contain;
+      -webkit-mask-position: center;
+    }
+  }
+  .button-dropdown.bordered .secondary-picker {
+    width: 22px;
+  }
+}
+// The reply area under the message: one card with it, split off by a
+// plain hairline rather than a dashed rule, its icon in a 16 px box.
+#message-list .footer-reply-area-wrap {
+  border-top: 1px solid fade(@adw-text, 8%);
+  .footer-reply-area {
+    display: flex;
+    align-items: center;
+  }
+  img.content-mask {
+    width: 16px;
+    height: 16px;
+    zoom: 1 !important;
+    -webkit-mask-size: contain;
+    -webkit-mask-position: center;
+  }
+  .reply-text {
+    margin-left: 10px;
+  }
+}
+
+// The companion plugin's Reply / Reply all / Forward group sits with the
+// other header bar buttons (above). Mailspring decides the order inside
+// its plugin slot.
+
+// Folder sidebar: rounded pills 6 px in from the sidebar's edges, like the
+// thread rows, with the icon 10 px inside the pill and the unread count
+// plain, dim and at the right, as in a libadwaita sidebar.
+.outline-view .item-container {
+  position: relative;
+}
+// Mailspring keeps a 20 px space for a folder's disclosure triangle on every
+// row; lay the triangle over the pill's start instead, and only make room
+// for it where there is one.
+.outline-view .disclosure-triangle {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  left: 8px;
+}
+.outline-view .item,
+.outline-view .item.selected,
+.outline-view .item-container.selected .item {
+  margin: 1px 6px;
+  padding: 0 10px;
+  height: 34px;
+  border-radius: @border-radius-base;
+}
+.outline-view .disclosure-triangle.visible + .item {
+  padding-left: 24px;
+}
+.outline-view .item .icon {
+  display: flex;
+  align-items: center;
+  padding-right: 10px;
+}
+.outline-view .item .item-count-box,
+.outline-view .item .item-count-box.alt-count,
+.outline-view .item.selected .item-count-box,
+.outline-view .item.selected .item-count-box.alt-count {
+  margin-left: auto;
+  padding: 0 0 0 8px;
+  min-width: 0;
+  background: none;
+  box-shadow: none;
+  border-radius: 0;
+  color: @adw-dim;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+// The account and section labels: libadwaita's dim heading.
+.outline-view .heading {
+  padding: 12px 6px 6px 16px;
+  color: @adw-dim;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+// Buttons: libadwaita's flat, rounded buttons with no outline.
+.btn {
+  background: @adw-button-bg;
+  color: @adw-text;
+  box-shadow: none;
+  border-radius: @border-radius-base;
+  &:hover {
+    background: fade(@adw-text, 12%);
+  }
+  &:active,
+  &.active {
+    background: fade(@adw-text, 18%);
+  }
+  img.content-mask {
+    background-color: @adw-text;
+  }
+}
+.btn.btn-toolbar {
+  background: transparent;
+  box-shadow: none;
+  &:hover {
+    background: @adw-hover;
+  }
+}
+.btn.btn-emphasis,
+.btn.btn-action {
+  background: @accent-primary;
+  color: #ffffff;
+  img.content-mask {
+    background-color: #ffffff;
+  }
+  &:hover {
+    background: @accent-primary-dark;
+  }
+}
+.btn.btn-danger,
+.btn.btn-destructive {
+  background: @adw-red;
+  color: #ffffff;
+}
+
+// Text fields: libadwaita's filled entries, with an accent ring on focus.
+input[type='text'],
+input[type='email'],
+input[type='password'],
+input[type='search'],
+input[type='url'],
+input[type='number'],
+textarea {
+  background: @adw-button-bg;
+  border: 1px solid transparent;
+  border-radius: @border-radius-base;
+  color: @adw-text;
+  &:focus {
+    border-color: transparent;
+    box-shadow: 0 0 0 2px fade(@adw-accent-bg, 50%);
+  }
+}
+
+// The account sidebar reads as a libadwaita sidebar.
+.account-sidebar,
+.outline-view {
+  background: @adw-sidebar-bg;
+}
+.outline-view .item.selected,
+.outline-view .item-container.selected .item {
+  background: @adw-sidebar-selected;
+  color: @adw-text;
+}
+
+// Popovers and menus: rounded cards.
+.menu,
+.nylas-dropdown .menu,
+.popover {
+  background: @adw-card-bg;
+  border-radius: @border-radius-large;
+  box-shadow: 0 1px 5px 1px @adw-shade, 0 0 0 1px @adw-border;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 6px;
+  background: fade(@adw-text, 25%);
+}
+
+// Dark only. Mailspring's small icons are dark drawings meant for a light
+// background, so turn them light; read messages in the list are dimmed
+// like secondary text; and message cards get a hairline instead of a shadow.
+& when (@adw-is-dark = true) {
+  img.content-dark,
+  img.content-light,
+  .thread-list .thread-icon:not(.thread-icon-unread):not(.thread-icon-star) {
+    filter: invert(1);
+  }
+  .thread-list .list-item:not(.unread):not(.selected):not(.focused) {
+    color: @text-color-subtle;
+  }
+  // libadwaita's dark card: a step lighter than the view under it, with a
+  // faint dark outline. The reply strip is the same card continued (it
+  // overlaps the message's bottom edge), so it shares the colour and draws
+  // the outline on its sides and bottom only.
+  // (Mailspring's own rule is #message-list .message-item-wrap
+  // .message-item-white-wrap, so match that; a collapsed message in a longer
+  // thread is a shade darker, as in light mode.)
+  #message-list .message-item-wrap .message-item-white-wrap,
+  #message-list .footer-reply-area-wrap {
+    background: @adw-card-bg;
+  }
+  #message-list .message-item-wrap.collapsed .message-item-white-wrap {
+    background: darken(@adw-card-bg, 2%);
+  }
+  #message-list .message-item-wrap .message-item-white-wrap {
+    box-shadow: 0 0 0 1px rgba(0, 0, 6, 0.36), 0 1px 3px 1px rgba(0, 0, 6, 0.09);
+  }
+  #message-list .footer-reply-area-wrap {
+    box-shadow: -1px 0 0 0 rgba(0, 0, 6, 0.36), 1px 0 0 0 rgba(0, 0, 6, 0.36),
+      0 1px 0 0 rgba(0, 0, 6, 0.36), 0 2px 3px 0 rgba(0, 0, 6, 0.09);
+  }
+}

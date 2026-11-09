@@ -1,0 +1,170 @@
+// RedFox Adwaita: GNOME's Adwaita symbolic icons in place of Mailspring's own.
+// Installed as styles/adwaita-icons.less in both the light and the dark theme
+// package, so it uses only variables.
+//
+// The SVGs are the system's (adwaita-icon-theme, CC BY-SA 3.0 / LGPL-3.0),
+// not copies. The RedFox GNOME integration plugin (lib/icons.js) looks each one
+// up and, for those it finds, sets --adw-icon-NAME to the file and adds the
+// class adw-icon-NAME to <html>. Every rule here sits under that class, so an
+// icon that's missing keeps Mailspring's own image. Icons added here must be
+// added to the list in icons.js too.
+//
+// Each icon is a 16 px mask filled with the theme's text colour, centred in the
+// box Mailspring gives it. Sizes and spacing around the icons are left alone.
+@import 'ui-variables';
+
+// The icon itself: the SVG as a mask over a fill colour.
+.adw-mask(@icon, @color, @size: 16px) {
+  -webkit-mask-image: var(~'--adw-icon-@{icon}') !important;
+  -webkit-mask-size: @size @size !important;
+  -webkit-mask-position: center !important;
+  -webkit-mask-repeat: no-repeat !important;
+  background-color: @color !important;
+}
+
+// An <img> drawn by Mailspring's RetinaImg, picked out by its file
+// ("toolbar/toolbar-reply" matches toolbar-reply.png, @1x and @2x). RetinaImg
+// halves @2x images with zoom; undo that so every icon is 16 px. The bitmap
+// itself is moved out of the box, as RetinaImg does for its own masks, and the
+// dark theme's inverting filter is dropped. Mailspring sets its icons
+// "vertical-align: middle", which with Adwaita Sans's tall ascent sits them
+// 1 to 1.5 px low in a line; 0.36em above the baseline is the line's centre.
+.adw-img(@file, @icon, @color: @adw-text) {
+  html.adw-icon-@{icon} img[src*='/@{file}@'],
+  html.adw-icon-@{icon} img[src*='/@{file}.'] {
+    .adw-mask(@icon, @color);
+    zoom: 1 !important;
+    width: 16px !important;
+    height: 16px !important;
+    vertical-align: calc(0.36em - 8px) !important;
+    object-position: 10000px !important;
+    filter: none !important;
+  }
+}
+
+// A box Mailspring paints with a background image: keep the box, swap the image.
+.adw-box(@selector, @icon, @color: @adw-text, @size: 16px) {
+  html.adw-icon-@{icon} @{selector} {
+    .adw-mask(@icon, @color, @size);
+    background-image: none !important;
+    filter: none !important;
+  }
+}
+
+// Header bar
+.adw-img('toolbar/toolbar-compose', mail-message-new-symbolic);
+.adw-img('search/searchloupe', system-search-symbolic);
+.adw-img('toolbar/searchloupe', system-search-symbolic);
+.adw-img('search/searchclear', edit-clear-symbolic);
+.adw-img('toolbar/toolbar-archive', package-x-generic-symbolic);
+.adw-img('toolbar/toolbar-trash', user-trash-symbolic);
+.adw-img('toolbar/toolbar-star', starred-symbolic);
+.adw-img('toolbar/toolbar-star-selected', starred-symbolic, @accent-primary);
+.adw-img('toolbar/toolbar-markasunread', mail-unread-symbolic);
+.adw-img('toolbar/toolbar-markasread', mail-read-symbolic);
+.adw-img('toolbar/toolbar-movetofolder', folder-symbolic);
+.adw-img('toolbar/toolbar-tag', user-bookmarks-symbolic);
+.adw-img('toolbar/toolbar-snooze', alarm-symbolic);
+.adw-img('toolbar/toolbar-spam', mail-mark-junk-symbolic);
+.adw-img('toolbar/toolbar-not-spam', mail-mark-notjunk-symbolic);
+.adw-img('toolbar/toolbar-reply', mail-reply-sender-symbolic);
+.adw-img('toolbar/toolbar-reply-all', mail-reply-all-symbolic);
+.adw-img('toolbar/toolbar-forward', mail-forward-symbolic);
+.adw-img('toolbar/toolbar-person-sidebar', sidebar-show-right-symbolic);
+.adw-img('application-frame/windows-menu-icon', open-menu-symbolic);
+.adw-img('sheets/sheet-back', go-previous-symbolic);
+.adw-img('message-list/toolbar-up-arrow', go-up-symbolic);
+.adw-img('message-list/toolbar-down-arrow', go-down-symbolic);
+// The contact sidebar's toggle: Mailspring tints it while the sidebar is shown.
+html.adw-icon-sidebar-show-right-symbolic .btn-toolbar.mode-toggle.mode-false img[src*='/toolbar-person-sidebar'] {
+  background-color: @accent-primary !important;
+}
+
+// Folder sidebar
+.adw-img('source-list/inbox', folder-download-symbolic);
+.adw-img('source-list/unread', mail-unread-symbolic);
+.adw-img('source-list/starred', starred-symbolic);
+.adw-img('source-list/drafts', document-edit-symbolic);
+.adw-img('source-list/sent', mail-send-symbolic);
+.adw-img('source-list/trash', user-trash-symbolic);
+.adw-img('source-list/archive', package-x-generic-symbolic);
+.adw-img('source-list/spam', mail-mark-junk-symbolic);
+.adw-img('source-list/junk', mail-mark-junk-symbolic);
+.adw-img('source-list/important', mail-mark-important-symbolic);
+.adw-img('source-list/folder', folder-symbolic);
+.adw-img('source-list/label', user-bookmarks-symbolic);
+.adw-img('source-list/tag', user-bookmarks-symbolic);
+.adw-img('source-list/snoozed', alarm-symbolic);
+.adw-img('source-list/reminders', appointment-soon-symbolic);
+.adw-img('sidebar/account-switcher-dropdown', pan-down-symbolic);
+// Mailspring flips its own arrow upside down; Adwaita's already points down.
+html.adw-icon-pan-down-symbolic .account-switcher img[src*='/account-switcher-dropdown'] {
+  transform: none !important;
+}
+
+// The open message
+.adw-img('message-list/print', document-print-symbolic);
+// The email's light / dark switch: a moon to go dark, a sun to go light.
+.adw-img('toolbar/toolbar-bulb-off', weather-clear-night-symbolic);
+.adw-img('toolbar/toolbar-bulb-on', display-brightness-symbolic);
+.adw-img('message-list/thread-popout', window-new-symbolic);
+.adw-img('reply-dropdown/ic-dropdown-reply', mail-reply-sender-symbolic);
+.adw-img('reply-dropdown/ic-dropdown-replyall', mail-reply-all-symbolic);
+.adw-img('reply-dropdown/ic-dropdown-forward', mail-forward-symbolic);
+.adw-img('reply-dropdown/ic-message-button-reply', mail-reply-sender-symbolic);
+.adw-img('thread-list/icon-thread-disclosure', pan-down-symbolic);
+// "Write a reply…" is placeholder text, so its icon is dimmed with it.
+.adw-img('message-list/reply-footer', mail-reply-sender-symbolic, @adw-dim);
+.adw-img('message-list/reply-all-footer', mail-reply-all-symbolic, @adw-dim);
+.adw-img('message-list/ic-findinthread-previous', go-up-symbolic);
+.adw-img('message-list/ic-findinthread-next', go-down-symbolic);
+.adw-img('message-list/ic-findinthread-close', window-close-symbolic);
+.adw-img('message-list/icon-attachment-', mail-attachment-symbolic);
+.adw-box(~'#message-list .collapsed-attachment', mail-attachment-symbolic, @adw-dim);
+
+// Attachments
+.adw-img('attachments/ic-attachments-all-clippy', mail-attachment-symbolic);
+.adw-img('attachments/ic-attachments-download-all', folder-download-symbolic);
+.adw-img('attachments/icon-attachment-download', folder-download-symbolic);
+.adw-img('attachments/attachment-quicklook', view-reveal-symbolic);
+.adw-img('attachments/remove-attachment', window-close-symbolic);
+
+// Thread list: the state icons beside each row, and the hover actions. The
+// unread dot stays Mailspring's.
+.adw-box(~'.thread-list .thread-icon.thread-icon-attachment', mail-attachment-symbolic, @adw-dim);
+.adw-box(~'.thread-list .thread-icon.thread-icon-replied', mail-replied-symbolic);
+.adw-box(~'.thread-list .thread-icon.thread-icon-forwarded', mail-forward-symbolic, @adw-dim);
+.adw-box(~'.thread-list .thread-icon.thread-icon-star', starred-symbolic, @accent-primary);
+.adw-box(~'.thread-list .list-item:hover .thread-icon.thread-icon-none', non-starred-symbolic);
+.adw-img('thread-list/icon-draft-pencil', document-edit-symbolic);
+.adw-img('thread-list/icon-attachment-', mail-attachment-symbolic, @adw-dim);
+// The hover actions are drawn at half zoom, so their mask is twice the size.
+.adw-box(~'.thread-list .list-item .list-column-HoverActions .action.action-archive', package-x-generic-symbolic, @adw-text, 32px);
+.adw-box(~'.thread-list .list-item .list-column-HoverActions .action.action-trash', user-trash-symbolic, @adw-text, 32px);
+.adw-box(~'.thread-list .list-item .list-column-HoverActions .action.action-snooze', alarm-symbolic, @adw-text, 32px);
+
+// White icons on accent-coloured buttons, as libadwaita draws them.
+html .btn.btn-emphasis img.content-mask,
+html .btn.btn-action img.content-mask {
+  background-color: #ffffff !important;
+}
+
+// Window buttons: Adwaita's own glyphs, 16 px, centred in the 24 px circles
+// adwaita.less draws, in place of its CSS-drawn fallback shapes.
+.adw-window-glyph(@button, @icon) {
+  html.adw-icon-@{icon} body.platform-linux .toolbar-window-controls button.@{button}::before {
+    .adw-mask(@icon, @adw-text);
+    width: 16px;
+    height: 16px;
+    margin: -8px 0 0 -8px;
+    border: 0;
+    border-radius: 0;
+    transform: none;
+  }
+  html.adw-icon-@{icon} body.platform-linux .toolbar-window-controls button.@{button}::after {
+    display: none;
+  }
+}
+.adw-window-glyph(minimize, window-minimize-symbolic);
+.adw-window-glyph(maximize, window-maximize-symbolic);
+.adw-window-glyph(close, window-close-symbolic);

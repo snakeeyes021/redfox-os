@@ -46,7 +46,6 @@ modules:
         - python3-ramalama
         - gnome-boxes
         - virt-manager
-        - freerdp
         - python3-gpg # Not sure these are needed anymore (was for system Dropbox)
         - libappindicator # Not sure these are needed anymore (was for system Dropbox)
         - tilix
@@ -57,6 +56,9 @@ modules:
         - clamav-freshclam
         - topgrade
         - alsa-utils
+    remove:
+      packages:
+        - bazzite-portal # Bazzite's first-run app; RedFox Hub does its job
 
   - type: systemd
     system:
@@ -66,6 +68,8 @@ modules:
         - libvirtd.service
         - bluefin-dx-groups.service
         - incus-workaround.service
+        - redfox-greenboot-stale-check.service
+        - redfox-flatpak-fonts.service
         # clamav-freshclam.service is enabled by `ujust enable-clamav-weekly` (opt-in)
     user:
       enabled:
@@ -78,6 +82,9 @@ modules:
       - 4269 # Alphabetical App Grid
       - 7660  # Keep Pinned Apps in AppGrid
       - 1414 # Unblank lock screen
+      - 1160 # Dash to Panel (Windows layouts; off unless a layout turns it on)
+      - 3628 # ArcMenu (Windows layouts; off unless a layout turns it on)
+      - 5733 # One-Click BIOS: hold Shift in the power menu to restart into firmware settings
 
   - type: default-flatpaks
     configurations:
@@ -105,7 +112,7 @@ modules:
           - org.gnome.Loupe
           - io.gitlab.adhami3310.Impression
           - org.gnome.Logs
-          - io.missioncenter.MissionCenter
+          - net.nokyan.Resources
           - org.gnome.TextEditor
           - org.gnome.Showtime
           - io.github.flattool.Warehouse
@@ -121,4 +128,8 @@ modules:
       - install-speedtest.sh
       - fix-tilix-vte.sh
       - install-smooth-overview.sh
-      - install-antigravity.sh
+      - install-redfox-hub.sh
+      - stamp-redfox-dim.sh
+      - no-bazzite-portal-autostart.sh
+      - no-steam-autostart.sh
+      - branding.sh # last: RedFoxOS names, image-info, and the boot splash (rebuilds the initramfs)

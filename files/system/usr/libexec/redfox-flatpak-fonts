@@ -1,0 +1,107 @@
+#!/usr/bin/python3
+"""Let every Flatpak app see the system's fonts (see the comment in
+/usr/share/redfox/flatpak-fonts/fonts.conf for the runtime bug this works around).
+
+    redfox-flatpak-fonts apply    copy the fontconfig file where apps can read it,
+                                  and point every Flatpak at it (system-wide override)
+    redfox-flatpak-fonts remove   undo both, leaving other overrides alone
+    redfox-flatpak-fonts status   say whether it's applied
+
+Run at boot by redfox-flatpak-fonts.service. When the runtimes are fixed, switch
+the service to `remove` for a release, then delete it and this script.
+"""
+import filecmp
+import os
+import shutil
+import subprocess
+import sys
+
+from gi.repository import GLib
+
+SOURCE = "/usr/share/redfox/flatpak-fonts/fonts.conf"
+# Somewhere a Flatpak can be given read access to (not /usr or /etc).
+TARGET_DIR = "/var/lib/redfox/flatpak-fonts"
+TARGET = os.path.join(TARGET_DIR, "fonts.conf")
+OVERRIDE = "/var/lib/flatpak/overrides/global"
+FILESYSTEM = f"{TARGET_DIR}:ro"
+
+
+def flatpak_override(*args):
+    subprocess.run(["flatpak", "override", "--system", *args], check=True)
+
+
+def applied():
+    kf = GLib.KeyFile()
+    try:
+        kf.load_from_file(OVERRIDE, GLib.KeyFileFlags.KEEP_COMMENTS)
+    except GLib.Error:
+        return False
+    try:
+        env = kf.get_string("Environment", "FONTCONFIG_FILE")
+    except GLib.Error:
+        env = None
+    try:
+        fs = kf.get_string("Context", "filesystems").split(";")
+    except GLib.Error:
+        fs = []
+    return env == TARGET and FILESYSTEM in fs
+
+
+def apply():
+    os.makedirs(TARGET_DIR, mode=0o755, exist_ok=True)
+    if not os.path.exists(TARGET) or not filecmp.cmp(SOURCE, TARGET, shallow=False):
+        shutil.copyfile(SOURCE, TARGET)
+        os.chmod(TARGET, 0o644)
+    if not applied():
+        flatpak_override(f"--filesystem={FILESYSTEM}", f"--env=FONTCONFIG_FILE={TARGET}")
+    print("Flatpak apps see the system's fonts (FONTCONFIG_FILE override applied).")
+
+
+def remove():
+    # Take out only our two entries; `flatpak override --reset` would also drop
+    # everyone else's, and --nofilesystem would leave a "!path" entry behind.
+    kf = GLib.KeyFile()
+    try:
+        kf.load_from_file(OVERRIDE, GLib.KeyFileFlags.KEEP_COMMENTS)
+    except GLib.Error:
+        kf = None
+    if kf is not None:
+        changed = False
+        try:
+            if kf.get_string("Environment", "FONTCONFIG_FILE") == TARGET:
+                kf.remove_key("Environment", "FONTCONFIG_FILE")
+                changed = True
+        except GLib.Error:
+            pass
+        try:
+            fs = [f for f in kf.get_string("Context", "filesystems").split(";") if f]
+            if FILESYSTEM in fs:
+                fs.remove(FILESYSTEM)
+                kf.set_string("Context", "filesystems", ";".join(fs) + (";" if fs else ""))
+                changed = True
+        except GLib.Error:
+            pass
+        for group in ("Environment", "Context"):
+            if kf.has_group(group) and not kf.get_keys(group)[0]:
+                kf.remove_group(group)
+                changed = True
+        if changed:
+            kf.save_to_file(OVERRIDE)
+    shutil.rmtree(TARGET_DIR, ignore_errors=True)
+    print("Removed the Flatpak font override.")
+
+
+def main():
+    cmd = sys.argv[1] if len(sys.argv) > 1 else "status"
+    if cmd == "apply":
+        apply()
+    elif cmd == "remove":
+        remove()
+    elif cmd == "status":
+        print("applied" if applied() else "not applied")
+    else:
+        sys.exit(__doc__)
+
+
+if __name__ == "__main__":
+    main()

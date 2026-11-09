@@ -1,9 +1,23 @@
 #!/usr/bin/bash
 # 90-redfox-setup.sh
 # RedFoxOS User Setup Hook
-# Handles mandatory extensions and default settings for VSCode, Cursor, and Antigravity IDE.
+# Handles mandatory extensions and default settings for VSCode and Cursor.
 
 set -euo pipefail
+
+# Install an extension straight from Open VSX as a .vsix. For forks whose
+# own marketplace doesn't carry it (Cursor's mirror returns 403 for some
+# Open VSX extensions).
+install_from_openvsx() {
+    local editor="$1" ext_id="$2" url vsix
+    url="$(curl -fsSL "https://open-vsx.org/api/${ext_id%%.*}/${ext_id#*.}" |
+        python3 -c 'import json, sys; print(json.load(sys.stdin)["files"]["download"])' 2>/dev/null)" || return 1
+    vsix="$(mktemp --suffix=.vsix)"
+    curl -fsSL -o "$vsix" "$url" && "$editor" --install-extension "$vsix" --force > /dev/null 2>&1
+    local status=$?
+    rm -f "$vsix"
+    return $status
+}
 
 # --- VS CODE SETUP ---
 
@@ -25,6 +39,9 @@ if command -v code &> /dev/null; then
         "ms-vscode-remote.remote-containers"
         "ms-vscode-remote.remote-ssh"
         "ms-azuretools.vscode-containers"
+        "Google.google-antigravity"
+        "RedFoxLabs.dewy"
+        "RedFoxLabs.sloppy"
     )
 
     for ext_id in "${VSCODE_EXTENSIONS[@]}"; do
@@ -52,52 +69,24 @@ if command -v cursor &> /dev/null; then
         fi
     fi
 
-    # Cursor Mandatory Extensions
+    # Cursor Mandatory Extensions. Cursor swaps Microsoft's remote extensions
+    # for its own (anysphere.*), so ask for those: asking for Microsoft's ids
+    # never found them installed and reinstalled both at every login.
     CURSOR_EXTENSIONS=(
-        "ms-vscode-remote.remote-containers"
-        "ms-vscode-remote.remote-ssh"
+        "anysphere.remote-containers"
+        "anysphere.remote-ssh"
         "ms-azuretools.vscode-containers"
+        "RedFoxLabs.dewy"
+        "RedFoxLabs.sloppy"
     )
 
     for ext_id in "${CURSOR_EXTENSIONS[@]}"; do
         # Check if extension exists in ~/.cursor/extensions/
         if ! compgen -G "$HOME/.cursor/extensions/${ext_id,,}*" > /dev/null; then
              echo "Installing Cursor extension: $ext_id"
-             cursor --install-extension "$ext_id" --force > /dev/null 2>&1 || echo "Failed to install $ext_id"
-        fi
-    done
-fi
-
-
-# --- ANTIGRAVITY IDE SETUP ---
-
-if [ -x "/usr/lib/antigravity-ide/bin/antigravity-ide" ]; then
-    ANTIGRAVITY_BIN="/usr/lib/antigravity-ide/bin/antigravity-ide"
-
-    # Antigravity IDE Default Settings (One-time copy)
-    ANTIGRAVITY_USER_SETTINGS="$HOME/.config/Antigravity IDE/User/settings.json"
-    ANTIGRAVITY_SKELETON="/etc/skel/.config/Antigravity IDE/User/settings.json"
-
-    if [ ! -f "$ANTIGRAVITY_USER_SETTINGS" ]; then
-        if [ -f "$ANTIGRAVITY_SKELETON" ]; then
-            echo "Initializing Antigravity IDE settings..."
-            mkdir -p "$(dirname "$ANTIGRAVITY_USER_SETTINGS")"
-            cp "$ANTIGRAVITY_SKELETON" "$ANTIGRAVITY_USER_SETTINGS"
-        fi
-    fi
-
-    # Antigravity IDE Mandatory Extensions
-    ANTIGRAVITY_EXTENSIONS=(
-        "ms-vscode-remote.remote-containers"
-        "ms-vscode-remote.remote-ssh"
-        "ms-azuretools.vscode-containers"
-    )
-
-    for ext_id in "${ANTIGRAVITY_EXTENSIONS[@]}"; do
-        # Check if extension exists in ~/.antigravity-ide/extensions/
-        if ! compgen -G "$HOME/.antigravity-ide/extensions/${ext_id,,}*" > /dev/null; then
-             echo "Installing Antigravity IDE extension: $ext_id"
-             "$ANTIGRAVITY_BIN" --install-extension "$ext_id" --force > /dev/null 2>&1 || echo "Failed to install $ext_id"
+             cursor --install-extension "$ext_id" --force > /dev/null 2>&1 ||
+                 install_from_openvsx cursor "$ext_id" ||
+                 echo "Failed to install $ext_id"
         fi
     done
 fi

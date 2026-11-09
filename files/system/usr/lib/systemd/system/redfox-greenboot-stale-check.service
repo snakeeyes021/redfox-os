@@ -1,0 +1,18 @@
+[Unit]
+Description=Clear a stale greenboot record left by an earlier rebase (RedFoxOS)
+Documentation=file:///usr/libexec/redfox-greenboot-stale-check
+DefaultDependencies=no
+Before=greenboot-healthcheck.service
+After=local-fs.target
+RequiresMountsFor=/boot
+ConditionPathExists=/run/ostree-booted
+ConditionPathExists=/usr/libexec/greenboot/greenboot
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+PrivateMounts=yes
+ExecStart=/usr/libexec/redfox-greenboot-stale-check
+
+[Install]
+WantedBy=greenboot-healthcheck.service

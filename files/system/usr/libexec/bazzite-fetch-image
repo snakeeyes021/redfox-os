@@ -1,0 +1,21 @@
+#!/usr/bin/bash
+# fastfetch's "image" line: the image this system booted (registry/name:tag),
+# with a lock when it is signature-verified. RedFox replaces Bazzite's
+# version, which printed image-info.json's name and branch; RedFox images
+# don't have Bazzite's branches (they're :latest or :unstable).
+RED_FLASHING='\033[6;31m'
+
+STATUS="$(rpm-ostree status --json --booted 2>/dev/null)"
+REF="$(jq -r '.deployments[0]["container-image-reference"] // empty' <<< "$STATUS" 2>/dev/null)"
+
+if [ -n "$REF" ]; then
+    echo -n "${REF#*docker://}" | sed -E 's#^ostree-(unverified-registry|image-signed|remote-image:[^:]*):##'
+else
+    echo -n $(jq -r '"\(.["image-name"]):\(.["image-branch"])"' < /usr/share/ublue-os/image-info.json)
+fi
+
+if [[ "$REF" =~ "ostree-image-signed" ]]; then
+    echo -n -e " "
+else
+    echo -n -e " ${RED_FLASHING}"
+fi

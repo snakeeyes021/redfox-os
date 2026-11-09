@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=RedFoxOS live welcome
+Exec=/usr/bin/redfox-live-welcome
+Icon=redfox-logo
+NoDisplay=true

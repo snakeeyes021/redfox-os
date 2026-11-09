@@ -1,0 +1,54 @@
+#!/usr/bin/bash
+# The root steps of RedFox Hub's one-off actions and installs. Run as root
+# through pkexec (polkit action tech.redfoxlabs.hub.system-actions), by
+# redfox-actions and by catalog items in redfox-software. Only these can be
+# run:
+#
+#   waydroid-init             the root half of Bazzite's
+#                             `ujust configure-waydroid init`
+#   input-group add|remove    the person who asked joins or leaves the input
+#                             group (Bazzite's `ujust add-user-to-input-group`)
+#   hardware ID install|remove
+#                             the root steps of a hardware install
+#                             (/usr/libexec/redfox-hardware-root)
+set -euo pipefail
+
+usage() {
+    echo "Usage: $0 waydroid-init | input-group add|remove | hardware ID install|remove" >&2
+    exit 2
+}
+
+# The person pkexec ran this for.
+invoking_user() {
+    [ -n "${PKEXEC_UID:-}" ] || { echo "$0: run this through pkexec" >&2; exit 1; }
+    getent passwd "$PKEXEC_UID" | cut -d: -f1
+}
+
+case "${1:-}" in
+    waydroid-init)
+        [ $# -eq 1 ] || usage
+        systemctl enable --now waydroid-container
+        echo "Downloading Android. This can take a while."
+        waydroid init -c 'https://ota.waydro.id/system' -v 'https://ota.waydro.id/vendor'
+        restorecon -R /var/lib/waydroid
+        ;;
+    input-group)
+        [ $# -eq 2 ] && { [ "$2" = add ] || [ "$2" = remove ]; } || usage
+        user=$(invoking_user)
+        case "$2" in
+            add)
+                # On image-based Fedora the group is in /lib/group until first used.
+                grep -q '^input:' /etc/group || grep '^input:' /lib/group >> /etc/group
+                usermod -a -G input "$user"
+                ;;
+            remove) gpasswd -d "$user" input >/dev/null 2>&1 || true ;;
+            *) usage ;;
+        esac
+        ;;
+    hardware)
+        # redfox-hardware-root checks the id and the verb against its own list.
+        [ $# -eq 3 ] || usage
+        exec /usr/libexec/redfox-hardware-root "$2" "$3"
+        ;;
+    *) usage ;;
+esac
