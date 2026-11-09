@@ -34,7 +34,7 @@
     - [ ] **Behavior:** Sort alphabetically (no folders).
         - [ ] Add behavior to keep user's folders saved, so they can go back to them if they want
     - [ ] **Behavior:** Pinning to dock must not remove from grid.
-- [x] **Default dock apps:** Files, Firefox, Calculator, Text Editor, Bazaar and Settings, in that order (`org.gnome.shell favorite-apps`), in place of the set inherited from Bazzite. Only apps that are in the image or installed automatically at the first boot go in the default dock. Each layout keeps its own set.
+- [x] **Default dock apps:** Files, Firefox, Calculator, Text Editor, Bazaar and Settings, in that order (`org.gnome.shell favorite-apps`), then RedFox Hub, last, once Hub is in the image, in place of the set inherited from Bazzite. Only apps that are in the image or installed automatically at the first boot go in the default dock. Each layout keeps its own set.
 
 ## 📦 Default Software
 - [x] **Dropbox:** Install official Dropbox client (flatpak)
@@ -120,6 +120,7 @@
 - [x] `install-music`: Flatpak list (Ardour, Musescore, Lilypond, Frescobaldi, etc.).
 - [x] `install-creative`: Flatpak list (Blender, Krita, Inkscape, Photo stuff, GIMP, Kdenlive, OBS etc.).
 - [x] `install-dev`: Combines `install-zed`, `setup-vscode`, `setup-cursor`, `install-gemini-cli` (gemini cli deprecated/removed).
+- [ ] **Torquio in RedFox Apps:** add it to the RedFox Apps pack once its Flatpak is published.
 
 ### Level 2: Molecules (Logical Groups)
 - [ ] **Software Bundles (Install Molecules):**
@@ -200,6 +201,11 @@
 
 - [ ] **Graphical front ends in Hub for RedFox's CLI tools** (later): proper graphical controls for the command-line tools and ujust recipes RedFox ships (for example the Nord configurator), so nobody needs a terminal for them.
 - [ ] **Full setup in one click:** a button in Hub, or at the end of the Welcome, that runs RedFox's full bootstrap for the person's setup (apps, layout, settings), with progress shown and a summary at the end of what was done or skipped.
+    - [ ] **Settings › Full Setup:** each profile (Matt, Dewy, Normie, Fedora) with its stages and steps, read from the `bootstrap-*` recipes, and a button that runs it in a terminal window (some steps ask for a password), ending with the recap. Every bootstrap step with a Hub switch uses the same tool as the switch, so Hub shows the result.
+- [ ] **Steam doesn't start at login on new accounts:** a switch in Settings › Start at Login turns it on. Accounts that already have Bazzite's entry keep it, shown as on.
+- [ ] **New accounts start in the RedFox layout;** an existing account keeps its layout.
+- [ ] **The old RedFox Updater launcher goes:** Hub › Updates is the updater.
+- [ ] **Open question, pinned:** replace Bazaar's Curated page (Bazzite's gaming-first list) with RedFox's own, built from the same packs as Hub's Software? Not decided; no work until it is.
 - [ ] **Personal config export and import:** save a person's own setup to one file (profile picture, machine-specific tweaks, the VPN server fleet and similar) and use it during bootstrap on a new machine. Passwords and keys in the file are encrypted, and only settings that make sense on another machine are restored.
 
 ## 🖍️ Maniculos (screenshot markup)
