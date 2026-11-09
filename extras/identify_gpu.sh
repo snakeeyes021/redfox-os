@@ -4,10 +4,10 @@
 #   curl -sL https://raw.githubusercontent.com/snakeeyes021/redfox-os/main/extras/identify_gpu.sh | bash
 #
 # Lists this computer's display devices and says which RedFoxOS download
-# suits them, with a link to it. It reads only each display device's PCI
+# works best on it, with a link to it. It reads only each display device's PCI
 # vendor and device id. It downloads RedFoxOS's graphics rules
 # (files/system/usr/share/redfox/gpu-rules.json, the same rules the download
-# page and RedFox Hub's "(Recommended)" use) and decides here; nothing about
+# page and RedFox Hub's image picker use) and decides here; nothing about
 # this computer is sent anywhere. The link carries the ids after a "#", which
 # browsers keep to themselves, so opening it doesn't send them either.
 # If the rules can't be downloaded, it prints a code to paste into the
@@ -104,7 +104,7 @@ if [ -z "$result" ]; then
     echo
     echo "    ${code}"
     echo
-    echo "Paste it at ${PAGE} to see which RedFoxOS suits this computer,"
+    echo "Paste it at ${PAGE} to see which RedFoxOS works best on your machine,"
     echo "or open this link, which shows the same:"
     echo "    ${link}"
     exit 0
@@ -121,10 +121,10 @@ case "$image" in
 esac
 
 if [ -n "$title" ]; then
-    echo "This computer: ${title}"
+    echo "Works best on your machine: ${title}"
     echo "  It has ${why}."
 else
-    echo "No single download suits this computer: it has ${why}."
+    echo "No single download works best on your machine: it has ${why}."
     echo "  Pick the one for the graphics you want to use."
 fi
 if [ "$hybrid" = hybrid ]; then

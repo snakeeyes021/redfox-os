@@ -3,10 +3,10 @@
 #   irm https://raw.githubusercontent.com/snakeeyes021/redfox-os/main/extras/identify_gpu.ps1 | iex
 #
 # Lists this computer's display adapters and says which RedFoxOS download
-# suits them, with a link to it. It reads only each adapter's PCI vendor and
+# works best on it, with a link to it. It reads only each adapter's PCI vendor and
 # device id. It downloads RedFoxOS's graphics rules
 # (files/system/usr/share/redfox/gpu-rules.json, the same rules the download
-# page and RedFox Hub's "(Recommended)" use) and decides here; nothing about
+# page and RedFox Hub's image picker use) and decides here; nothing about
 # this computer is sent anywhere. The link carries the ids after a "#", which
 # browsers keep to themselves, so opening it doesn't send them either.
 # If the rules can't be downloaded, it prints a code to paste into the
@@ -66,7 +66,7 @@ if ($null -eq $rules) {
     Write-Host ''
     Write-Host ('    ' + $code)
     Write-Host ''
-    Write-Host ('Paste it at ' + $page + ' to see which RedFoxOS suits this computer,')
+    Write-Host ('Paste it at ' + $page + ' to see which RedFoxOS works best on your machine,')
     Write-Host 'or open this link, which shows the same:'
     Write-Host ('    ' + $link)
     try { Set-Clipboard -Value $code; Write-Host '(The code is on the clipboard too.)' } catch { }
@@ -99,10 +99,10 @@ $titles = @{
 }
 $title = if ($rule.image) { $titles[$rule.image] } else { $null }
 if ($title) {
-    Write-Host ('This computer: ' + $title)
+    Write-Host ('Works best on your machine: ' + $title)
     Write-Host ('  It has ' + $rule.why + '.')
 } else {
-    Write-Host ('No single download suits this computer: it has ' + $rule.why + '.')
+    Write-Host ('No single download works best on your machine: it has ' + $rule.why + '.')
     Write-Host '  Pick the one for the graphics you want to use.'
 }
 if ($rule.hybrid) {

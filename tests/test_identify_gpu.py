@@ -36,10 +36,10 @@ class Checks:
         self.assertEqual(rc, 0, out)
         code = "RFX1 " + (" ".join(f"{v}:{d}" for v, d in case["devices"]) or "none")
         if case["image"]:
-            self.assertIn(f"This computer: {TITLES[case['image']]}\n", out, case["name"])
+            self.assertIn(f"Works best on your machine: {TITLES[case['image']]}\n", out, case["name"])
             self.assertIn("the page opens with it picked", out)
         else:
-            self.assertIn("No single download suits this computer", out, case["name"])
+            self.assertIn("No single download works best on your machine", out, case["name"])
         self.assertEqual("Two graphics chips" in out, bool(case.get("hybrid")), case["name"])
         self.assertIn("https://redfoxlabs.tech/download/#gpu=" + code.replace(" ", "+"), out)
         self.assertIn(code, out)
@@ -55,7 +55,7 @@ class Checks:
         self.assertIn("Couldn't decide here", out)
         self.assertIn("    RFX1 8086:46a6\n", out)
         self.assertIn("https://redfoxlabs.tech/download/#gpu=RFX1+8086:46a6", out)
-        self.assertNotIn("This computer:", out)
+        self.assertNotIn("Works best on your machine:", out)
 
 
 class TestShell(Checks, unittest.TestCase):
