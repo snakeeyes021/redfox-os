@@ -112,7 +112,7 @@ cosign verify --key cosign.pub ghcr.io/snakeeyes021/redfox-os
 
 Live ISOs are on the [download page](https://redfoxlabs.tech/download/), one for each image; it says which one fits your graphics. To install:
 
-1.  Write the ISO to a USB stick of 16 GB or more with [Fedora Media Writer](https://flathub.org/apps/org.fedoraproject.MediaWriter) or [balenaEtcher](https://etcher.balena.io/). Everything on the stick is erased.
+1.  Write the ISO to a USB stick with [Fedora Media Writer](https://flathub.org/apps/org.fedoraproject.MediaWriter) or [balenaEtcher](https://etcher.balena.io/). Everything on the stick is erased.
 2.  Start the computer from the stick. It needs UEFI, not legacy/CSM mode.
 3.  Try RedFoxOS in the live session if you like, then choose *Install RedFoxOS*, pick the disk, and create your account.
 4.  Restart. With Secure Boot on, a blue screen asks once to enrol Universal Blue's key: *Enroll MOK*, *Continue*, *Yes*, password `universalblue`, *Reboot*.
