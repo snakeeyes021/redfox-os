@@ -28,6 +28,17 @@ class SettingsSection(Section):
         page = Adw.PreferencesPage()
         super().__init__(window, "Settings", page)
 
+        # Full Setup: a whole profile in one go (redfox-bootstrap).
+        full = Adw.PreferencesGroup(title="Full Setup")
+        setup_row = Adw.ActionRow(title="Set Up From a Profile",
+                                  subtitle="Apps, settings and layout in one go",
+                                  activatable=True)
+        setup_row.add_prefix(Gtk.Image(icon_name="emblem-system-symbolic"))
+        setup_row.add_suffix(Gtk.Image(icon_name="go-next-symbolic"))
+        setup_row.connect("activated", lambda *_: self.open("setup"))
+        full.add(setup_row)
+        page.add(full)
+
         desktop = Adw.PreferencesGroup(title="Desktop")
         layout_row = Adw.ActionRow(title="Layout",
                                    subtitle="Where the dock, the top bar and the taskbar go",
@@ -206,6 +217,11 @@ class SettingsSection(Section):
         host.run(["midikeep", "data-dir", folder.get_path()], on_done=done)
 
     def open(self, subpath):
+        if subpath == "setup":
+            from .setup import SetupPage
+            self.view.pop_to_tag("root")
+            self.view.push(SetupPage(self))
+            return
         if subpath == "layout":
             self.view.pop_to_tag("root")
             if getattr(self, "layout_page", None) is None:

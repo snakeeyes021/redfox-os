@@ -1,0 +1,4 @@
+# Only accounts made on RedFoxOS get this file (from /etc/skel). At their
+# first login, user-setup hook 30-new-account-layout.sh starts them in the
+# RedFox layout and removes it. Accounts from before never had it, so their
+# layout stays as it is.

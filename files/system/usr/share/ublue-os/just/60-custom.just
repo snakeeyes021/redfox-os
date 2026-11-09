@@ -59,8 +59,9 @@ _print-bootstrap-recap:
 redfox-reset-config:
     /usr/bin/redfox-config reset
 
-# Set hostname: this machine's name from config.yaml (machines.<id>.hostname), otherwise
-# "redfox" if the hostname is still an upstream default. Never overrides a name you picked.
+# This machine's name from config.yaml (machines.<id>.hostname); otherwise "redfox"
+# if the name is still an upstream default. A name you picked is never changed.
+# Set the computer's name (from config.yaml, or "redfox" in place of an upstream default)
 reset-hostname:
     #!/usr/bin/bash
     set -euo pipefail
@@ -300,21 +301,26 @@ theme-default-corners:
     
     echo "Reverted to default rounded corners. Please restart your applications."
 
+# Use GNOME's own sound theme
 theme-sound-fedora:
     gsettings reset org.gnome.desktop.sound theme-name
 
 theme-sound-bazzite:
     gsettings set org.gnome.desktop.sound theme-name 'steam'
 
+# Window buttons on the right: minimise, maximise and close
 set-window-controls-right-full:
     gsettings set org.gnome.desktop.wm.preferences button-layout ':minimize,maximize,close'
 
+# Window buttons on the right: close only
 set-window-controls-right-gnome:
     gsettings set org.gnome.desktop.wm.preferences button-layout ':close'
 
+# Window buttons back to the default: close, on the left
 set-window-controls-left-gnome:
     gsettings reset org.gnome.desktop.wm.preferences button-layout
 
+# Tiling: no gaps between windows, no snap assistant
 layout-tiling-dewy:
     gsettings set org.gnome.shell.extensions.tilingshell show-indicator true
     gsettings set org.gnome.shell.extensions.tilingshell inner-gaps 0
@@ -330,6 +336,7 @@ layout-tiling-dewy:
     gsettings set org.gnome.shell.extensions.tilingshell move-window-right "['<Super>Right']"
     gsettings set org.gnome.shell.extensions.tilingshell cycle-layouts "['<Control>Right']"
 
+# Tiling: back to the default gaps, snap assistant and shortcuts
 layout-tiling-default:
     gsettings reset org.gnome.shell.extensions.tilingshell show-indicator
     gsettings reset org.gnome.shell.extensions.tilingshell inner-gaps

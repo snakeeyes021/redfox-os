@@ -5,24 +5,30 @@
 #   redfox-autostart on APP...       start APP in the tray at login
 #   redfox-autostart off APP...      stop doing that
 #
-# APP is a Flatpak id: org.signal.Signal or net.cozic.joplin_desktop.
+# APP is a Flatpak id (org.signal.Signal, net.cozic.joplin_desktop), or
+# steam for the Steam that comes with the image.
 # Opened any other way, the apps open normally. RedFox Hub (Settings) and the
 # configure-autostart-tray recipe are front ends to this.
 set -euo pipefail
 
 AUTOSTART="${XDG_CONFIG_HOME:-$HOME/.config}/autostart"
 APPS="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
-KNOWN=(org.signal.Signal net.cozic.joplin_desktop)
+KNOWN=(org.signal.Signal net.cozic.joplin_desktop steam)
+# Steam is part of the image; its own launcher starts it minimised with -silent.
+STEAM="$(command -v bazzite-steam 2>/dev/null || echo /usr/bin/bazzite-steam)"
 
 name_of() {
     case "$1" in
         org.signal.Signal) echo Signal ;;
         net.cozic.joplin_desktop) echo Joplin ;;
+        steam) echo Steam ;;
         *) return 1 ;;
     esac
 }
 
-installed() { flatpak info "$1" >/dev/null 2>&1; }
+installed() {
+    if [ "$1" = steam ]; then [ -x "$STEAM" ]; else flatpak info "$1" >/dev/null 2>&1; fi
+}
 
 exported() {
     for dir in "${XDG_DATA_HOME:-$HOME/.local/share}/flatpak/exports/share/applications" /var/lib/flatpak/exports/share/applications; do
@@ -44,6 +50,8 @@ is_on() {
     case "$1" in
         org.signal.Signal) grep -qs 'start-in-tray' "$AUTOSTART/org.signal.Signal.desktop" ;;
         net.cozic.joplin_desktop) grep -qs 'redfox-joplin-launch' "$AUTOSTART/net.cozic.joplin_desktop.desktop" ;;
+        # Bazzite's own entry (from the account's first login) counts too.
+        steam) grep -qs -- '-silent' "$AUTOSTART/steam.desktop" && ! grep -qs 'X-GNOME-Autostart-enabled=false' "$AUTOSTART/steam.desktop" ;;
     esac
 }
 
@@ -77,6 +85,11 @@ turn_on() {
                     "$src" > "$APPS/net.cozic.joplin_desktop.desktop"
             fi
             ;;
+        steam)
+            printf '%s\n' '[Desktop Entry]' 'Type=Application' 'Name=Steam' 'Icon=steam' \
+                "TryExec=$STEAM" "Exec=$STEAM -silent %U" 'X-GNOME-Autostart-Delay=5' \
+                > "$AUTOSTART/steam.desktop"
+            ;;
     esac
     echo "$(name_of "$app") will start in the tray at login."
 }
@@ -93,6 +106,11 @@ turn_off() {
                 rm -f -- "$AUTOSTART/net.cozic.joplin_desktop.desktop"
             grep -qs 'redfox-joplin-launch' "$APPS/net.cozic.joplin_desktop.desktop" &&
                 rm -f -- "$APPS/net.cozic.joplin_desktop.desktop"
+            ;;
+        steam)
+            # Ours or Bazzite's: both start Steam with -silent.
+            grep -qs -- '-silent' "$AUTOSTART/steam.desktop" &&
+                rm -f -- "$AUTOSTART/steam.desktop"
             ;;
     esac
     echo "$(name_of "$app") no longer starts at login."

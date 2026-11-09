@@ -128,4 +128,5 @@ modules:
       - install-redfox-hub.sh
       - stamp-redfox-dim.sh
       - no-bazzite-portal-autostart.sh
+      - no-steam-autostart.sh
       - branding.sh # last: RedFoxOS names, image-info, and the boot splash (rebuilds the initramfs)
