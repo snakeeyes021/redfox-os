@@ -12,9 +12,10 @@
   <url type="homepage">https://github.com/snakeeyes021/redfox-os</url>
   <url type="bugtracker">https://github.com/snakeeyes021/redfox-os/issues</url>
   <description>
-    <p>RedFox Hub is RedFoxOS's own app: a short welcome tour, RedFox's packs of
-    favourite apps, the state of updates and rolling back, the desktop layouts
-    and other settings, and a short manual.</p>
+    <p>RedFox Hub is RedFoxOS's one-stop shop for setting up and using your PC: a
+    short welcome tour, RedFox's pre-packed selections of favorite apps, the state
+    of updates and rolling back, the desktop layouts and other settings, and a
+    short manual.</p>
   </description>
   <content_rating type="oars-1.1"/>
   <releases>

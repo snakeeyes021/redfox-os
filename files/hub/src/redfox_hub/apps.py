@@ -47,7 +47,7 @@ class AppsSection(Section):
         self.pages = {}
         for section_id, title, icon in SECTIONS:
             page = Adw.PreferencesPage(
-                description="Ticked items are installed: tick or untick, then Apply."
+                description="RedFox's packs of favorite apps. Tick the ones you want. Hit Apply."
                 if section_id == "packs" else None)
             self.tabs.add_titled_with_icon(page, section_id, title, icon)
             self.pages[section_id] = page

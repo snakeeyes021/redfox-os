@@ -43,7 +43,7 @@ def ujust_status(recipe, on_tokens):
 TOGGLES = [
     # Terminal (RedFox's own, through redfox-terminal; the first time, each
     # installs its tools with Homebrew)
-    dict(id="prompt", group="terminal", title="Styled Prompt",
+    dict(id="prompt", group="terminal", title="Make it Pretty",
          subtitle="Colours and icons in the terminal's prompt, with the current folder "
                   "and Git branch. Looks only: commands work as before.",
          system=False, status=["redfox-terminal", "prompt", "status"], on_tokens={"on"},

@@ -185,8 +185,7 @@ class ManualSection(Section):
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18,
                       margin_top=24, margin_bottom=24, margin_start=12, margin_end=12)
         intro = Gtk.Label(
-            label="Short help for where RedFoxOS works differently from other "
-                  "Linux systems.", wrap=True, xalign=0)
+            label="How to do things the RedFox way.", wrap=True, xalign=0)
         intro.add_css_class("dim-label")
         box.append(intro)
         # Help's actions: the ones that live elsewhere in Hub are links to

@@ -11,7 +11,7 @@ At first login /usr/libexec/redfox-hub-first-login runs `redfox-hub
 
 from pathlib import Path
 
-from gi.repository import Adw, Gtk
+from gi.repository import Adw, GLib, Gtk
 
 from . import host
 from .paths import LAYOUTS, host_state_dir
@@ -38,9 +38,8 @@ def mark_seen():
 # first boot (BlueBuild's default-flatpaks; this is its list).
 DEFAULT_APPS = Path("/usr/share/bluebuild/default-flatpaks/configuration.yaml")
 
-# Placeholder text.
-APPS_NOTE = ("Your basic apps are being installed in the background. "
-             "RedFoxOS does this on every new computer; they appear in the app grid as they arrive.")
+APPS_NOTE = ("RedFox's set of basic apps is being installed in the background. "
+             "They appear in the app grid as they arrive.")
 
 
 def default_apps():
@@ -178,20 +177,20 @@ class Tour(Gtk.Box):
 
         pages = [
             TourPage(fox(), "Welcome to RedFoxOS",
-                     "A fast, friendly desktop that looks after itself.", first),
+                     "A desktop with a little something for everybody", first),
             TourPage(hero_icon("software-update-available-symbolic"),
                      "Updates You Never Have to Think About",
-                     "RedFoxOS updates itself in the background, all in one piece. "
-                     "If an update ever misbehaves, go back to the one before, "
-                     "in Hub or from the boot menu."),
+                     "RedFoxOS updates itself in the background and whenever you tell it to. "
+                     "If something goes wrong, the update safely aborts. If anything is "
+                     "ever weird after an update, roll back from the Hub."),
             TourPage(hero_icon("view-app-grid-symbolic"), "Apps for Everything",
-                     "Bazaar has thousands of apps from Flathub. RedFox's packs of "
-                     "favourites are in Hub, a tick away."),
+                     "RedFox curates packs of our favorite apps. Bazaar has thousands "
+                     "of apps from Flathub, for everything else."),
             TourPage(layout_strip(), "Make It Yours",
-                     "Six layouts: a dock on the side or at the bottom, or one "
-                     "taskbar. Switch any time; your apps stay open."),
+                     "Six familiar layouts. Switch any time. Tons of other little "
+                     "tweaks made easy."),
             TourPage(hero_icon("object-select-symbolic"), "You're All Set",
-                     "Here's where to go next.", links),
+                     "Where to next?", links),
         ]
         for page in pages:
             self.carousel.append(page)
@@ -271,3 +270,11 @@ class WelcomeSection(Section):
     def _finish(self, page):
         if page:
             self.window.open_page(page)
+
+    def open(self, subpath):
+        """welcome/N opens the tour at page N (1 is the first)."""
+        if subpath.isdigit():
+            carousel = self.tour.carousel
+            index = min(max(int(subpath) - 1, 0), carousel.get_n_pages() - 1)
+            # Once the carousel has its size, or it doesn't move.
+            GLib.idle_add(lambda: carousel.scroll_to(carousel.get_nth_page(index), False))
