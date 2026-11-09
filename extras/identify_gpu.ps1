@@ -2,15 +2,13 @@
 #
 #   irm https://raw.githubusercontent.com/snakeeyes021/redfox-os/main/extras/identify_gpu.ps1 | iex
 #
-# Lists this computer's display adapters and says which RedFoxOS download
-# suits them, with a link to it. It reads only each adapter's PCI vendor and
-# device id. It downloads RedFoxOS's graphics rules
+# Lists this computer's graphics and says which RedFoxOS download to get,
+# by the name on its card on the download page. It reads only each display
+# adapter's PCI vendor and device id, downloads RedFoxOS's graphics rules
 # (files/system/usr/share/redfox/gpu-rules.json, the same rules the download
-# page and RedFox Hub's "(Recommended)" use) and decides here; nothing about
-# this computer is sent anywhere. The link carries the ids after a "#", which
-# browsers keep to themselves, so opening it doesn't send them either.
-# If the rules can't be downloaded, it prints a code to paste into the
-# download page instead. The Linux version is identify_gpu.sh.
+# page and RedFox Hub's image picker use) and decides here: nothing about
+# this computer is sent anywhere. identify_gpu.sh does the same on Linux,
+# with the same output.
 #
 # For tests: $env:RFX_DEVICES = "8086:46a6 10de:1c03" stands in for the
 # computer's adapters, and $env:RFX_RULES_FILE = path reads the rules from a file.
@@ -20,6 +18,23 @@ $rulesUrls = @(
     'https://raw.githubusercontent.com/snakeeyes021/redfox-os/main/files/system/usr/share/redfox/gpu-rules.json',
     'https://raw.githubusercontent.com/snakeeyes021/redfox-os/unstable/files/system/usr/share/redfox/gpu-rules.json'
 )
+
+# Prints text in lines of up to 76 characters, indented by two spaces, the
+# same way identify_gpu.sh wraps it.
+function Write-Wrapped([string]$text) {
+    $line = ''
+    foreach ($word in ($text -split '\s+' | Where-Object { $_ })) {
+        if ($line -eq '') {
+            $line = $word
+        } elseif ($line.Length + 1 + $word.Length -le 76) {
+            $line = $line + ' ' + $word
+        } else {
+            Write-Output ('  ' + $line)
+            $line = $word
+        }
+    }
+    if ($line -ne '') { Write-Output ('  ' + $line) }
+}
 
 $ids = @()
 $names = @{}
@@ -40,16 +55,17 @@ if ($null -ne $env:RFX_DEVICES) {
     }
 }
 
+Write-Output 'RedFoxOS graphics check'
+Write-Output ''
 if ($ids.Count -eq 0) {
-    Write-Host 'No graphics device found.'
+    Write-Output 'No graphics found.'
 } else {
-    Write-Host 'Graphics found:'
-    foreach ($id in $ids) { Write-Host (('  {0}  {1}' -f $id, $names[$id]).TrimEnd()) }
+    Write-Output 'Graphics found:'
+    foreach ($id in $ids) {
+        if ($names[$id]) { Write-Output ('  {0} ({1})' -f $names[$id], $id) } else { Write-Output ('  ' + $id) }
+    }
 }
-Write-Host ''
-
-$code = if ($ids.Count -gt 0) { 'RFX1 ' + ($ids -join ' ') } else { 'RFX1 none' }
-$link = $page + '#gpu=' + ($code -replace ' ', '+')
+Write-Output ''
 
 $rules = $null
 if ($env:RFX_RULES_FILE) {
@@ -61,20 +77,16 @@ if ($env:RFX_RULES_FILE) {
 }
 
 if ($null -eq $rules) {
-    # No rules (offline?): the page can decide from the code.
-    Write-Host 'Couldn''t decide here. Your code for the download page:'
-    Write-Host ''
-    Write-Host ('    ' + $code)
-    Write-Host ''
-    Write-Host ('Paste it at ' + $page + ' to see which RedFoxOS suits this computer,')
-    Write-Host 'or open this link, which shows the same:'
-    Write-Host ('    ' + $link)
-    try { Set-Clipboard -Value $code; Write-Host '(The code is on the clipboard too.)' } catch { }
+    Write-Output 'Couldn''t download RedFoxOS''s graphics rules (is this computer online?),'
+    Write-Output 'so it can''t say which download to get. Choose by your graphics at'
+    Write-Output ('  ' + $page)
+    Write-Output ''
+    Write-Output 'Nothing about this computer has been sent anywhere.'
     return
 }
 
-# The decision, the same way the download page makes it: each adapter gets the
-# first class it matches, then the first rule whose classes all fit wins.
+# The decision, the same way the download page and Hub make it: each adapter
+# gets the first class it matches, then the first rule whose classes all fit wins.
 $have = @{}
 foreach ($id in $ids) {
     $vendor, $device = $id.ToLower().Split(':')
@@ -92,33 +104,30 @@ foreach ($r in $rules.rules) {
     if ($allOk -and $noneOk) { $rule = $r; break }
 }
 
-$titles = @{
-    'redfox-os' = 'RedFoxOS (Intel & AMD)'
-    'redfox-os-nvidia' = 'RedFoxOS NVIDIA'
-    'redfox-os-nvidia-legacy' = 'RedFoxOS NVIDIA Legacy'
+# The download's name, as on the download page and in RedFox Hub
+$downloads = @{
+    'redfox-os' = 'RedFoxOS (AMD & Intel)'
+    'redfox-os-nvidia' = 'RedFoxOS NVIDIA (GTX 16xx, RTX 20xx and newer)'
+    'redfox-os-nvidia-legacy' = 'RedFoxOS NVIDIA Legacy (GTX 10xx, 9xx and 750)'
 }
-$title = if ($rule.image) { $titles[$rule.image] } else { $null }
-if ($title) {
-    Write-Host ('This computer: ' + $title)
-    Write-Host ('  It has ' + $rule.why + '.')
+$download = if ($rule.image) { $downloads[$rule.image] } else { $null }
+if ($download) {
+    Write-Output 'The download to get:'
+    Write-Output ('  ' + $download)
+    Write-Output ''
+    Write-Output 'Why:'
+    Write-Wrapped ('This computer has ' + $rule.why + '.')
 } else {
-    Write-Host ('No single download suits this computer: it has ' + $rule.why + '.')
-    Write-Host '  Pick the one for the graphics you want to use.'
+    Write-Output 'No single download works best on your machine:'
+    Write-Wrapped ('It has ' + $rule.why + '. Choose the download for the graphics you want to use.')
 }
 if ($rule.hybrid) {
-    Write-Host ''
-    Write-Host 'Two graphics chips: this computer has built-in graphics next to its NVIDIA card,'
-    Write-Host 'like most laptops with NVIDIA. The NVIDIA download drives the card with NVIDIA''s'
-    Write-Host 'driver, and the built-in graphics keep working. If the screen stays black when the'
-    Write-Host 'USB stick starts, choose "Start RedFoxOS (basic graphics)" in its menu.'
+    Write-Output ''
+    Write-Output 'Two graphics chips:'
+    Write-Wrapped ('This computer has built-in graphics next to its NVIDIA card, like most laptops with NVIDIA. The NVIDIA download drives the card with NVIDIA''s driver, and the built-in graphics keep working. If the screen stays black when the USB stick starts, choose "Start RedFoxOS (basic graphics)" in its menu.')
 }
-Write-Host ''
-if ($title) {
-    Write-Host 'Download it here (the page opens with it picked):'
-} else {
-    Write-Host 'The downloads (the page opens with this computer''s graphics checked):'
-}
-Write-Host ('    ' + $link)
-Write-Host ''
-Write-Host ('Nothing about this computer has been sent anywhere. Code, if you''d rather paste it: ' + $code)
-try { Set-Clipboard -Value $link; Write-Host '(The link is on the clipboard.)' } catch { }
+Write-Output ''
+if ($download) { Write-Output 'Get it at:' } else { Write-Output 'The downloads are at:' }
+Write-Output ('  ' + $page)
+Write-Output ''
+Write-Output 'Nothing about this computer has been sent anywhere.'

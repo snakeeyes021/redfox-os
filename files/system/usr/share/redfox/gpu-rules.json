@@ -1,5 +1,5 @@
 {
-  "about": "Which RedFoxOS image suits a computer, from its PCI display devices (vendor and device id, lower-case hex without 0x). The one rule set for RedFox Hub's '(Recommended)' (redfox-rollback-helper) and the download page on redfoxlabs.tech. Each display device gets the first class it matches (in order), or 'other'; then the first rule whose 'all' classes are all present and whose 'none' classes are all absent gives the answer. image null means no recommendation. hybrid marks built-in graphics next to an NVIDIA card (a laptop, usually). Test cases: tests/gpu-cases.json.",
+  "about": "Which RedFoxOS image works best on a computer, from its PCI display devices (vendor and device id, lower-case hex without 0x). The one rule set for RedFox Hub's image picker (redfox-rollback-helper) and the download page on redfoxlabs.tech. Each display device gets the first class it matches (in order), or 'other'; then the first rule whose 'all' classes are all present and whose 'none' classes are all absent gives the answer. image null means no recommendation. hybrid marks built-in graphics next to an NVIDIA card (a laptop, usually). Test cases: tests/gpu-cases.json.",
   "version": 1,
   "classes": [
     { "id": "nvidia-modern", "vendors": ["10de"], "device_from": "1e00", "note": "Turing and newer: GTX 16xx, RTX 20xx and newer" },
@@ -16,7 +16,7 @@
     { "all": ["nvidia-legacy", "intel-amd"], "image": "redfox-os-nvidia-legacy", "hybrid": true, "why": "an NVIDIA GTX 10xx, 9xx or 750 card, with built-in graphics" },
     { "all": ["nvidia-legacy"], "image": "redfox-os-nvidia-legacy", "why": "an NVIDIA GTX 10xx, 9xx or 750 card" },
     { "all": ["nvidia-old"], "none": ["other"], "image": "redfox-os", "why": "an older NVIDIA card (Kepler or earlier, such as the GTX 600 series and most of the 700 series), which NVIDIA's drivers no longer support, so it runs on the open-source driver built into RedFoxOS" },
-    { "all": ["intel-amd"], "none": ["other"], "image": "redfox-os", "why": "Intel or AMD graphics" },
+    { "all": ["intel-amd"], "none": ["other"], "image": "redfox-os", "why": "AMD or Intel graphics" },
     { "all": ["other"], "image": null, "why": "graphics it doesn't recognise (a virtual machine?)" },
     { "all": [], "image": null, "why": "no graphics device" }
   ]
