@@ -186,6 +186,12 @@
     - [ ] **Secure Boot and NVIDIA variants:** one ISO per image; the installer queues Universal Blue's key for enrolment.
     - [ ] **Testing in a VM:** install each ISO on a blank disk with Secure Boot on, then check boot, login, updates and rollback.
     - [ ] **Before the download page goes live:** RedFox Hub, with its image picker for switching between the graphics images, is in the image. The page tells people they can switch to another image later from RedFox Hub.
+    - [ ] **Proposed: confirm the USB stick size for each ISO (8 GB vs 16 GB)** and state it in the README and on the download page. Test 8 GB sticks with all three ISOs first. Sizes from the last builds:
+        - RedFoxOS: 6.80 GB (6,802,367,273 bytes, 2026-11-09)
+        - RedFoxOS NVIDIA: 7.82 GB (7,815,754,558 bytes, 2026-11-07)
+        - RedFoxOS NVIDIA Legacy: 7.94 GB (7,941,854,091 bytes, 2026-11-07)
+
+        Many "8 GB" sticks hold a little under 8,000,000,000 bytes, so the two NVIDIA ISOs may not fit on every one.
     - [ ] **The graphics helpers reach main:** the page's commands run `extras/identify_gpu.sh` and `.ps1` from `main`, so the current helpers (they name the download to get, with no code to paste) reach people only once `unstable` is promoted. The page never points at `unstable`.
 
 ## 🧩 RedFox Hub
