@@ -222,7 +222,7 @@ uninstall-thirties:
 rollback-helper *ARGS:
     /usr/bin/redfox-rollback-helper {{ ARGS }}
 
-# Switch image: the graphics (mainline, NVIDIA, NVIDIA legacy) and the channel (latest or unstable). Asks, then confirms.
+# Switch image: the graphics (AMD & Intel, NVIDIA, NVIDIA Legacy) and the channel (latest or unstable). Asks, then confirms.
 switch-image *ARGS:
     /usr/bin/redfox-rollback-helper switch-image {{ ARGS }}
 

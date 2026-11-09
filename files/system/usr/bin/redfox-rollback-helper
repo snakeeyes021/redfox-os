@@ -29,7 +29,7 @@ Usage: $(basename "$0") [COMMAND] [ARGUMENTS]
   list [CHANNEL] [N]  the last N builds of a channel: latest (stable) or unstable
                       (default: the channel you are on, 15 builds)
   rollback            boot the previous system next time (rpm-ostree rollback)
-  images              the six images: graphics (mainline, NVIDIA, NVIDIA legacy)
+  images              the six images: graphics (AMD & Intel, NVIDIA, NVIDIA Legacy)
                       times channel (latest, unstable), and which one is booted
   switch-image [IMAGE] [CHANNEL]
                       move to another image, e.g. switch-image redfox-os-nvidia latest
@@ -181,20 +181,20 @@ show_list() {
     echo "Switch with: $(basename "$0") rebase <commit or date>"
 }
 
-# What each image is for (README: "Not sure which one to pick?").
+# Each image's name and description, as on the download page's cards.
 image_name() {
     case "$1" in
-        redfox-os) echo "Mainline" ;;
-        redfox-os-nvidia) echo "NVIDIA" ;;
-        redfox-os-nvidia-legacy) echo "NVIDIA legacy" ;;
+        redfox-os) echo "RedFoxOS (AMD & Intel)" ;;
+        redfox-os-nvidia) echo "RedFoxOS NVIDIA" ;;
+        redfox-os-nvidia-legacy) echo "RedFoxOS NVIDIA Legacy" ;;
         *) echo "$1" ;;
     esac
 }
 image_description() {
     case "$1" in
-        redfox-os) echo "AMD and Intel graphics" ;;
-        redfox-os-nvidia) echo "NVIDIA GTX 16xx, RTX 20xx and newer" ;;
-        redfox-os-nvidia-legacy) echo "NVIDIA GTX 10xx and older" ;;
+        redfox-os) echo "AMD & Intel graphics" ;;
+        redfox-os-nvidia) echo "GTX 16xx, RTX 20xx and newer" ;;
+        redfox-os-nvidia-legacy) echo "GTX 10xx, 9xx and 750" ;;
     esac
 }
 channel_name() {
@@ -260,7 +260,7 @@ show_images() {
     for i in "${IMAGES[@]}"; do
         local tag=""
         [ "$i" = "$recommended" ] && tag=" (Works best on your machine)"
-        echo "  $(image_name "$i")${tag} ($(image_description "$i")):"
+        echo "  $(image_name "$i")${tag}: $(image_description "$i")"
         for c in latest unstable; do
             local mark=" "
             [ "$i" = "$image" ] && [ "$c" = "$channel" ] && mark="*"
@@ -290,13 +290,13 @@ switch_image() {
         else
             echo "No recommendation: found ${why}."
         fi
-        picked="$(choose "Mainline${r1}: AMD and Intel graphics" \
-            "NVIDIA${r2}: GTX 16xx, RTX 20xx and newer" \
-            "NVIDIA legacy${r3}: GTX 10xx and older" "Cancel")" || exit 0
+        picked="$(choose "RedFoxOS (AMD & Intel)${r1}" \
+            "RedFoxOS NVIDIA${r2}: GTX 16xx, RTX 20xx and newer" \
+            "RedFoxOS NVIDIA Legacy${r3}: GTX 10xx, 9xx and 750" "Cancel")" || exit 0
         case "$picked" in
-            Mainline*) image=redfox-os ;;
-            "NVIDIA legacy"*) image=redfox-os-nvidia-legacy ;;
-            NVIDIA*) image=redfox-os-nvidia ;;
+            "RedFoxOS (AMD"*) image=redfox-os ;;
+            "RedFoxOS NVIDIA Legacy"*) image=redfox-os-nvidia-legacy ;;
+            "RedFoxOS NVIDIA"*) image=redfox-os-nvidia ;;
             *) echo "Cancelled."; return 1 ;;
         esac
     fi

@@ -56,9 +56,9 @@ Then rebase to one of them, for example `redfox-rollback-helper rebase 20261101`
 
 RedFoxOS comes in three images, one for each kind of graphics:
 
-- **Mainline**, for Intel and AMD graphics.
-- **NVIDIA**, for GTX 16xx, RTX 20xx and newer.
-- **NVIDIA legacy**, for GTX 10xx and older.
+- **RedFoxOS (AMD & Intel)**, for AMD & Intel graphics.
+- **RedFoxOS NVIDIA**, for GTX 16xx, RTX 20xx and newer.
+- **RedFoxOS NVIDIA Legacy**, for GTX 10xx, 9xx and 750. Older NVIDIA cards run on RedFoxOS (AMD & Intel).
 
 Each follows either channel. To change image, pick it under **Graphics** in [Hub › Updates](hub:updates), or in a terminal:
 
