@@ -15,7 +15,7 @@ PS1 = ROOT / "extras" / "identify_gpu.ps1"
 RULES = ROOT / "files" / "system" / "usr" / "share" / "redfox" / "gpu-rules.json"
 CASES = json.loads((ROOT / "tests" / "gpu-cases.json").read_text())
 TITLES = {
-    "redfox-os": "RedFoxOS (Intel & AMD)",
+    "redfox-os": "RedFoxOS (AMD & Intel)",
     "redfox-os-nvidia": "RedFoxOS NVIDIA",
     "redfox-os-nvidia-legacy": "RedFoxOS NVIDIA Legacy",
 }

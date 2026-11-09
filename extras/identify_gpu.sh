@@ -114,7 +114,7 @@ image="$(sed -n 1p <<< "$result")"
 why="$(sed -n 2p <<< "$result")"
 hybrid="$(sed -n 3p <<< "$result")"
 case "$image" in
-    redfox-os) title="RedFoxOS (Intel & AMD)" ;;
+    redfox-os) title="RedFoxOS (AMD & Intel)" ;;
     redfox-os-nvidia) title="RedFoxOS NVIDIA" ;;
     redfox-os-nvidia-legacy) title="RedFoxOS NVIDIA Legacy" ;;
     *) title="" ;;

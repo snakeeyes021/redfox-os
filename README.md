@@ -38,7 +38,7 @@ Its primary raison d'être is to provide driver support for Pascal-series Nvidia
 
 We have three images available, depending on your hardware:
 
-*   **`redfox-os`**: For Intel and AMD GPUs.
+*   **`redfox-os`**: For AMD and Intel GPUs.
 *   **`redfox-os-nvidia`**: For modern Nvidia GPUs (GTX 16xx, RTX 20xx and newer).
 *   **`redfox-os-nvidia-legacy`**: For legacy Nvidia GPUs (Pascal/GTX 10xx series and older).
 
@@ -60,7 +60,7 @@ To switch to RedFoxOS from an existing GNOME-based Universal Blue installation, 
 
 **1. Rebase to the signed image**
 
-*   **Intel/AMD:**
+*   **AMD/Intel:**
     ```bash
     rpm-ostree rebase ostree-image-signed:docker://ghcr.io/snakeeyes021/redfox-os:latest
     ```

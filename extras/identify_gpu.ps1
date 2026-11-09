@@ -93,7 +93,7 @@ foreach ($r in $rules.rules) {
 }
 
 $titles = @{
-    'redfox-os' = 'RedFoxOS (Intel & AMD)'
+    'redfox-os' = 'RedFoxOS (AMD & Intel)'
     'redfox-os-nvidia' = 'RedFoxOS NVIDIA'
     'redfox-os-nvidia-legacy' = 'RedFoxOS NVIDIA Legacy'
 }
