@@ -223,6 +223,14 @@ uninstall-thirties:
 rollback-helper *ARGS:
     /usr/bin/redfox-rollback-helper {{ ARGS }}
 
+# Switch image: the graphics (AMD & Intel, NVIDIA, NVIDIA Legacy) and the channel (latest or unstable). Asks, then confirms.
+switch-image *ARGS:
+    /usr/bin/redfox-rollback-helper switch-image {{ ARGS }}
+
+# Feature branches with a test build (unsupported, for developers); rebase with: ujust rollback-helper rebase pr-N-FEDORA
+list-feature-branches:
+    /usr/bin/redfox-rollback-helper branches
+
 # Run the optional Bazzite graphical updater
 update-gui:
     #!/usr/bin/bash
