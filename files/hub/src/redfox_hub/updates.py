@@ -166,7 +166,7 @@ class UpdatesSection(Section):
                                          model=Gtk.StringList.new([]), sensitive=False)
         self.graphics_row.add_prefix(Gtk.Image(icon_name="video-display-symbolic"))
         self.graphics_row.connect("notify::selected", self.on_graphics_changed)
-        # The popover's own items, so "NVIDIA (Recommended)" isn't cut short.
+        # The popover's own items, so "NVIDIA (Works best on your machine)" isn't cut short.
         factory = Gtk.SignalListItemFactory()
         factory.connect("setup", self._graphics_item_setup)
         factory.connect("bind", self._graphics_item_bind)
@@ -449,7 +449,7 @@ class UpdatesSection(Section):
         # The helper detects the graphics card; an unclear case recommends nothing.
         recommended = data.get("recommended")
         self.graphics_row.set_model(Gtk.StringList.new(
-            [i["name"] + (" (Recommended)" if i["id"] == recommended else "")
+            [i["name"] + (" (Works best on your machine)" if i["id"] == recommended else "")
              for i in self.images]))
         ids = [i["id"] for i in self.images]
         if self.booted_image in ids:
