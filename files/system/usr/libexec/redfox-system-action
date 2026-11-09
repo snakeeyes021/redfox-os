@@ -8,10 +8,13 @@
 #                             `ujust configure-waydroid init`
 #   input-group add|remove    the person who asked joins or leaves the input
 #                             group (Bazzite's `ujust add-user-to-input-group`)
+#   hardware ID install|remove
+#                             the root steps of a hardware install
+#                             (/usr/libexec/redfox-hardware-root)
 set -euo pipefail
 
 usage() {
-    echo "Usage: $0 waydroid-init | input-group add|remove" >&2
+    echo "Usage: $0 waydroid-init | input-group add|remove | hardware ID install|remove" >&2
     exit 2
 }
 
@@ -41,6 +44,11 @@ case "${1:-}" in
             remove) gpasswd -d "$user" input >/dev/null 2>&1 || true ;;
             *) usage ;;
         esac
+        ;;
+    hardware)
+        # redfox-hardware-root checks the id and the verb against its own list.
+        [ $# -eq 3 ] || usage
+        exec /usr/libexec/redfox-hardware-root "$2" "$3"
         ;;
     *) usage ;;
 esac

@@ -120,6 +120,13 @@ ACTIONS = [
          done_subtitle="Set up. Open Waydroid from the app grid to start Android.",
          steps=[["pkexec", SYSTEM_HELPER, "waydroid-init"], "waydroid-menu-entry"],
          done_message="Waydroid is set up. Open it from the app grid."),
+    dict(id="logs", group="help", title="Collect Logs",
+         subtitle="Saves this computer's logs and system details in one zip in "
+                  "Downloads, for someone helping you. Your name, the computer's "
+                  "name, network names and serial numbers are taken out, and "
+                  "nothing is uploaded.",
+         button="Collect", steps=[["redfox-logs", "--show"]],
+         done_message=None),
     dict(id="firmware", group="help", title="Restart into Firmware Settings",
          subtitle="The computer's own setup screen (UEFI), for boot order, "
                   "virtualization or Secure Boot. In the power menu, holding Shift "
@@ -186,7 +193,8 @@ def run(action_id):
         if code != 0 and not action.get("any_exit"):
             print(f"{action['title']} didn't finish", file=sys.stderr)
             return code
-    print(action["done_message"])
+    if action["done_message"]:   # otherwise the step's own last line says it
+        print(action["done_message"])
     return 0
 
 

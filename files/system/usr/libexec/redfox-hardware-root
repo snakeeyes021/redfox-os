@@ -1,0 +1,246 @@
+#!/usr/bin/bash
+# The root steps of RedFox's hardware installs, run by
+# `/usr/libexec/redfox-system-action hardware ID install|remove` through
+# pkexec. redfox-hardware runs the per-user steps around them.
+#
+# RedFox's own versions of Bazzite's `ujust` recipes (asus,
+# install-coolercontrol, install-displaylink, install-openrazer,
+# opentabletdriver), without their questions and without sudo, so Hub can run
+# them behind one password prompt. tests/bazzite-recipes.json records which
+# version of Bazzite's recipes these follow; CI flags when Bazzite changes one.
+set -euo pipefail
+
+usage() {
+    echo "Usage: $0 asus|coolercontrol|displaylink|openrazer|opentabletdriver install|remove" >&2
+    exit 2
+}
+
+# The person pkexec ran this for.
+invoking_user() {
+    [ -n "${PKEXEC_UID:-}" ] || { echo "$0: run this through pkexec" >&2; exit 1; }
+    getent passwd "$PKEXEC_UID" | cut -d: -f1
+}
+
+workdir() {
+    WORK=$(mktemp -d /tmp/redfox-hardware.XXXXXX)
+    trap 'rm -rf -- "$WORK"' EXIT
+}
+
+# A group from the image's /lib/group, copied to /etc/group on first use.
+ensure_group() {
+    grep -q "^$1:" /etc/group || grep "^$1:" /lib/group >> /etc/group
+}
+
+layered() { # package: requested for the next boot
+    rpm-ostree status --json | jq -e --arg p "$1" \
+        '.deployments[0] | (.["requested-packages"] // .packages) | index($p)' >/dev/null
+}
+
+# ASUS: asusd and ROG Control Center, from the same release as Universal Blue's
+# asusctl-linux and rog-control-center-linux casks (installed system-wide here,
+# not with Homebrew).
+ASUS_VERSION=6.5.0 ASUS_BUILD=4
+ASUS_SHA256=91aa192f9b1861dce9ea3077bd7bf839acf97c5349d26435e699e49785fd21e6
+ASUS_ROOT=/opt/redfox-asusctl
+ASUS_SHARE=/usr/local/share
+
+asus_install() {
+    workdir
+    local tag="asusctl-$ASUS_VERSION-$ASUS_BUILD" base="asusctl-$ASUS_VERSION-ubuntu-22.04-amd64"
+    echo "Downloading asusctl $ASUS_VERSION…"
+    curl -fsSL -o "$WORK/asus.tar.gz" \
+        "https://github.com/daegalus/linux-app-builds/releases/download/$tag/$base.tar.gz"
+    echo "$ASUS_SHA256  $WORK/asus.tar.gz" | sha256sum --check --quiet
+    tar -xzf "$WORK/asus.tar.gz" -C "$WORK"
+    local s="$WORK/$base"
+    install -d "$ASUS_ROOT/bin" "$ASUS_ROOT/share/asusd" /etc/asusd
+    for bin in asusd asus-shutdown asusctl rog-control-center; do
+        install -m 0755 "$s/usr/bin/$bin" "$ASUS_ROOT/bin/$bin"
+    done
+    cp -a "$s/usr/share/asusd/." "$ASUS_ROOT/share/asusd"
+    sed -e '/^Environment=ASUSD_EXEC=/d' -e "s|^ExecStart=.*|ExecStart=$ASUS_ROOT/bin/asusd|" \
+        "$s/usr/lib/systemd/system/asusd.service" > /etc/systemd/system/asusd.service
+    sed -e '/^Environment=ASUS_SHUTDOWN_EXEC=/d' -e "s|^ExecStart=.*|ExecStart=$ASUS_ROOT/bin/asus-shutdown|" \
+        "$s/usr/lib/systemd/system/asus-shutdown.service" > /etc/systemd/system/asus-shutdown.service
+    install -m 0644 "$s/usr/lib/udev/rules.d/99-asusd.rules" /etc/udev/rules.d/99-asusd.rules
+    install -m 0644 "$s/usr/share/dbus-1/system.d/asusd.conf" /etc/dbus-1/system.d/asusd.conf
+    printf '%s\n' "ASUSD_DATA_DIR=$ASUS_ROOT/share/asusd" \
+        "ASUSCTL_AURA_SUPPORT_PATH=$ASUS_ROOT/share/asusd/aura_support.ron" \
+        "ASUSCTL_DATA_DIRS=$ASUS_ROOT/share" > /etc/asusd/asusd.env
+    # The ROG Control Center app, for everyone on this computer
+    for dir in rog-gui locale metainfo; do
+        if [ -d "$s/usr/share/$dir" ]; then
+            mkdir -p "$ASUS_SHARE/$dir"
+            cp -a "$s/usr/share/$dir/." "$ASUS_SHARE/$dir/"
+        fi
+    done
+    mkdir -p "$ASUS_SHARE/applications" "$ASUS_SHARE/icons/hicolor"
+    cp -a "$s/usr/share/icons/hicolor/." "$ASUS_SHARE/icons/hicolor/"
+    # What went into the shared folders, to take out again on removal.
+    (cd "$s/usr/share" && find icons locale metainfo -type f 2>/dev/null) > "$ASUS_ROOT/shared-files"
+    sed "s|^Exec=.*|Exec=$ASUS_ROOT/bin/rog-control-center|" \
+        "$s/usr/share/applications/org.opengamingcollective.rog-control-center.desktop" \
+        > "$ASUS_SHARE/applications/org.opengamingcollective.rog-control-center.desktop"
+    ln -sf "$ASUS_ROOT/bin/asusctl" /usr/local/bin/asusctl
+    chcon -R -t bin_t "$ASUS_ROOT/bin" 2>/dev/null || true
+    restorecon -RF /etc/systemd/system /etc/udev/rules.d /etc/dbus-1/system.d /etc/asusd 2>/dev/null || true
+    systemctl daemon-reload
+    systemctl reload dbus 2>/dev/null || true
+    udevadm control --reload
+    udevadm trigger
+    systemctl enable asusd.service asus-shutdown.service
+    systemctl start asusd.service asus-shutdown.service 2>/dev/null \
+        || echo "The ASUS service starts with the next restart (it only runs on ASUS laptops)."
+}
+
+asus_remove() {
+    systemctl disable --now asusd.service asus-shutdown.service 2>/dev/null || true
+    # asus-shutdown ignores the usual stop signal by design.
+    pkill -KILL -x asus-shutdown || true
+    pkill -KILL -x asusd || true
+    rm -f /etc/systemd/system/asusd.service /etc/systemd/system/asus-shutdown.service \
+        /etc/udev/rules.d/99-asusd.rules /etc/dbus-1/system.d/asusd.conf /etc/asusd/asusd.env \
+        /usr/local/bin/asusctl \
+        "$ASUS_SHARE/applications/org.opengamingcollective.rog-control-center.desktop" \
+        "$ASUS_SHARE/metainfo/org.opengamingcollective.rog-control-center.metainfo.xml"
+    if [ -f "$ASUS_ROOT/shared-files" ]; then
+        while read -r file; do
+            case "$file" in *..*) continue ;; esac
+            rm -f -- "$ASUS_SHARE/$file"
+        done < "$ASUS_ROOT/shared-files"
+    fi
+    rm -rf -- "$ASUS_ROOT" "$ASUS_SHARE/rog-gui"
+    rmdir /etc/asusd 2>/dev/null || true
+    systemctl daemon-reload
+    udevadm control --reload
+}
+
+# CoolerControl: the coolercontrold container, run by systemd, and a menu
+# entry that opens its web page.
+CC_QUADLET=/etc/containers/systemd/coolercontrol.container
+CC_IMAGE=docker.io/coolercontrol/coolercontrold:latest
+CC_DESKTOP=/usr/local/share/applications/org.coolercontrol.CoolerControl.desktop
+CC_ICON=/usr/local/share/icons/hicolor/scalable/apps/coolercontrol-web.svg
+
+coolercontrol_install() {
+    local args="--privileged"
+    command -v nvidia-smi >/dev/null && args+=" --device=nvidia.com/gpu=all"
+    echo "Downloading CoolerControl…"
+    podman pull -q "$CC_IMAGE" >/dev/null
+    mkdir -p /etc/coolercontrol /var/lib/coolercontrol/plugins /etc/containers/systemd
+    cat > "$CC_QUADLET" <<EOF
+[Unit]
+Description=CoolerControl Container
+Wants=network-online.target
+After=network-online.target
+
+[Container]
+Image=$CC_IMAGE
+ContainerName=coolercontrold
+PublishPort=127.0.0.1:11987:11987
+Volume=/etc/coolercontrol:/etc/coolercontrol
+Volume=/var/lib/coolercontrol:/var/lib/coolercontrol
+PodmanArgs=$args
+Label=io.containers.autoupdate=registry
+
+[Service]
+Restart=always
+TimeoutStartSec=900
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    systemctl daemon-reload
+    systemctl restart coolercontrol.service
+    mkdir -p "$(dirname "$CC_DESKTOP")" "$(dirname "$CC_ICON")"
+    curl -fsSL -o "$CC_ICON" \
+        https://raw.githubusercontent.com/codifryed/coolercontrol/40c9d78888c3eebf40e136d759cd7206af70c724/packaging/metadata/org.coolercontrol.CoolerControl.svg \
+        || true
+    cat > "$CC_DESKTOP" <<EOF
+[Desktop Entry]
+Type=Application
+Name=CoolerControl
+Comment=Monitor sensors and set fan and pump curves
+Exec=xdg-open http://localhost:11987/
+Icon=$CC_ICON
+Terminal=false
+Categories=System;Monitor;
+EOF
+}
+
+coolercontrol_remove() {
+    if [ -f "$CC_QUADLET" ]; then
+        systemctl stop coolercontrol.service || true
+        rm -f "$CC_QUADLET"
+        systemctl daemon-reload
+    fi
+    podman rm -f --ignore coolercontrold >/dev/null
+    podman image rm --ignore "$CC_IMAGE" >/dev/null
+    rm -f "$CC_DESKTOP" "$CC_ICON"
+    echo "Its settings stay in /etc/coolercontrol."
+}
+
+# DisplayLink: the driver package from negativo17's multimedia repository,
+# added to the system (it takes effect after a restart).
+NEGATIVO=/etc/yum.repos.d/negativo17-fedora-multimedia.repo
+
+displaylink_install() {
+    if layered displaylink; then
+        echo "DisplayLink is already set to install."
+        return
+    fi
+    if [ -f "$NEGATIVO" ] && grep -q "enabled=0" "$NEGATIVO"; then
+        sed -i 's@enabled=0@enabled=1@g' "$NEGATIVO"
+    fi
+    rpm-ostree install -y displaylink
+}
+
+displaylink_remove() {
+    if layered displaylink; then rpm-ostree uninstall -y displaylink; fi
+}
+
+# OpenRazer: the person who asked joins the plugdev group, which the daemon
+# needs; redfox-hardware installs the daemon itself in their home folder.
+openrazer_install() {
+    ensure_group plugdev
+    usermod -a -G plugdev "$(invoking_user)"
+}
+
+openrazer_remove() {
+    gpasswd -d "$(invoking_user)" plugdev >/dev/null 2>&1 || true
+}
+
+# OpenTabletDriver: its device rules from the latest release, and the kernel's
+# own tablet drivers switched off (from the next restart).
+OTD_RULES=/etc/udev/rules.d/71-opentabletdriver.rules
+OTD_KARGS=(modprobe.blacklist=hid_uclogic modprobe.blacklist=wacom)
+
+opentabletdriver_install() {
+    workdir
+    local url
+    url=$(curl -fsSL https://api.github.com/repos/OpenTabletDriver/OpenTabletDriver/releases/latest \
+        | jq -r '.assets | sort_by(.created_at) | .[] | select(.name|test("opentabletdriver.*linux-x64_binary.*tar.gz$")) | .browser_download_url' \
+        | tail -n1)
+    [ -n "$url" ] || { echo "Couldn't find OpenTabletDriver's latest release" >&2; exit 1; }
+    curl -fsSL -o "$WORK/otd.tar.gz" "$url"
+    tar --strip-components=1 -xzf "$WORK/otd.tar.gz" -C "$WORK"
+    install -m 0644 "$WORK/etc/udev/rules.d/70-opentabletdriver.rules" "$OTD_RULES"
+    udevadm control --reload
+    rpm-ostree kargs "${OTD_KARGS[@]/#/--append-if-missing=}" >/dev/null
+}
+
+opentabletdriver_remove() {
+    rm -f "$OTD_RULES"
+    udevadm control --reload
+    rpm-ostree kargs "${OTD_KARGS[@]/#/--delete-if-present=}" >/dev/null
+}
+
+[ $# -eq 2 ] || usage
+case "$1" in
+    asus|coolercontrol|displaylink|openrazer|opentabletdriver) ;;
+    *) usage ;;
+esac
+case "$2" in
+    install|remove) "$1_$2" ;;
+    *) usage ;;
+esac

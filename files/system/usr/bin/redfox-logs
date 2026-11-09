@@ -1,0 +1,219 @@
+#!/usr/bin/python3
+"""redfox-logs: collect system information and logs into one zip, for asking for help.
+
+  redfox-logs [--show] [--out DIR]
+
+Writes redfox-logs-<date>.zip to your Downloads folder (or DIR) and prints its
+path on the last line. Nothing is uploaded: you choose whom to send it to.
+--show opens the folder with the file selected.
+
+Personal details are removed from every file by pattern: your username and
+full name, the computer's name, email addresses, Wi-Fi network names, serial
+numbers, the machine ID, network hardware (MAC) addresses and sign-in tokens.
+"""
+
+import argparse
+import datetime
+import os
+import pwd
+import re
+import socket
+import subprocess
+import sys
+import zipfile
+from pathlib import Path
+
+MAX_FILE = 20 << 20  # keep only the last 20 MB of any one log
+
+# Stock computer names that also appear for other reasons ("Bazzite", "fedora").
+COMMON_HOSTNAMES = {"localhost", "linux", "fedora", "bazzite", "redfox", "redfoxos",
+                    "ubuntu", "debian", "arch", "steamdeck"}
+
+EMAIL = re.compile(rb"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+MAC = re.compile(rb"(?<![0-9A-Fa-f:])(?:[0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}(?![0-9A-Fa-f:])")
+REDACTIONS = [
+    (EMAIL, b"<email>"),
+    (MAC, b"<mac>"),
+    # Sign-in tokens: JWTs, bearer headers, token=... in settings and web addresses
+    (re.compile(rb"eyJ[A-Za-z0-9_-]{8,}(?:\.[A-Za-z0-9_-]+){0,2}"), b"<token>"),
+    (re.compile(rb"(?i)(bearer\s+)[A-Za-z0-9._~+/=-]+"), rb"\1<token>"),
+    (re.compile(rb"(?i)((?:access|refresh|id|auth)[ _-]?token[\"']?\s*[:=]\s*[\"']?)[^\s\"',}&<]{16,}"),
+     rb"\1<token>"),
+    (re.compile(rb"(?i)(\b(?:token|secret|password|passwd|api[_-]?key)[\"']?\s*[:=]\s*[\"']?)"
+                rb"[^\s\"',}&<]{6,}"), rb"\1<token>"),
+    (re.compile(rb"(?i)([?&#](?:code|access_token|id_token|refresh_token|token|key)=)[^&\s\"'<>]+"),
+     rb"\1<token>"),
+    (re.compile(rb"\b(?:ghp|gho|ghu|ghs|github_pat|glpat|tskey|xox[abp])[-_][A-Za-z0-9_-]{16,}"), b"<token>"),
+    # Serial numbers after a label ("Serial Number: X", "serial=X", "SerialNumber X")
+    # (not driver names like "Serial: 8250/16550" or bus addresses "0000:00:14.0")
+    (re.compile(rb"(?i)(serial(?:[ _]?(?:number|no))?\s*[:=]?\s*[\"']?)(?=[A-Za-z0-9-]*\d)"
+                rb"[A-Za-z0-9-]{4,}(?![A-Za-z0-9:/.-])"), rb"\1<serial>"),
+    (re.compile(rb"(?i)(\bID_SERIAL(?:_SHORT)?=)\S+"), rb"\1<serial>"),
+]
+
+
+def run(argv, timeout=60):
+    try:
+        res = subprocess.run(argv, capture_output=True, timeout=timeout,
+                             stdin=subprocess.DEVNULL, check=False)
+    except (OSError, subprocess.SubprocessError) as error:
+        return f"(unavailable: {type(error).__name__})\n".encode()
+    return res.stdout + (res.stderr if res.returncode != 0 else b"")
+
+
+def tail(data):
+    if len(data) > MAX_FILE:
+        return b"[... only the last 20 MB are included ...]\n" + data[-MAX_FILE:]
+    return data
+
+
+def read(path):
+    try:
+        return Path(path).read_bytes().strip()
+    except OSError:
+        return b""
+
+
+def word(value):
+    """A pattern for value as a whole word, not inside a longer one. Longer
+    values also match between dashes and dots ("my-laptop-2.local",
+    "notes-for-robin"); short ones only on their own, so they don't blank
+    common bits of text."""
+    if len(value) >= 4:
+        return re.compile(rb"(?i)(?<![A-Za-z0-9])" + re.escape(value) + rb"(?![A-Za-z0-9])")
+    return re.compile(rb"(?i)(?<![A-Za-z0-9._-])" + re.escape(value) + rb"(?![A-Za-z0-9_-])")
+
+
+def personal_patterns():
+    """This computer's own identifiers, found on it, longest first."""
+    found = []   # (value, replacement)
+    user = pwd.getpwuid(os.getuid())
+    for name in {user.pw_name, Path.home().name}:
+        if len(name) >= 2:
+            found.append((name.encode(), b"<user>"))
+    full_name = user.pw_gecos.split(",")[0].strip()
+    if len(full_name) >= 3:
+        found.append((full_name.encode(), b"<name>"))
+        found += [(part.encode(), b"<name>") for part in full_name.split() if len(part) >= 4]
+    host = socket.gethostname().split(".")[0]
+    for name in {host, read("/etc/hostname").decode(errors="replace").split(".")[0]}:
+        if len(name) >= 3 and name.lower() not in COMMON_HOSTNAMES:
+            found.append((name.encode(), b"<computer>"))
+    for path in ("/etc/machine-id", "/sys/class/dmi/id/product_serial",
+                 "/sys/class/dmi/id/board_serial", "/sys/class/dmi/id/chassis_serial",
+                 "/sys/class/dmi/id/product_uuid"):
+        value = read(path)
+        if len(value) >= 6 and value.lower() not in (b"none", b"default string",
+                                                      b"to be filled by o.e.m."):
+            found.append((value, b"<serial>" if "serial" in path else b"<id>"))
+    # Disk serials and Wi-Fi networks this computer knows
+    for serial in run(["lsblk", "-dno", "SERIAL"]).split():
+        if len(serial) >= 6:
+            found.append((serial, b"<serial>"))
+    for line in run(["nmcli", "-t", "-f", "NAME,TYPE", "connection", "show"]).splitlines():
+        name, _, kind = line.rpartition(b":")
+        if b"wireless" in kind and len(name) >= 2:
+            found.append((name.replace(b"\\:", b":"), b"<wifi>"))
+    for line in run(["nmcli", "-t", "-f", "SSID", "device", "wifi", "list"]).splitlines():
+        if len(line.strip()) >= 2:
+            found.append((line.strip().replace(b"\\:", b":"), b"<wifi>"))
+    unique = {}
+    for value, replacement in found:
+        unique.setdefault(value, replacement)
+    return [(word(value), replacement)
+            for value, replacement in sorted(unique.items(), key=lambda v: -len(v[0]))]
+
+
+def redact(data, personal):
+    # Email addresses first, while they're still whole.
+    for pattern, replacement in [(EMAIL, b"<email>")] + personal + REDACTIONS:
+        data = pattern.sub(replacement, data)
+    return data
+
+
+def system_info():
+    sections = [
+        ("RedFoxOS", ["rpm-ostree", "status"]),
+        ("Updates", ["redfox-updates", "status"]),
+        ("System", ["fastfetch", "--config", "none", "--logo", "none", "--pipe",
+                    "--structure-disabled", "colors"]),
+        ("Graphics", ["sh", "-c", "lspci -nn | grep -E 'VGA|3D|Display'"]),
+        ("Kernel arguments", ["rpm-ostree", "kargs"]),
+        ("Disks", ["lsblk", "-o", "NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS"]),
+        ("Flatpak apps", ["flatpak", "list", "--app", "--columns=application,version,installation"]),
+        ("Failed services", ["systemctl", "--failed", "--no-legend"]),
+        ("Failed user services", ["systemctl", "--user", "--failed", "--no-legend"]),
+    ]
+    out = [f"Collected: {datetime.datetime.now().astimezone():%Y-%m-%d %H:%M:%S %z}\n".encode()]
+    for title, argv in sections:
+        out.append(f"\n== {title}\n".encode())
+        out.append(run(argv).rstrip() + b"\n")
+    return b"".join(out)
+
+
+FILES = [
+    # name in the zip, what to run
+    ("journal-this-boot.txt", ["journalctl", "-b", "0", "--no-pager"]),
+    ("journal-last-boot.txt", ["journalctl", "-b", "-1", "--no-pager"]),
+    ("boot-list.txt", ["journalctl", "--list-boots", "--no-pager"]),
+    ("kernel-this-boot.txt", ["journalctl", "-k", "-b", "0", "--no-pager"]),
+]
+
+README = b"""RedFoxOS logs
+
+system-info.txt        the system and its updates, the hardware, disks, apps,
+                       and services that failed
+journal-this-boot.txt  everything logged since the computer started
+journal-last-boot.txt  the same for the time before
+kernel-this-boot.txt   the kernel's messages since the computer started
+boot-list.txt          when the computer has started
+
+Removed from every file: your username and name, the computer's name, email
+addresses, Wi-Fi network names, serial numbers, the machine ID, network
+hardware (MAC) addresses and sign-in tokens. Nothing has been uploaded.
+"""
+
+
+def downloads():
+    folder = run(["xdg-user-dir", "DOWNLOAD"]).decode(errors="replace").strip()
+    if not folder or not os.path.isdir(folder) or folder == str(Path.home()):
+        folder = str(Path.home() / "Downloads")
+    return folder
+
+
+def write_zip(out_dir):
+    os.makedirs(out_dir, exist_ok=True)
+    path = os.path.join(out_dir, f"redfox-logs-{datetime.datetime.now():%Y-%m-%d_%H-%M-%S}.zip")
+    personal = personal_patterns()
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("README.txt", README)
+        z.writestr("system-info.txt", redact(system_info(), personal))
+        for name, argv in FILES:
+            print(f"Collecting {name}…", flush=True)
+            z.writestr(name, redact(tail(run(argv, timeout=180)), personal))
+    os.chmod(path, 0o600)
+    return path
+
+
+def show(path):
+    uri = Path(path).as_uri()
+    subprocess.run(["gdbus", "call", "--session", "--dest", "org.freedesktop.FileManager1",
+                    "--object-path", "/org/freedesktop/FileManager1",
+                    "--method", "org.freedesktop.FileManager1.ShowItems", f"['{uri}']", ""],
+                   capture_output=True, check=False)
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(prog="redfox-logs", description=__doc__.splitlines()[0])
+    parser.add_argument("--out", help="the folder for the zip (default: Downloads)")
+    parser.add_argument("--show", action="store_true", help="open the folder afterwards")
+    args = parser.parse_args(argv)
+    path = write_zip(args.out or downloads())
+    if args.show:
+        show(path)
+    print(f"Saved in Downloads: {os.path.basename(path)}" if not args.out else path)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

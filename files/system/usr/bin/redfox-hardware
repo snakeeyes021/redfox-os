@@ -1,0 +1,163 @@
+#!/usr/bin/bash
+# redfox-hardware: install or remove software for particular hardware, with no
+# questions asked. RedFox Hub's Software › Hardware and Gaming tabs use it.
+#
+#   redfox-hardware ID install|remove|status
+#
+#   asus              asusd and ROG Control Center, for ASUS laptops
+#   coolercontrol     CoolerControl, fan and pump control (a web page)
+#   displaylink       the DisplayLink driver, for USB docks and adapters
+#   openrazer         the OpenRazer daemon, with Polychromatic to set it up
+#   opentabletdriver  OpenTabletDriver, for drawing tablets
+#   boxtron           Boxtron, to run DOS games on Steam with DOSBox
+#
+# These are RedFox's own versions of Bazzite's `ujust` recipes of the same
+# names. Steps that need root go through pkexec
+# (/usr/libexec/redfox-system-action hardware ...), so GNOME asks for your
+# password once. `status` prints "installed" or "not-installed"; installs that
+# need a restart count as installed once they're set up.
+set -euo pipefail
+
+ROOT=(pkexec /usr/libexec/redfox-system-action hardware)
+FLATHUB=(flatpak install --system --noninteractive -y flathub)
+
+usage() {
+    sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//' >&2
+    exit 2
+}
+
+root() { "${ROOT[@]}" "$1" "$2"; }
+
+layered() {
+    rpm-ostree status --json | jq -e --arg p "$1" \
+        '.deployments[0] | (.["requested-packages"] // .packages) | index($p)' >/dev/null
+}
+
+# ASUS, CoolerControl and DisplayLink are all root steps.
+asus_install() { root asus install; }
+asus_remove() { root asus remove; }
+asus_status() { [ -x /opt/redfox-asusctl/bin/asusd ]; }
+
+coolercontrol_install() {
+    root coolercontrol install
+    echo "CoolerControl is in the app grid. It opens in your web browser."
+}
+coolercontrol_remove() { root coolercontrol remove; }
+coolercontrol_status() { [ -f /etc/containers/systemd/coolercontrol.container ]; }
+
+displaylink_install() { root displaylink install; }
+displaylink_remove() { root displaylink remove; }
+displaylink_status() { layered displaylink; }
+
+# OpenRazer: the daemon from its latest release, installed in your home
+# folder (Bazzite's kernel has OpenRazer's drivers), plus the plugdev group.
+openrazer_install() {
+    local url work
+    work=$(mktemp -d)
+    trap "rm -rf -- \"$work\"" EXIT
+    echo "Downloading OpenRazer…"
+    url=$(curl -fsSL https://api.github.com/repos/openrazer/openrazer/releases/latest \
+        | jq -r '.assets | sort_by(.created_at) | .[] | select(.name|test("openrazer.*tar.xz$")) | .browser_download_url' \
+        | tail -n1)
+    [ -n "$url" ] || { echo "Couldn't find OpenRazer's latest release" >&2; return 1; }
+    curl -fsSL -o "$work/openrazer.tar.xz" "$url"
+    tar --strip-components=1 -xJf "$work/openrazer.tar.xz" -C "$work"
+    (cd "$work/daemon" && PREFIX="$HOME/.local" make install >/dev/null)
+    mkdir -p "$HOME/.config/systemd/user"
+    mv -f "$HOME/.local/lib/systemd/user/openrazer-daemon.service" "$HOME/.config/systemd/user/"
+    python3 -m pip install --user --quiet daemonize
+    root openrazer install
+    "${FLATHUB[@]}" app.polychromatic.controller
+    systemctl --user daemon-reload
+    systemctl --user enable openrazer-daemon.service
+}
+openrazer_remove() {
+    systemctl --user disable --now openrazer-daemon.service 2>/dev/null || true
+    rm -f "$HOME/.config/systemd/user/openrazer-daemon.service" "$HOME/.local/bin/openrazer-daemon" \
+        "$HOME/.local/share/man/man8/openrazer-daemon.8.gz" "$HOME/.local/share/man/man5/razer.conf.5.gz"
+    rm -rf -- "$HOME/.local/share/openrazer"
+    python3 -m pip uninstall -y --quiet openrazer_daemon 2>/dev/null || true
+    flatpak uninstall --system --noninteractive -y app.polychromatic.controller 2>/dev/null || true
+    root openrazer remove
+}
+openrazer_status() { [ -f "$HOME/.config/systemd/user/openrazer-daemon.service" ]; }
+
+# OpenTabletDriver: the Flatpak app and its user service, with its device
+# rules and kernel settings as root steps.
+OTD=net.opentabletdriver.OpenTabletDriver
+OTD_SERVICE=$HOME/.config/systemd/user/opentabletdriver.service
+
+opentabletdriver_install() {
+    root opentabletdriver install
+    "${FLATHUB[@]}" "$OTD"
+    mkdir -p "$HOME/.config/OpenTabletDriver" "$(dirname "$OTD_SERVICE")"
+    flatpak override --user --filesystem=xdg-config/OpenTabletDriver "$OTD"
+    # The service from OpenTabletDriver's Flatpak packaging (Bazzite uses the same).
+    cat > "$OTD_SERVICE" <<'EOF'
+[Unit]
+Description=OpenTabletDriver Daemon
+PartOf=graphical-session.target
+After=graphical-session.target
+ConditionEnvironment=|WAYLAND_DISPLAY
+ConditionEnvironment=|DISPLAY
+
+[Service]
+ExecStart=flatpak run net.opentabletdriver.OpenTabletDriver -d
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=graphical-session.target
+EOF
+    systemctl --user daemon-reload
+    systemctl --user enable opentabletdriver.service
+}
+opentabletdriver_remove() {
+    systemctl --user disable --now opentabletdriver.service 2>/dev/null || true
+    rm -f "$OTD_SERVICE"
+    flatpak uninstall --system --noninteractive -y "$OTD" 2>/dev/null || true
+    root opentabletdriver remove
+}
+opentabletdriver_status() { [ -f "$OTD_SERVICE" ]; }
+
+# Boxtron: a Steam compatibility tool, with DOSBox from the Fedora distrobox
+# (Bazzite's own "fedora" box, made if it isn't there yet). No root needed.
+BOXTRON_VERSION=0.5.4
+STEAM_TOOLS=$HOME/.steam/root/compatibilitytools.d
+
+boxtron_install() {
+    if ! distrobox list --no-color 2>/dev/null | awk -F'|' '{gsub(/ /,"",$2); print $2}' | grep -qx fedora; then
+        echo "Setting up the Fedora distrobox…"
+        distrobox assemble create --file /etc/distrobox/distrobox.ini --name fedora
+    fi
+    distrobox enter -n fedora -- sudo dnf install -y -q dosbox-staging inotify-tools timidity++ fluid-soundfont-gm
+    distrobox enter -n fedora -- distrobox-export --bin /usr/bin/dosbox
+    mkdir -p "$STEAM_TOOLS"
+    curl -fsSL "https://github.com/dreamer/boxtron/releases/download/v$BOXTRON_VERSION/boxtron.tar.xz" \
+        | tar -xJf - -C "$STEAM_TOOLS"
+    echo "Restart Steam, then choose Boxtron in a game's Compatibility settings."
+}
+boxtron_remove() {
+    rm -rf -- "$STEAM_TOOLS/boxtron" "$STEAM_TOOLS/Boxtron" \
+        "$HOME/.local/share/Steam/compatibilitytools.d/boxtron" \
+        "$HOME/.local/share/Steam/compatibilitytools.d/Boxtron"
+    distrobox enter -n fedora -- distrobox-export --bin /usr/bin/dosbox --delete >/dev/null 2>&1 || true
+}
+boxtron_status() {
+    local base
+    for base in "$STEAM_TOOLS" "$HOME/.local/share/Steam/compatibilitytools.d"; do
+        [ -d "$base/boxtron" ] || [ -d "$base/Boxtron" ] && return 0
+    done
+    return 1
+}
+
+[ $# -eq 2 ] || usage
+case "$1" in
+    asus|coolercontrol|displaylink|openrazer|opentabletdriver|boxtron) ;;
+    *) usage ;;
+esac
+case "$2" in
+    install|remove) "$1_$2" ;;
+    status) if "$1_status"; then echo installed; else echo not-installed; fi ;;
+    *) usage ;;
+esac

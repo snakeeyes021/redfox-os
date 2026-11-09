@@ -176,6 +176,7 @@ packs:
       - proton-fsr4-upgrade
       - proton-fsr4-rdna3-upgrade
       - controller-input-group
+      - boxtron
 
   - id: hardware
     name: Hardware
@@ -183,6 +184,11 @@ packs:
     description: Software for specific hardware.
     items:
       - openrgb
+      - asus
+      - openrazer
+      - opentabletdriver
+      - coolercontrol
+      - displaylink
       - amd-hdmi21
 
   - id: redfox-app-fleet
@@ -629,6 +635,13 @@ items:
     # The group database, not this session's groups, which change at the next login.
     check: id -nG "$USER" | tr ' ' '\n' | grep -qx input
     restart: true
+  - id: boxtron
+    kind: recipe
+    name: Boxtron
+    summary: Run DOS games from Steam in DOSBox. Afterwards, choose Boxtron in a game's Compatibility settings.
+    install: redfox-hardware boxtron install
+    remove: redfox-hardware boxtron remove
+    check: '[ "$(redfox-hardware boxtron status)" = installed ]'
 
   # Hardware (Bazzite's ujust recipes)
   - id: openrgb
@@ -638,6 +651,45 @@ items:
     install: ujust openrgb install
     remove: ujust openrgb uninstall
     check: '[ "$(ujust openrgb status 2>/dev/null)" = install ]'
+  # RedFox's own installs (redfox-hardware), with root steps behind one password
+  - id: asus
+    kind: recipe
+    name: ASUS Laptop Tools
+    summary: asusd and ROG Control Center, for fan modes, keyboard lighting, battery limits and graphics switching on ASUS laptops.
+    install: redfox-hardware asus install
+    remove: redfox-hardware asus remove
+    check: '[ "$(redfox-hardware asus status)" = installed ]'
+  - id: openrazer
+    kind: recipe
+    name: OpenRazer
+    summary: Lighting and settings for Razer keyboards, mice and headsets, with Polychromatic to set them up. Takes effect after a restart.
+    install: redfox-hardware openrazer install
+    remove: redfox-hardware openrazer remove
+    check: '[ "$(redfox-hardware openrazer status)" = installed ]'
+    restart: true
+  - id: opentabletdriver
+    kind: recipe
+    name: OpenTabletDriver
+    summary: A driver for drawing tablets from Wacom, Huion, XP-Pen and others, with its own settings app. Takes effect after a restart.
+    install: redfox-hardware opentabletdriver install
+    remove: redfox-hardware opentabletdriver remove
+    check: '[ "$(redfox-hardware opentabletdriver status)" = installed ]'
+    restart: true
+  - id: coolercontrol
+    kind: recipe
+    name: CoolerControl
+    summary: Watch temperatures and set fan and pump curves. It opens in your web browser.
+    install: redfox-hardware coolercontrol install
+    remove: redfox-hardware coolercontrol remove
+    check: '[ "$(redfox-hardware coolercontrol status)" = installed ]'
+  - id: displaylink
+    kind: recipe
+    name: DisplayLink
+    summary: The driver for USB docks and adapters that use DisplayLink for their screens. Takes effect after a restart.
+    install: redfox-hardware displaylink install
+    remove: redfox-hardware displaylink remove
+    check: '[ "$(redfox-hardware displaylink status)" = installed ]'
+    restart: true
   - id: amd-hdmi21
     kind: recipe
     name: HDMI 2.1 on AMD Graphics
