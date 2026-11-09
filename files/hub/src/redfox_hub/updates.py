@@ -11,6 +11,9 @@ from gi.repository import Adw, Gio, GLib, Gtk
 from . import host
 from .window import Section
 
+# Marks the image the graphics helper picks for this computer.
+WORKS_BEST = "Works best on your machine"
+
 CHANNELS = [
     ("latest", "Stable", "Tested releases. Recommended for most people."),
     ("unstable", "Unstable", "The newest changes, a few days early. Things may break."),
@@ -161,12 +164,13 @@ class UpdatesSection(Section):
             description="Which RedFoxOS this computer runs: the graphics drivers "
                         "it's built for, and the builds it follows.")
         self.images = []
+        self.recommended = None
         self._graphics_guard = False
         self.graphics_row = Adw.ComboRow(title="Graphics", subtitle="…",
                                          model=Gtk.StringList.new([]), sensitive=False)
         self.graphics_row.add_prefix(Gtk.Image(icon_name="video-display-symbolic"))
         self.graphics_row.connect("notify::selected", self.on_graphics_changed)
-        # The popover's own items, so "NVIDIA (Works best on your machine)" isn't cut short.
+        # The popover's own items, with "Works best on your machine" under one name.
         factory = Gtk.SignalListItemFactory()
         factory.connect("setup", self._graphics_item_setup)
         factory.connect("bind", self._graphics_item_bind)
@@ -447,10 +451,10 @@ class UpdatesSection(Section):
         self.booted_channel = data["booted"]["channel"]
         self._graphics_guard = True
         # The helper detects the graphics card; an unclear case recommends nothing.
-        recommended = data.get("recommended")
-        self.graphics_row.set_model(Gtk.StringList.new(
-            [i["name"] + (" (Works best on your machine)" if i["id"] == recommended else "")
-             for i in self.images]))
+        # The popover marks it under its name, and the row's subtitle says it
+        # when it's the one selected (a parenthetical didn't fit the row).
+        self.recommended = data.get("recommended")
+        self.graphics_row.set_model(Gtk.StringList.new([i["name"] for i in self.images]))
         ids = [i["id"] for i in self.images]
         if self.booted_image in ids:
             self.graphics_row.set_selected(ids.index(self.booted_image))
@@ -460,14 +464,24 @@ class UpdatesSection(Section):
 
     def _graphics_item_setup(self, _factory, item):
         box = Gtk.Box(spacing=6)
-        box.append(Gtk.Label(xalign=0, hexpand=True, ellipsize=0))
+        text = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, hexpand=True)
+        text.append(Gtk.Label(xalign=0, ellipsize=0))
+        note = Gtk.Label(label=WORKS_BEST, xalign=0, visible=False)
+        note.add_css_class("caption")
+        note.add_css_class("dim-label")
+        text.append(note)
+        box.append(text)
         box.append(Gtk.Image(icon_name="object-select-symbolic", visible=False))
         item.set_child(box)
 
     def _graphics_item_bind(self, _factory, item):
         box = item.get_child()
-        label, check = box.get_first_child(), box.get_last_child()
+        text, check = box.get_first_child(), box.get_last_child()
+        label, note = text.get_first_child(), text.get_last_child()
         label.set_label(item.get_item().get_string())
+        position = item.get_position()
+        note.set_visible(0 <= position < len(self.images)
+                         and self.images[position]["id"] == self.recommended)
         check.position = item.get_position()
         self._graphics_checks.add(check)
         self._sync_graphics_checks()
@@ -480,7 +494,11 @@ class UpdatesSection(Section):
     def _graphics_subtitle(self):
         index = self.graphics_row.get_selected()
         if 0 <= index < len(self.images):
-            self.graphics_row.set_subtitle(self.images[index]["description"])
+            image = self.images[index]
+            subtitle = image["description"]
+            if image["id"] == self.recommended:
+                subtitle += f" · {WORKS_BEST}"
+            self.graphics_row.set_subtitle(GLib.markup_escape_text(subtitle))
 
     def _select_booted_graphics(self):
         ids = [i["id"] for i in self.images]
