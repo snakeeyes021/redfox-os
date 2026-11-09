@@ -928,7 +928,8 @@ layout-normie: sort-app-grid default-app-folders set-window-controls-left-gnome 
       'dev.geopjr.Tuba.desktop', \
       'app.drey.Warp.desktop', \
       'io.github.kolunmi.Bazaar.desktop', \
-      'org.gnome.Settings.desktop']"
+      'org.gnome.Settings.desktop', \
+      'tech.redfoxlabs.Hub.desktop']"
 
 # --- THEME MOLECULES (Visuals/Assets) ---
 
