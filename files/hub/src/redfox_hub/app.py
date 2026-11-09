@@ -31,6 +31,14 @@ class HubApplication(Adw.Application):
         self.window = None
         self.welcome = None
 
+    def do_handle_local_options(self, options):
+        # Before startup, so --version works without a display (in a script
+        # or over SSH).
+        if options.contains("version"):
+            print(f"redfox-hub {VERSION}")
+            return 0
+        return -1
+
     def do_startup(self):
         Adw.Application.do_startup(self)
         css = Gtk.CssProvider()
