@@ -1,0 +1,168 @@
+name: Publish live ISOs
+# Puts a release's three live ISOs on Cloudflare R2 (download.redfoxlabs.tech).
+#
+# - Called by "Build live ISOs" after it builds the ISOs for a published
+#   release.
+# - Run by hand (Actions › Publish live ISOs › Run workflow, on main) to
+#   publish the ISOs a release's "Build live ISOs" run already built, from
+#   that run's artifacts (kept for 3 days), without building them again. Only
+#   for the latest full release, and only from a run that built all three.
+#
+# The bucket: the current release's files at the top (the names the download
+# page links to), the release before it in previous/, and nothing older.
+on:
+  workflow_call:
+    inputs:
+      run_id:
+        type: string
+        required: true
+      release:
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: ID of the "Build live ISOs" run whose ISOs to publish
+        required: true
+      release:
+        description: Its release tag, e.g. v0.7.0
+        required: true
+
+permissions: {}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      actions: read
+    concurrency:
+      group: publish-live-isos
+      cancel-in-progress: false
+    env:
+      RUN_ID: ${{ inputs.run_id }}
+      RELEASE: ${{ inputs.release }}
+      RCLONE_CONFIG_R2_TYPE: s3
+      RCLONE_CONFIG_R2_PROVIDER: Cloudflare
+      RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      RCLONE_CONFIG_R2_REGION: auto
+      RCLONE_CONFIG_R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+      # The upload token is scoped to one bucket, so it can't create buckets.
+      # Without this, rclone tries to before every upload or copy, and R2
+      # refuses.
+      RCLONE_CONFIG_R2_NO_CHECK_BUCKET: "true"
+      R2_BUCKET: ${{ vars.R2_BUCKET }}
+    steps:
+      - name: Check the run and the release
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          [ "$REF" = refs/heads/main ] || { echo "::error::Run this from main."; exit 1; }
+          run=$(gh api "repos/$REPO/actions/runs/$RUN_ID")
+          [ "$(jq -r .path <<< "$run")" = .github/workflows/build-live-iso.yml ] \
+            || { echo "::error::Run $RUN_ID isn't a \"Build live ISOs\" run."; exit 1; }
+          [ "$(jq -r .event <<< "$run")" = release ] \
+            || { echo "::error::Run $RUN_ID was a test build, not a release build."; exit 1; }
+          rel=$(gh api "repos/$REPO/releases/tags/$RELEASE")
+          [ "$(jq -r '.draft or .prerelease' <<< "$rel")" = false ] \
+            || { echo "::error::$RELEASE isn't a published full release."; exit 1; }
+          [ "$(gh api "repos/$REPO/releases/latest" --jq .tag_name)" = "$RELEASE" ] \
+            || { echo "::error::$RELEASE isn't the latest release."; exit 1; }
+          sha=$(gh api "repos/$REPO/commits/$RELEASE" --jq .sha)
+          [ "$(jq -r .head_sha <<< "$run")" = "$sha" ] \
+            || { echo "::error::Run $RUN_ID didn't build $RELEASE ($sha)."; exit 1; }
+          built=$(gh api "repos/$REPO/actions/runs/$RUN_ID/jobs" \
+            --jq '[.jobs[] | select(.name | endswith(" ISO")) | select(.conclusion == "success")] | length')
+          [ "$built" = 3 ] || { echo "::error::Run $RUN_ID didn't build all three ISOs."; exit 1; }
+
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@v2.0.0
+        with:
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          docker-images: true
+          swap-storage: false
+
+      - name: Download the three ISOs (from this run)
+        if: github.event_name != 'workflow_dispatch'
+        uses: actions/download-artifact@v4
+        with:
+          path: isos
+          merge-multiple: true
+
+      - name: Download the three ISOs (from the release's run)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/download-artifact@v4
+        with:
+          path: isos
+          merge-multiple: true
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Check them
+        working-directory: isos
+        run: |
+          set -euo pipefail
+          for image in redfox-os redfox-os-nvidia redfox-os-nvidia-legacy; do
+            for f in "$image.iso" "$image.iso-CHECKSUM" "$image.iso.sig"; do
+              [ -s "$f" ] || { echo "::error::$f is missing"; exit 1; }
+            done
+            sha256sum -c "$image.iso-CHECKSUM"
+          done
+          echo "$RELEASE" > RELEASE
+          ls -l
+
+      - name: Install rclone
+        run: |
+          [ -n "$R2_BUCKET" ] || { echo "::error::Set the R2_BUCKET repository variable"; exit 1; }
+          sudo apt-get update -q && sudo apt-get install -yq rclone
+          rclone version | head -1
+
+      # No server-side copies: they failed on R2 with this token. The release
+      # that was current is streamed into previous/ through the runner, then
+      # each new file is uploaded straight to its published name: the ISOs
+      # first, then the checksums, signatures and RELEASE. Each upload
+      # replaces its file in one step, and a failed run can simply be run
+      # again by hand.
+      - name: Publish (current to previous/, then the new files)
+        working-directory: isos
+        run: |
+          set -euo pipefail
+          R="R2:${R2_BUCKET}"
+          files=()
+          for image in redfox-os redfox-os-nvidia redfox-os-nvidia-legacy; do
+            files+=("$image.iso" "$image.iso-CHECKSUM" "$image.iso.sig")
+          done
+          files+=(RELEASE)
+          current=$(rclone cat "$R/RELEASE" 2>/dev/null || true)
+          if [ -n "$current" ] && [ "$current" != "$RELEASE" ]; then
+            echo "Moving $current to previous/"
+            rclone purge "$R/previous" 2>/dev/null || true
+            for f in "${files[@]}"; do
+              if rclone lsf "$R/$f" 2>/dev/null | grep -q .; then
+                rclone copyto --disable Copy "$R/$f" "$R/previous/$f"
+              fi
+            done
+          fi
+          up() { rclone copyto -v --s3-upload-concurrency 8 --s3-chunk-size 64M "$1" "$R/$1"; }
+          for f in "${files[@]}"; do case "$f" in *.iso) up "$f" ;; esac; done
+          rclone check --one-way --size-only . "$R/" --include "*.iso"
+          for f in "${files[@]}"; do case "$f" in *.iso) ;; *) up "$f" ;; esac; done
+          # Anything else at the top level, staging/ included, is from an
+          # older layout: delete it.
+          rclone purge "$R/staging" 2>/dev/null || true
+          rclone lsf --files-only --max-depth 1 "$R/" | while read -r f; do
+            keep=no
+            for k in "${files[@]}"; do [ "$f" = "$k" ] && keep=yes; done
+            [ "$keep" = yes ] || rclone deletefile "$R/$f"
+          done
+          echo "Published $RELEASE:"
+          rclone lsl "$R/"

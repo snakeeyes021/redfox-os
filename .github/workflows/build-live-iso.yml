@@ -4,7 +4,8 @@ name: Build live ISOs
 # on ghcr.io. Built with Universal Blue's Titanoboa; see docs/iso.md.
 #
 # - A published GitHub release builds all three ISOs from that release's
-#   stable images and publishes them to Cloudflare R2 (download.redfoxlabs.tech).
+#   stable images and publishes them to Cloudflare R2 (download.redfoxlabs.tech)
+#   with publish-live-isos.yml.
 # - Run by hand (Actions › Build live ISOs › Run workflow) it's a test build
 #   from any tag, kept as a workflow artifact. A manual run never publishes.
 on:
@@ -258,100 +259,16 @@ jobs:
           retention-days: 3
           compression-level: 0
 
-  # Only after all three ISOs built: upload them, keep the release before as
-  # previous/, and delete anything older. A manual run never gets here.
+  # Only after all three ISOs built: publish them (publish-live-isos.yml). A
+  # manual run never gets here.
   publish:
     needs: [plan, build-iso]
     if: github.event_name == 'release' && needs.plan.outputs.publish == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 120
     permissions:
       contents: read
-    concurrency:
-      group: publish-live-isos
-      cancel-in-progress: false
-    env:
-      RELEASE: ${{ needs.plan.outputs.release }}
-      RCLONE_CONFIG_R2_TYPE: s3
-      RCLONE_CONFIG_R2_PROVIDER: Cloudflare
-      RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-      RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-      RCLONE_CONFIG_R2_REGION: auto
-      RCLONE_CONFIG_R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
-      R2_BUCKET: ${{ vars.R2_BUCKET }}
-    steps:
-      - name: Free disk space
-        uses: jlumbroso/free-disk-space@v2.0.0
-        with:
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: false
-          docker-images: true
-          swap-storage: false
-
-      - name: Download the three ISOs
-        uses: actions/download-artifact@v4
-        with:
-          path: isos
-          merge-multiple: true
-
-      - name: Check them
-        working-directory: isos
-        run: |
-          set -euo pipefail
-          for image in redfox-os redfox-os-nvidia redfox-os-nvidia-legacy; do
-            for f in "$image.iso" "$image.iso-CHECKSUM" "$image.iso.sig"; do
-              [ -s "$f" ] || { echo "::error::$f is missing"; exit 1; }
-            done
-            sha256sum -c "$image.iso-CHECKSUM"
-          done
-          echo "$RELEASE" > RELEASE
-          ls -l
-
-      - name: Install rclone
-        run: |
-          [ -n "$R2_BUCKET" ] || { echo "::error::Set the R2_BUCKET repository variable"; exit 1; }
-          sudo apt-get update -q && sudo apt-get install -yq rclone
-
-      # The bucket: the current release's files at the top (the names the
-      # download page links to), the release before it in previous/, and
-      # nothing older. Uploads go to staging/ first, so a failed upload
-      # leaves the published files as they were.
-      - name: Upload to staging
-        working-directory: isos
-        run: |
-          set -euo pipefail
-          rclone purge "R2:${R2_BUCKET}/staging" 2>/dev/null || true
-          rclone copy --s3-upload-concurrency 8 --s3-chunk-size 64M --include "*.iso" . "R2:${R2_BUCKET}/staging/"
-          rclone copy --include "*-CHECKSUM" --include "*.sig" --include RELEASE . "R2:${R2_BUCKET}/staging/"
-          rclone check --one-way --size-only . "R2:${R2_BUCKET}/staging/" --include "*.iso"
-
-      - name: Publish (current to previous/, staging to current)
-        run: |
-          set -euo pipefail
-          R="R2:${R2_BUCKET}"
-          files=()
-          for image in redfox-os redfox-os-nvidia redfox-os-nvidia-legacy; do
-            files+=("$image.iso" "$image.iso-CHECKSUM" "$image.iso.sig")
-          done
-          files+=(RELEASE)
-          # The release that was current becomes previous/ (server-side
-          # copies; the current files stay in place meanwhile).
-          rclone purge "$R/previous" 2>/dev/null || true
-          for f in "${files[@]}"; do
-            if rclone lsf "$R/$f" 2>/dev/null | grep -q .; then rclone copyto "$R/$f" "$R/previous/$f"; fi
-          done
-          # Then each staged file replaces the current one: the ISOs first,
-          # then the checksums, signatures and RELEASE.
-          for f in "${files[@]}"; do case "$f" in *.iso) rclone moveto "$R/staging/$f" "$R/$f" ;; esac; done
-          for f in "${files[@]}"; do case "$f" in *.iso) ;; *) rclone moveto "$R/staging/$f" "$R/$f" ;; esac; done
-          rclone purge "$R/staging" 2>/dev/null || true
-          # Anything else at the top level is from an older layout: delete it.
-          rclone lsf --files-only --max-depth 1 "$R/" | while read -r f; do
-            keep=no
-            for k in "${files[@]}"; do [ "$f" = "$k" ] && keep=yes; done
-            [ "$keep" = yes ] || rclone deletefile "$R/$f"
-          done
-          echo "Published $RELEASE:"
-          rclone lsl "$R/"
+      actions: read
+    uses: ./.github/workflows/publish-live-isos.yml
+    with:
+      run_id: ${{ github.run_id }}
+      release: ${{ needs.plan.outputs.release }}
+    secrets: inherit

@@ -43,11 +43,12 @@ Each build:
 4. [Titanoboa](https://github.com/ublue-os/titanoboa) (Universal Blue's live ISO builder, pinned to a commit) squashes it into the ISO.
 5. Writes the checksum, signs the ISO with `SIGNING_SECRET`, and keeps all three files as a workflow artifact for 3 days.
 
-Then, for a release only, the publish job (after all three ISOs built):
-1. Uploads them to `staging/` in the bucket and checks the sizes. A failure here leaves the published files untouched.
-2. Copies the files that were current into `previous/`, replacing what was there.
-3. Moves the new ones over the current names: the ISOs first, then the checksums, signatures and `RELEASE` (the release's tag). The names never change, so the download links keep working.
-4. Deletes anything else at the top of the bucket.
+Then, for a release only, `publish-live-isos.yml` (after all three ISOs built):
+1. If another release is current, copies its files into `previous/`, replacing what was there. The files stream through the runner; R2 refused rclone's server-side copies.
+2. Uploads the new files straight over the current names: the ISOs first (then checks their sizes), then the checksums, signatures and `RELEASE` (the release's tag). Each upload replaces its file in one step, and the names never change, so the download links keep working.
+3. Deletes anything else at the top of the bucket.
+
+If publishing fails after the ISOs built, run *Actions › Publish live ISOs › Run workflow* on `main` with that run's ID and the release tag. It publishes the ISOs that run built, from its artifacts (kept 3 days), with no rebuild. It only does this for the latest full release, and only from a release run that built all three ISOs.
 
 So the bucket holds the current release and the one before it (about 45 GB, roughly $0.55 a month). The Worker serves the older one at `previous/<file name>` (for example `https://download.redfoxlabs.tech/previous/redfox-os.iso`), for when the current build won't install on a machine. It's an older build, not a stable or long-term one, so the download page and README don't link to it; anywhere it's ever mentioned, it should be described that way. It can also be put back by hand if a release has to be pulled.
 
