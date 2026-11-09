@@ -104,11 +104,11 @@ foreach ($r in $rules.rules) {
     if ($allOk -and $noneOk) { $rule = $r; break }
 }
 
-# The name and label on the download's card on the page
+# The download's name, as on the download page and in RedFox Hub
 $downloads = @{
-    'redfox-os' = 'RedFoxOS (AMD & Intel graphics)'
-    'redfox-os-nvidia' = 'RedFoxOS NVIDIA (NVIDIA GTX 16xx, RTX 20xx and newer)'
-    'redfox-os-nvidia-legacy' = 'RedFoxOS NVIDIA Legacy (NVIDIA GTX 10xx, 9xx and 750)'
+    'redfox-os' = 'RedFoxOS (AMD & Intel)'
+    'redfox-os-nvidia' = 'RedFoxOS NVIDIA (GTX 16xx, RTX 20xx and newer)'
+    'redfox-os-nvidia-legacy' = 'RedFoxOS NVIDIA Legacy (GTX 10xx, 9xx and 750)'
 }
 $download = if ($rule.image) { $downloads[$rule.image] } else { $null }
 if ($download) {

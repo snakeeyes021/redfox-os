@@ -9,7 +9,7 @@
 ## Purpose
 The purpose of RedFoxOS is to round out the offerings of Bazzite, both with some of the features included in Bluefin DX (and therefore Bazzite DX) as well as a few features, apps, and configs not present in either.
 
-Its primary raison d'être is to provide driver support for Pascal-series Nvidia cards on a Bluefin/Bazzite DX-style OS. While vanilla Bazzite will support Pascal cards through 2028ish, both Bluefin (vanilla or DX) and Bazzite DX have dropped support; therefore the only way to achieve said developer experience with Pascal cards is to configure it oneself on top of vanilla Bazzite. Enter RedFoxOS.
+Its primary raison d'être is to provide driver support for Pascal-series NVIDIA cards on a Bluefin/Bazzite DX-style OS. While vanilla Bazzite will support Pascal cards through 2028ish, both Bluefin (vanilla or DX) and Bazzite DX have dropped support; therefore the only way to achieve said developer experience with Pascal cards is to configure it oneself on top of vanilla Bazzite. Enter RedFoxOS.
 
 ## Features
 
@@ -38,9 +38,9 @@ Its primary raison d'être is to provide driver support for Pascal-series Nvidia
 
 We have three images available, depending on your hardware:
 
-*   **`redfox-os`**: For AMD and Intel GPUs.
-*   **`redfox-os-nvidia`**: For modern Nvidia GPUs (GTX 16xx, RTX 20xx and newer).
-*   **`redfox-os-nvidia-legacy`**: For legacy Nvidia GPUs (Pascal/GTX 10xx series and older).
+*   **RedFoxOS (AMD & Intel)** (`redfox-os`): AMD & Intel graphics.
+*   **RedFoxOS NVIDIA** (`redfox-os-nvidia`): NVIDIA GTX 16xx, RTX 20xx and newer.
+*   **RedFoxOS NVIDIA Legacy** (`redfox-os-nvidia-legacy`): NVIDIA GTX 10xx, 9xx and 750. Older NVIDIA cards run on RedFoxOS (AMD & Intel).
 
 > [!TIP]
 > **Not sure which one to pick?**
@@ -60,17 +60,17 @@ To switch to RedFoxOS from an existing GNOME-based Universal Blue installation, 
 
 **1. Rebase to the signed image**
 
-*   **AMD/Intel:**
+*   **RedFoxOS (AMD & Intel):**
     ```bash
     rpm-ostree rebase ostree-image-signed:docker://ghcr.io/snakeeyes021/redfox-os:latest
     ```
 
-*   **Nvidia (Modern):**
+*   **RedFoxOS NVIDIA:**
     ```bash
     rpm-ostree rebase ostree-image-signed:docker://ghcr.io/snakeeyes021/redfox-os-nvidia:latest
     ```
 
-*   **Nvidia (Legacy):**
+*   **RedFoxOS NVIDIA Legacy:**
     ```bash
     rpm-ostree rebase ostree-image-signed:docker://ghcr.io/snakeeyes021/redfox-os-nvidia-legacy:latest
     ```

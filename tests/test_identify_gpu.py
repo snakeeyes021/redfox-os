@@ -22,11 +22,11 @@ PS1 = ROOT / "extras" / "identify_gpu.ps1"
 RULES = ROOT / "files" / "system" / "usr" / "share" / "redfox" / "gpu-rules.json"
 CASES = json.loads((ROOT / "tests" / "gpu-cases.json").read_text())
 PAGE = "https://redfoxlabs.tech/download/"
-# The name and label on each download's card on the page
+# Each download's name, as on the download page and in RedFox Hub
 DOWNLOADS = {
-    "redfox-os": "RedFoxOS (AMD & Intel graphics)",
-    "redfox-os-nvidia": "RedFoxOS NVIDIA (NVIDIA GTX 16xx, RTX 20xx and newer)",
-    "redfox-os-nvidia-legacy": "RedFoxOS NVIDIA Legacy (NVIDIA GTX 10xx, 9xx and 750)",
+    "redfox-os": "RedFoxOS (AMD & Intel)",
+    "redfox-os-nvidia": "RedFoxOS NVIDIA (GTX 16xx, RTX 20xx and newer)",
+    "redfox-os-nvidia-legacy": "RedFoxOS NVIDIA Legacy (GTX 10xx, 9xx and 750)",
 }
 PWSH = shlex.split(os.environ.get("RFX_PWSH", "pwsh"))
 HAVE_PWSH = "RFX_PWSH" in os.environ or shutil.which("pwsh") is not None
