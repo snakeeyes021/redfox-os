@@ -12,7 +12,7 @@ try:
     from .build_config import PKGDATADIR, VERSION
 except ImportError:
     PKGDATADIR = str(Path(__file__).resolve().parents[2] / "data")
-    VERSION = "0.1.0-dev"
+    VERSION = "0.7.0-dev"
 
 DATA = Path(os.environ.get("REDFOX_HUB_DATA", PKGDATADIR))
 STYLE = DATA / "style.css"
