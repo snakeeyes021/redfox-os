@@ -191,7 +191,7 @@
 ## 🧩 RedFox Hub
 *One app for RedFox's own tooling, **RedFox Hub** (`tech.redfoxlabs.Hub`), with Welcome, Apps, Updates, Settings and Manual sections.*
 
-- [ ] **Welcome:** a short, cheerful tour of RedFoxOS at first login, in the spirit of GNOME Tour, ending in links to Apps, Settings and the Manual. Runs after Bazzite Portal.
+- [ ] **Welcome:** a short, cheerful tour of RedFoxOS at first login, in the spirit of GNOME Tour, ending in links to Apps, Settings and the Manual.
     - [ ] **Proposed, to discuss:** apps still install at the first boot (they would make the ISOs too big). Once they're in, maybe at the second login, a follow-up that helps arrange them. The app grid is already alphabetical by default.
 - [ ] **Settings:** a front end to `redfox-config` / `config.yaml` and RedFox's settings, services and actions (see the setup-GUIs item in Fixups), including the layout picker with the RedFox layout names and previews.
     - [ ] **"Start in tray at login" toggles, per app** (Signal, Joplin, and any others that support it). Long term there's no automatic autostart: each one is turned on in Hub, and the toggles write or remove the same autostart entries as `ujust configure-autostart-tray`.
@@ -260,7 +260,7 @@
     - [x] Starship: a RedFox default config with a 🦊 OS symbol (Starship itself is the separate Starship item).
     - [x] Terminal banner (MOTD): RedFox welcome, links and tips; Bazzite's tips removed.
     - [x] Fedora logo files (installer, initial setup, About dialogs) regenerated from the RedFox art.
-    - [ ] Bazzite Portal and Bazzite Announcements stay as they are: their content is Bazzite's. RedFox Hub's Welcome runs after the Portal for now (whether to replace it is still open).
+    - [x] Bazzite Portal is removed: RedFox Hub does its job (welcome, apps, updates, settings, fixes). Bazzite Announcements stay, without Bazzite's own messages.
     - [x] Bazzite's rollback helper (`bazzite-rollback-helper`, `bruh`) only knows Bazzite images. `redfox-rollback-helper` (`ujust rollback-helper`) lists builds of latest and unstable by commit and date, rolls back, and warns when a rebase switches NVIDIA flavour.
     - [x] Create/Add assets: Neofetch/Fastfetch Logo, Splash Screen, System Info Logo (made from the existing art by `assets/branding/make-images.py`).
     - [ ] **New artwork** (listed in `docs/branding.md`): the fox as an SVG; a simple single-colour fox mark for 16 px and symbolic icons (ArcMenu's start button, Logo Menu); the wordmark as a vector, or its font.

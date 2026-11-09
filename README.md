@@ -110,15 +110,14 @@ cosign verify --key cosign.pub ghcr.io/snakeeyes021/redfox-os
 
 ## ISO Installation
 
-Generating ISOs turns out to be the trickiest part of maintaining a custom OS image like this, both in terms of the pipeline (Bazzite, and thus RedFoxOS, is built on bleeding-edge Fedora Rawhide; if Fedora pushes a change to, e.g., grub that flumoxes the build system that smooshes Anaconda and our image together into an ISO, then the ISO build pipeline breaks and there's not much we can do about it except wait) and logistics (publication, storage, costs, etc). At the time of this writing, just such a change in Fedora seems to be breaking the pipeline, best we can tell.
+Live ISOs are on the [download page](https://redfoxlabs.tech/download/), one for each image; it says which one fits your graphics. To install:
 
-For this reason, we do not currently have ISOs available for download, and even if/when we are able to begin generating them again, we cannot guarantee consistent availability. We highly recommend users install via a rebase (using one of the three commands above) from a GNOME-based Universal Blue distribution. To do so, simply:
+1.  Write the ISO to a USB stick of 16 GB or more with [Fedora Media Writer](https://flathub.org/apps/org.fedoraproject.MediaWriter) or [balenaEtcher](https://etcher.balena.io/). Everything on the stick is erased.
+2.  Start the computer from the stick. It needs UEFI, not legacy/CSM mode.
+3.  Try RedFoxOS in the live session if you like, then choose *Install RedFoxOS*, pick the disk, and create your account.
+4.  Restart. With Secure Boot on, a blue screen asks once to enrol Universal Blue's key: *Enroll MOK*, *Continue*, *Yes*, password `universalblue`, *Reboot*.
 
-1.  Download an ISO for Bluefin or Bazzite (we recommend Bazzite; make sure to select a version with the GNOME desktop).
-2.  Install as you normally would.
-3.  Immediately run one of the above commands to rebase to your preferred version of RedFoxOS.
-4.  Reboot.
-5.  Profit.
+The installed system follows the stable channel and updates itself from then on. RedFox Hub can switch it to the unstable channel or another image later.
 
 ## Secure Boot
 
