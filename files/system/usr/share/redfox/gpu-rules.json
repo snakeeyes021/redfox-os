@@ -16,7 +16,7 @@
     { "all": ["nvidia-legacy", "intel-amd"], "image": "redfox-os-nvidia-legacy", "hybrid": true, "why": "an NVIDIA GTX 10xx, 9xx or 750 card, with built-in graphics" },
     { "all": ["nvidia-legacy"], "image": "redfox-os-nvidia-legacy", "why": "an NVIDIA GTX 10xx, 9xx or 750 card" },
     { "all": ["nvidia-old"], "none": ["other"], "image": "redfox-os", "why": "an older NVIDIA card (Kepler or earlier, such as the GTX 600 series and most of the 700 series), which NVIDIA's drivers no longer support, so it runs on the open-source driver built into RedFoxOS" },
-    { "all": ["intel-amd"], "none": ["other"], "image": "redfox-os", "why": "Intel or AMD graphics" },
+    { "all": ["intel-amd"], "none": ["other"], "image": "redfox-os", "why": "AMD or Intel graphics" },
     { "all": ["other"], "image": null, "why": "graphics it doesn't recognise (a virtual machine?)" },
     { "all": [], "image": null, "why": "no graphics device" }
   ]
