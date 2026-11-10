@@ -874,8 +874,52 @@ configure-cursor-dewy:
     
     echo "Cursor configured successfully!"
 
+# VLC's speed keys the way Dewy likes them, like the browser's video speed
+# controller: S and D step the speed down and up by 0.1 (VLC's fine speed
+# keys, [ and ] still work too), R back to normal speed (= still works).
+# Frees S (Stop; the Media Stop key still stops), D (deinterlace) and R
+# (random). Quit VLC first: it rewrites its settings when it closes.
+configure-vlc-dewy:
+    #!/usr/bin/bash
+    set -euo pipefail
+    echo "Setting VLC's speed keys (S slower, D faster, R normal speed)..."
+    tab=$'\t'
+    keys=(
+        "key-rate-slower-fine=s${tab}["
+        "key-rate-faster-fine=d${tab}]"
+        "key-rate-normal=r${tab}="
+        "key-stop=Media Stop"
+        "key-deinterlace="
+        "key-random="
+    )
+    # The Flatpak's settings, and the native VLC's if it's ever used.
+    for rc in "$HOME/.var/app/org.videolan.VLC/config/vlc/vlcrc" "$HOME/.config/vlc/vlcrc"; do
+        case "$rc" in
+            "$HOME/.config/"*) command -v vlc >/dev/null || [ -e "$rc" ] || continue ;;
+        esac
+        mkdir -p "$(dirname "$rc")"
+        [ -e "$rc" ] || printf '[core] # core program\n' > "$rc"
+        grep -q '^\[core\]' "$rc" || printf '\n[core] # core program\n' >> "$rc"
+        for kv in "${keys[@]}"; do
+            name=${kv%%=*}
+            # Drop the option wherever it is (set or commented out), then
+            # set it at the top of [core].
+            awk -v n="$name" -v kv="$kv" '
+                $0 ~ "^#?" n "=" { next }
+                { print }
+                /^\[core\]/ { print kv }
+            ' "$rc" > "$rc.new"
+            mv -- "$rc.new" "$rc"
+        done
+        echo "  $rc"
+    done
+    if pgrep -x vlc >/dev/null; then
+        echo "VLC is open: quit it and run this again, or it may put the old keys back."
+    fi
+    echo "Done. In VLC: S slower, D faster (0.1 steps), R normal speed."
+
 # Configure Dewy's Environment
-configure-dewy: redfox-enforce-config configure-keybindings-default configure-text-editor-dev reset-hostname configure-cursor-dewy configure-terminal-tilix configure-nordvpn configure-powersaver-default configure-xway-scale-on enable-clamav-weekly
+configure-dewy: redfox-enforce-config configure-keybindings-default configure-text-editor-dev reset-hostname configure-cursor-dewy configure-terminal-tilix configure-vlc-dewy configure-nordvpn configure-powersaver-default configure-xway-scale-on enable-clamav-weekly
     gsettings set org.gnome.shell.keybindings show-screenshot-ui "['Print']"
     gsettings set org.gnome.shell.keybindings screenshot "['<Shift><Super>s']"
     gnome-extensions disable unblank@sun.wxg@gmail.com

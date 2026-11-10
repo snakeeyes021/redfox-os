@@ -137,6 +137,7 @@
         - [ ] Runs `configure-heroic` (if configure-heroic remains a ujust recipe and not a system default)
     - [ ] `configure-dewy`:
         - [x] Runs `configure-xway-scale-on`.
+        - [x] **VLC speed keys** (`configure-vlc-dewy`; his preference, so his profile only, not a RedFox default): S and D step the playback speed down and up by 0.1, like the video speed controller he uses in the browser (VLC's fine speed keys, normally `[` and `]`). R goes back to normal speed. Jumping back to the last speed other than 1.0, as the browser extension's R does, would need a VLC extension, so R is plain normal speed. GNOME's video player is left out: its keys aren't settings.
         - [ ] **Task:** Determine configs and sub-recipes.
     - [ ] `configure-fedora`:
         - [x] Runs `configure-xway-scale-on`.
