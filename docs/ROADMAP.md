@@ -187,12 +187,15 @@
     - [ ] **Secure Boot and NVIDIA variants:** one ISO per image; the installer queues Universal Blue's key for enrolment.
     - [ ] **Testing in a VM:** install each ISO on a blank disk with Secure Boot on, then check boot, login, updates and rollback.
     - [ ] **Before the download page goes live:** RedFox Hub, with its image picker for switching between the graphics images, is in the image. The page tells people they can switch to another image later from RedFox Hub.
-    - [ ] **Proposed: confirm the USB stick size for each ISO (8 GB vs 16 GB)** and state it in the README and on the download page. Test 8 GB sticks with all three ISOs first. Sizes from the last builds:
-        - RedFoxOS: 6.80 GB (6,802,367,273 bytes, 2026-11-09)
-        - RedFoxOS NVIDIA: 7.82 GB (7,815,754,558 bytes, 2026-11-07)
-        - RedFoxOS NVIDIA Legacy: 7.94 GB (7,941,854,091 bytes, 2026-11-07)
-
-        Many "8 GB" sticks hold a little under 8,000,000,000 bytes, so the two NVIDIA ISOs may not fit on every one.
+    - [x] **Confirm the USB stick size for each ISO (8 GB vs 16 GB):** an 8 GB stick works with the NVIDIA Legacy ISO, the largest. The README and the download page don't name a size. Sizes:
+        - RedFoxOS: 6.80 GB (6,802,345,984 bytes, 0.7)
+        - RedFoxOS NVIDIA: 7.48 GB (7,478,710,272 bytes, 0.7)
+        - RedFoxOS NVIDIA Legacy: 7.60 GB (7,604,654,080 bytes, 0.7); a 2026-11-07 test build was 7.94 GB
+    - [ ] **Proposed: shrink the ISOs to leave headroom on 8 GB sticks.** The largest is close to 8 GB, and sticks sold as 8 GB vary in real size. Candidates, not yet measured:
+        - The image to install is carried as a separate copy next to the live system. Installing from the live system's own files, or sharing their storage, could save the most.
+        - Stronger compression for the live system's squashfs (higher-level zstd or xz), at the cost of build time and some boot speed.
+        - Leave out of the live system what only the installed system needs, such as Flatpak runtimes or apps installed at build time, if there are any.
+        - Drop locales, documentation and man pages from the live system only.
     - [ ] **The graphics helpers reach main:** the page's commands run `extras/identify_gpu.sh` and `.ps1` from `main`, so the current helpers (they name the download to get, with no code to paste) reach people only once `unstable` is promoted. The page never points at `unstable`.
 
 ## 🧩 RedFox Hub
