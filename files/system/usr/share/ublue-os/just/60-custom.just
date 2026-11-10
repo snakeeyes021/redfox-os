@@ -876,47 +876,64 @@ configure-cursor-dewy:
 
 # VLC's speed keys the way Dewy likes them, like the browser's video speed
 # controller: S and D step the speed down and up by 0.1 (VLC's fine speed
-# keys, [ and ] still work too), R back to normal speed (= still works).
-# Frees S (Stop; the Media Stop key still stops), D (deinterlace) and R
-# (random). Quit VLC first: it rewrites its settings when it closes.
+# keys; [ and ] still work too). R toggles: at normal speed it goes to the
+# last other speed used (1.8 to start with), otherwise back to normal (=
+# still goes to normal). R is a small Lua interface VLC loads at every start
+# (/usr/share/redfox/vlc/redfox_speed.lua). Frees S (Stop; the Media Stop key
+# still stops), D (deinterlace) and R (random). Quit VLC first: it rewrites
+# its settings when it closes.
 configure-vlc-dewy:
     #!/usr/bin/bash
     set -euo pipefail
-    echo "Setting VLC's speed keys (S slower, D faster, R normal speed)..."
+    echo "Setting VLC's speed keys (S slower, D faster, R toggles the speed)..."
     tab=$'\t'
-    keys=(
-        "key-rate-slower-fine=s${tab}["
-        "key-rate-faster-fine=d${tab}]"
-        "key-rate-normal=r${tab}="
-        "key-stop=Media Stop"
-        "key-deinterlace="
-        "key-random="
+    # section|option=value
+    settings=(
+        "core|key-rate-slower-fine=s${tab}["
+        "core|key-rate-faster-fine=d${tab}]"
+        "core|key-rate-normal=="
+        "core|key-stop=Media Stop"
+        "core|key-deinterlace="
+        "core|key-random="
+        "lua|lua-intf=redfox_speed"
     )
+    # Sets an option at the top of its [section], dropping it wherever else
+    # it is (set or commented out).
+    set_opt() {  # file section option=value
+        grep -q "^\[$2\]" "$1" || printf '\n[%s]\n' "$2" >> "$1"
+        awk -v n="${3%%=*}" -v kv="$3" -v sec="[$2]" '
+            $0 ~ "^#?" n "=" { next }
+            { print }
+            index($0, sec) == 1 { print kv }
+        ' "$1" > "$1.new"
+        mv -- "$1.new" "$1"
+    }
     # The Flatpak's settings, and the native VLC's if it's ever used.
-    for rc in "$HOME/.var/app/org.videolan.VLC/config/vlc/vlcrc" "$HOME/.config/vlc/vlcrc"; do
-        case "$rc" in
-            "$HOME/.config/"*) command -v vlc >/dev/null || [ -e "$rc" ] || continue ;;
-        esac
-        mkdir -p "$(dirname "$rc")"
+    for app in flatpak native; do
+        if [ "$app" = flatpak ]; then
+            rc="$HOME/.var/app/org.videolan.VLC/config/vlc/vlcrc"
+            lua="$HOME/.var/app/org.videolan.VLC/data/vlc/lua/intf"
+        else
+            rc="$HOME/.config/vlc/vlcrc"
+            lua="$HOME/.local/share/vlc/lua/intf"
+            command -v vlc >/dev/null || [ -e "$rc" ] || continue
+        fi
+        mkdir -p "$(dirname "$rc")" "$lua"
+        install -m 644 /usr/share/redfox/vlc/redfox_speed.lua "$lua/redfox_speed.lua"
         [ -e "$rc" ] || printf '[core] # core program\n' > "$rc"
-        grep -q '^\[core\]' "$rc" || printf '\n[core] # core program\n' >> "$rc"
-        for kv in "${keys[@]}"; do
-            name=${kv%%=*}
-            # Drop the option wherever it is (set or commented out), then
-            # set it at the top of [core].
-            awk -v n="$name" -v kv="$kv" '
-                $0 ~ "^#?" n "=" { next }
-                { print }
-                /^\[core\]/ { print kv }
-            ' "$rc" > "$rc.new"
-            mv -- "$rc.new" "$rc"
-        done
+        for s in "${settings[@]}"; do set_opt "$rc" "${s%%|*}" "${s#*|}"; done
+        # Load the Lua interface too, keeping any other extra interfaces.
+        extra=$(sed -n 's/^extraintf=//p' "$rc" | head -1)
+        case ":$extra:" in
+            *:luaintf:*) ;;
+            *) set_opt "$rc" core "extraintf=${extra:+$extra:}luaintf" ;;
+        esac
         echo "  $rc"
     done
     if pgrep -x vlc >/dev/null; then
         echo "VLC is open: quit it and run this again, or it may put the old keys back."
     fi
-    echo "Done. In VLC: S slower, D faster (0.1 steps), R normal speed."
+    echo "Done. In VLC: S slower, D faster (0.1 steps), R toggles between normal and the last speed (1.8 at first)."
 
 # Configure Dewy's Environment
 configure-dewy: redfox-enforce-config configure-keybindings-default configure-text-editor-dev reset-hostname configure-cursor-dewy configure-terminal-tilix configure-vlc-dewy configure-nordvpn configure-powersaver-default configure-xway-scale-on enable-clamav-weekly
