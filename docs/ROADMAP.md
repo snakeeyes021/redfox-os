@@ -31,8 +31,9 @@
     - [x] **Size:** Icon size limit (56 px).
     - [x] **Appearance:** Shrink the dash (remove edge-to-edge).
 - [ ] **App Grid Defaults**
-    - [ ] **Behavior:** Sort alphabetically (no folders). *(Alphabetical is on by default (Alphabetical App Grid). Left: no folders by default; they stay unless `flatten-app-folders` removes them, as the profiles do.)*
-        - [ ] Add behavior to keep user's folders saved, so they can go back to them if they want
+    - [x] **Default:** alphabetical, with folders (Alphabetical App Grid, on by default).
+    - [ ] **Folders off, and back on:** `flatten-app-folders` turns them off and `default-app-folders` brings back GNOME's default folders. *(Open question: how well a person's own folders can be restored after turning them off.)*
+    - [ ] **GNOME's own order (not alphabetical), and back:** for vanilla-Fedora users and anyone who prefers it; `default-app-grid` exists. *(Open question: how well the original order comes back after switching to alphabetical and back.)*
     - [ ] **Behavior:** Pinning to dock must not remove from grid. *(On in the profiles through `sort-app-grid` (Pinned Apps in App Grid); not yet on by default.)*
 - [x] **Default dock apps:** Files, Firefox, Calculator, Text Editor, Bazaar and Settings, in that order (`org.gnome.shell favorite-apps`), then RedFox Hub, last, once Hub is in the image, in place of the set inherited from Bazzite. Only apps that are in the image or installed automatically at the first boot go in the default dock. Each layout keeps its own set.
 
@@ -47,9 +48,9 @@
 - [x] **VS Code:** install the Antigravity extension (`Google.google-antigravity`).
 - [x] **No Antigravity app or Antigravity IDE in the image:** VS Code with the Antigravity extension takes the IDE's place. The Antigravity CLI (`agy`) is installed per user only on request, with `ujust install-antigravity-cli`; it isn't part of `install-dev`.
 - [ ] **Proposed: T3 Code as the agent app,** in place of the Antigravity app: offered as an install (a `ujust` recipe, and in RedFox Hub).
-- [ ] **Implement** Starship terminal prompt by default with light-theme terminal (steal from Bluefin) *(So far: one RedFox-styled prompt, readable on light terminals, opt-in through `redfox-terminal` and Hub › Settings › Terminal. Open question: whether Starship is on by default.)*
+- [ ] **Starship themes:** Bluefin-style and Bazzite-style Starship themes alongside RedFox's own, plus off, chosen with `redfox-terminal`, Hub › Settings › Terminal and a `ujust` configure recipe for each. *(So far: one RedFox-styled prompt, readable on light terminals, opt-in through `redfox-terminal` and Hub; the terminal-app recipes `configure-terminal-default` and `configure-terminal-tilix` exist.)*
     - [x] **Terminal extras, opt-in:** `redfox-terminal` turns two things on or off for bash, zsh and fish: a styled prompt (Starship with RedFox's look, colours that read on light terminals too) and modern command-line tools (eza, ugrep, atuin, zoxide). RedFox Hub's Settings › Terminal has a switch for each.
-    - [ ] **Implement** ujust "configure" recipes for starship bluefin (system default, "reset"), starship bazzite (deviation), starship off (deviation) *(Left: a choice of Starship themes: Bluefin-style, Bazzite-style, RedFox's own, off. Today `redfox-terminal` only turns RedFox's own prompt on or off.)*
+    - [ ] **Open question: the default theme, and whether Starship is on by default.** Decided after comparing the three side by side in light and dark terminals. RedFox's own theme may be revised first, since its name makes it the natural default.
 
 ## 🌳 The `ujust` Architecture Tree
 *The master plan for `files/system/usr/share/ublue-os/just/60-custom.just`.*
@@ -75,7 +76,7 @@
 - [x] `install-zed`: Script to install Zed via `curl | sh` to `~/.local`.
 - [x] `install-gemini-cli`: `brew install gemini-cli`. (deprecated/removed)
 - [ ] `configure-heroic`: *(a stub so far)*
-- [ ] **UI/UX Atoms:**
+- [x] **UI/UX Atoms:**
     - [x] `fix-flatpak-theming`:
         - `sudo flatpak override --filesystem=xdg-data/themes`
         - `sudo flatpak mask org.gtk.Gtk3theme.adw-gtk3`
@@ -90,7 +91,6 @@
     - [x] `theme-text-editor-dewy` (Deviation):
         - [x] Dark Mode, Line Numbers, Overview Map, Highlight Current Line.
     - [x] `configure-text-editor-reset` (Reset): Revert indentation and visuals to system defaults.
-    - [ ] figure out terminal recipes (starship/no starship, light theme/system theme, etc) *(So far: `redfox-terminal` turns RedFox's prompt and the modern tools on or off; `configure-terminal-default` and `configure-terminal-tilix` pick the terminal app. Left: the Starship theme choice above.)*
     - [x] `set-window-controls-right-full` (Deviation): Sets `:minimize,maximize,close`.
     - [x] `set-window-controls-right-gnome` (Deviation): Sets `:close`.
     - [x] `set-window-controls-left-gnome` (Reset): Sets `close:` (reverts to system default).
@@ -125,7 +125,8 @@
     - [x] `install-matt`: Combines `install-dev`, `install-music`, `install-creative`, `install-productivity`, and `install-daily` if it is created.
     - [x] `install-dewy`
     - [x] `install-normie`: Combines `install-productivity`, `install-creative`, and `install-daily` if it is created.
-    - [ ] `install-fedora` (install at least all GNOME basics (might need to not use packs and just manually make a list))
+    - [ ] `install-fedora`: installs the apps Fedora Workstation ships, so `bootstrap-fedora` gets close to vanilla Fedora in one click. (The profiles let a RedFox user get close to vanilla Fedora, to Bluefin in a few clicks, or to a Bazzite-like look, as well as two developer setups.) **Open question:** how to give `bootstrap-fedora` the Fedora app set most cleanly: a Fedora app pack via `ujust`, a list inside the bootstrapper, or something else, since today's packs overlap the Fedora list.
+        - [ ] A short proposal with two or three options and their trade-offs.
 
 - [ ] **Config Molecules (User/Tool Setup):**
     - [ ] `configure-matt`:
@@ -153,7 +154,7 @@
         - [x] Runs `set-window-controls-right-full`.
         - [x] Runs `preset-dock-ubuntu` (or custom Dewy dock settings).
     - [x] `layout-fedora`: "Reset" recipe to restore Vanilla Fedora layout.
-    - [ ] `layout-normie`: Flexible layout switcher? *(The recipe exists: alphabetical grid with GNOME's folders, window buttons on the left, default tiling. Open: the flexible-switcher idea.)*
+    - [ ] `layout-normie`: the flexible layout switcher is Hub's layout picker (done). **Proposed:** the normie profile doesn't change the layout at all, keeping whatever the person has (RedFox's default unless they picked another). *(Today the recipe sets an alphabetical grid with GNOME's folders, window buttons on the left and default tiling.)*
 
 - [ ] **Theme Molecules (Visuals/Assets):**
     - [ ] `theme-matt`: Sets wallpapers, GTK theme (Adwaita Dark), Icons. *(Exists, for the text editor theme, sound and window corners; left: wallpapers, GTK theme, icons.)*
