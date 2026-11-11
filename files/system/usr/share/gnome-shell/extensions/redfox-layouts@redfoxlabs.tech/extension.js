@@ -4,14 +4,36 @@
 // GNOME Shell to apply without logging out. `redfox-layout` (a shell script)
 // does everything else by writing settings.
 
+import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import St from 'gi://St';
 
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
+import {ExtensionState} from 'resource:///org/gnome/shell/misc/extensionUtils.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 const DASH_TO_DOCK = 'dash-to-dock@micxgx.gmail.com';
 const TILING_SHELL = 'tilingshell@ferrarodomenico.com';
+const DASH_TO_PANEL = 'dash-to-panel@jderose9.github.com';
+const DASH_TO_PANEL_SCHEMA = 'org.gnome.shell.extensions.dash-to-panel';
+const ACTIVE = ExtensionState.ACTIVE ?? ExtensionState.ENABLED;
+
+/**
+ * An extension's own settings, from its schemas folder or the system's.
+ *
+ * @param {object} extension
+ * @param {string} schemaId
+ * @returns {Gio.Settings|null}
+ */
+function extensionSettings(extension, schemaId) {
+    const dir = extension.dir?.get_child('schemas');
+    const parent = Gio.SettingsSchemaSource.get_default();
+    let source = parent;
+    if (dir?.query_exists(null))
+        source = Gio.SettingsSchemaSource.new_from_directory(dir.get_path(), parent, false);
+    const schema = source?.lookup(schemaId, true);
+    return schema ? new Gio.Settings({settings_schema: schema}) : null;
+}
 
 // Dash to Dock already leaves a few pixels between the dock and the screen
 // edge. Floating replaces that with `gap` pixels on the screen-facing sides
@@ -73,7 +95,19 @@ export default class RedFoxLayoutsExtension extends Extension {
         // buttons when they are turned on or off, so place the tiling button
         // again after any of them changes.
         Main.extensionManager.connectObject(
-            'extension-state-changed', () => this._queueTilingButton(), this);
+            'extension-state-changed', (_manager, extension) => {
+                this._queueTilingButton();
+                if (extension.uuid === DASH_TO_PANEL)
+                    this._syncWorkspaceIsolation(false);
+            }, this);
+
+        // GNOME's Settings › Multitasking › App Switching choice (apps from
+        // the current workspace only) also applies to the taskbar, as it does
+        // to Dash to Dock: Dash to Panel only reads its own switch.
+        this._appSwitcher = new Gio.Settings({schema_id: 'org.gnome.shell.app-switcher'});
+        this._appSwitcher.connectObject('changed::current-workspace-only',
+            () => this._syncWorkspaceIsolation(true), this);
+        this._syncWorkspaceIsolation(false);
 
         // Dash to Dock builds its docks when it starts and when monitors or
         // its own settings change; float each new one as it appears.
@@ -110,6 +144,8 @@ export default class RedFoxLayoutsExtension extends Extension {
         Main.uiGroup.disconnectObject(this);
         this._settings.disconnectObject(this);
         this._settings = null;
+        this._appSwitcher.disconnectObject(this);
+        this._appSwitcher = null;
         if (this._autoDockId) {
             GLib.source_remove(this._autoDockId);
             this._autoDockId = 0;
@@ -124,6 +160,22 @@ export default class RedFoxLayoutsExtension extends Extension {
             this._styleDock(dock, false);
         }
         this._docks = null;
+    }
+
+    // Dash to Panel shows only the current workspace's apps while GNOME's
+    // App Switching setting is "current workspace only", like Dash to Dock.
+    // When that setting is turned off, Dash to Panel's switch goes off too;
+    // otherwise Dash to Panel's own switch is left as it is.
+    _syncWorkspaceIsolation(changed) {
+        const panel = Main.extensionManager.lookup(DASH_TO_PANEL);
+        if (!this._appSwitcher || panel?.state !== ACTIVE)
+            return;
+        const only = this._appSwitcher.get_boolean('current-workspace-only');
+        if (!only && !changed)
+            return;
+        const settings = extensionSettings(panel, DASH_TO_PANEL_SCHEMA);
+        if (settings && settings.get_boolean('isolate-workspaces') !== only)
+            settings.set_boolean('isolate-workspaces', only);
     }
 
     _watchDock(dock) {
