@@ -19,6 +19,24 @@ DIM = "redfox-dim@redfoxlabs.tech"
 # redfox-toggles groups, in page order: id, title.
 TOGGLE_GROUPS = [("terminal", "Terminal"), ("services", "Services"),
                  ("storage", "Storage"), ("sound", "Sound & Music")]
+# What clicking an open app in the taskbar or dock does: name, explanation,
+# Dash to Panel's value, Dash to Dock's. Both docks get the same choice, so
+# it holds in every layout. Dash to Dock has no exact match for the two cycle
+# choices; it cycles.
+CLICK_PATHS = ("/org/gnome/shell/extensions/dash-to-panel/click-action",
+               "/org/gnome/shell/extensions/dash-to-dock/click-action")
+CLICK_CHOICES = [
+    ("Previews", "One window: show or minimize it. Several: show their previews to pick one",
+     "TOGGLE-SHOWPREVIEW", "focus-minimize-or-previews"),
+    ("App Spread", "One window: show or minimize it. Several: spread them out to pick one",
+     "TOGGLE-SPREAD", "focus-minimize-or-appspread"),
+    ("Cycle", "One window: show or minimize it. Several: show the next one with each click",
+     "TOGGLE-CYCLE", "cycle-windows"),
+    ("Cycle, Then Minimize", "Each click shows the next window; after the last, they're minimized",
+     "CYCLE-MIN", "cycle-windows"),
+]
+# Shown when the docks are set to something else (in their own settings).
+CLICK_OTHER = ("Other", "Set in the taskbar or dock's own settings")
 TERMINAL_NOTE = ("Each works in bash, zsh and fish, in any terminal app. "
                  "New terminal windows show the change.")
 
@@ -56,6 +74,17 @@ class SettingsSection(Section):
         self.dim_row.add_prefix(Gtk.Image(icon_name="display-brightness-symbolic"))
         self.dim_row.connect("notify::active", self._on_dim_toggled)
         desktop.add(self.dim_row)
+
+        # What clicking an open app in the taskbar or dock does. Shown once
+        # dconf has answered.
+        self.click_row = Adw.ComboRow(
+            title="Clicking an Open App", visible=False,
+            model=Gtk.StringList.new([name for name, *_ in CLICK_CHOICES]))
+        self.click_row.add_prefix(Gtk.Image(icon_name="input-mouse-symbolic"))
+        self.click_row.set_use_markup(False)
+        self._click_guard = True
+        self.click_row.connect("notify::selected", self._on_click_selected)
+        desktop.add(self.click_row)
 
         page.add(desktop)
 
@@ -97,6 +126,44 @@ class SettingsSection(Section):
         actions.load(self._on_actions)
         host.run_json(["midikeep", "data-dir", "--json"], self._on_midi)
         host.run(["gnome-extensions", "info", DIM], on_done=self._on_dim_info)
+        host.run(["dconf", "read", CLICK_PATHS[0]], on_done=self._on_click_read)
+
+    # Clicking an open app
+
+    def _on_click_read(self, returncode, output):
+        value = output.strip().strip("'") if returncode == 0 else ""
+        index = next((i for i, choice in enumerate(CLICK_CHOICES) if choice[2] == value),
+                     len(CLICK_CHOICES))
+        # "Other" is in the list only while it's what the docks are set to.
+        model = self.click_row.get_model()
+        if index == len(CLICK_CHOICES) and model.get_n_items() == len(CLICK_CHOICES):
+            model.append(CLICK_OTHER[0])
+        elif index < len(CLICK_CHOICES) and model.get_n_items() > len(CLICK_CHOICES):
+            model.remove(len(CLICK_CHOICES))
+        self._click_guard = True
+        self.click_row.set_selected(index)
+        self._click_guard = False
+        self._show_click_subtitle()
+        self.click_row.set_visible(True)
+
+    def _show_click_subtitle(self):
+        index = self.click_row.get_selected()
+        self.click_row.set_subtitle(CLICK_CHOICES[index][1] if index < len(CLICK_CHOICES)
+                                    else CLICK_OTHER[1])
+
+    def _on_click_selected(self, row, _param):
+        self._show_click_subtitle()
+        if self._click_guard or row.get_selected() >= len(CLICK_CHOICES):
+            return
+        # A choice replaces "Other".
+        model = row.get_model()
+        if model.get_n_items() > len(CLICK_CHOICES):
+            self._click_guard = True
+            model.remove(len(CLICK_CHOICES))
+            self._click_guard = False
+        _name, _text, panel, dock = CLICK_CHOICES[row.get_selected()]
+        for path, value in zip(CLICK_PATHS, (panel, dock)):
+            host.run(["dconf", "write", path, f"'{value}'"])
 
     # Extra dimming
 

@@ -21,6 +21,12 @@ intellihide=false
 hot-keys=false
 scroll-action='do-nothing'
 
+[org/gnome/shell/extensions/dash-to-panel]
+# The taskbar (Nostalgia, Wash) clicks like the dock above: one window shows
+# or minimizes it, several show their previews. Hub › Settings › Desktop
+# changes both.
+click-action='TOGGLE-SHOWPREVIEW'
+
 [org/gnome/shell/extensions/blur-my-shell/lockscreen]
 pipeline='pipeline_default'
 
