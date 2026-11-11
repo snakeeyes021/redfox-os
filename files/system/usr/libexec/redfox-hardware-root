@@ -140,8 +140,12 @@ ContainerName=coolercontrold
 PublishPort=127.0.0.1:11987:11987
 Volume=/etc/coolercontrol:/etc/coolercontrol
 Volume=/var/lib/coolercontrol:/var/lib/coolercontrol
+Volume=/etc/localtime:/etc/localtime
+# Its sleep listener (fan curves come back after suspend) needs the system bus.
+Volume=/var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket
+Environment=CC_DBUS=ON
 PodmanArgs=$args
-Label=io.containers.autoupdate=registry
+AutoUpdate=registry
 
 [Service]
 Restart=always

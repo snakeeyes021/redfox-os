@@ -1,5 +1,5 @@
 {
-  "about": "Bazzite's ujust recipes that RedFox has its own version of, and a hash of each as RedFox's version was written. tests/check_bazzite_recipes.py compares them with the base image's.",
+  "about": "Bazzite's ujust recipes that RedFox has its own version of, and a hash of each as RedFox's version was written. tests/check_bazzite_recipes.py compares them with the base image's. A recipe's \"differences\" note records what RedFox does differently on purpose, as of the last check.",
   "recipes": {
     "asus": {
       "ours": "files/system/usr/libexec/redfox-hardware-root",
@@ -7,7 +7,8 @@
     },
     "install-coolercontrol": {
       "ours": "files/system/usr/libexec/redfox-hardware-root",
-      "sha256": "f14787d352593105204f76509aa77448a752884cbf80fbd6cc6e8ed3e5522c2a"
+      "sha256": "643ee31f64e59d43b3cccbee57690818daccf0c5b5227012ebc656e86f6284c4",
+      "differences": "Same container and settings as Bazzite (checked 2026-11-11, Bazzite b8881a9). Ours: no questions, and a desktop entry that opens the web UI."
     },
     "install-displaylink": {
       "ours": "files/system/usr/libexec/redfox-hardware-root",
@@ -15,7 +16,8 @@
     },
     "install-openrazer": {
       "ours": "files/system/usr/bin/redfox-hardware",
-      "sha256": "1ab462427da738330c791e6ef33936895c95ecae2e91b7d0bd716f8c1ddd82c6"
+      "sha256": "9d3d5508d172b86c6728f884b6b7b398ca8fef142f0925bb76a3343870112e91",
+      "differences": "Same as Bazzite (checked 2026-11-11, Bazzite b8881a9), and ours already set up razer.conf and pip --user before Bazzite did. Ours: only daemonize from pip (not gobject, which it works without), plus Polychromatic, and the root steps through redfox-hardware-root."
     },
     "opentabletdriver": {
       "ours": "files/system/usr/bin/redfox-hardware",
