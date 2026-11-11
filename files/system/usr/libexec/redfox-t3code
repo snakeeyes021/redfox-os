@@ -1,0 +1,335 @@
+#!/usr/bin/python3
+"""redfox-t3code: T3 Code from its official AppImage, kept up to date by Gear Lever.
+
+  install [--channel stable|nightly]
+                 downloads the newest T3 Code release on that channel
+                 (stable by default; also $REDFOX_CHOICE), checks it, and has
+                 Gear Lever add it to the app grid and follow the same channel
+                 for updates. Gear Lever is installed first if it's missing.
+  remove         Gear Lever removes it (the AppImage goes to the bin; T3
+                 Code's settings and data stay).
+  check          exits 0 when it's installed.
+  channel        prints the channel it was installed from.
+
+Downloads come only from github.com/pingdotgg/t3code's releases. T3 Code
+doesn't sign its AppImages, so before anything runs the file must match both
+the SHA-512 in the release's own update feed (latest-linux.yml or
+nightly-linux.yml, the one T3 Code's built-in updater checks) and the SHA-256
+GitHub recorded when the file was uploaded. Nothing is run if either differs.
+
+T3 Code also updates itself, on the channel it was installed from; Gear Lever
+follows the same channel, so the two agree.
+"""
+
+import argparse
+import base64
+import hashlib
+import json
+import os
+import platform
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import urllib.request
+
+import yaml
+
+REPO = "pingdotgg/t3code"
+API = f"https://api.github.com/repos/{REPO}"
+DOWNLOADS = f"https://github.com/{REPO}/releases/download"
+GEARLEVER = "it.mijorus.gearlever"
+CHANNELS = ("stable", "nightly")
+TAGS = {
+    "stable": re.compile(r"^v(\d+\.\d+\.\d+)$"),
+    "nightly": re.compile(r"^v(\d+\.\d+\.\d+-nightly\.\d{8}\.\d+)$"),
+}
+NAME = "T3 Code"
+# Gear Lever names an app from its desktop entry plus its version, such as
+# "T3 Code (Beta) (0.1.9)".
+GEARLEVER_NAME = re.compile(r"^T3 Code\b")
+T3_DESKTOP_ENTRY = "com.t3tools.T3Code.desktop"
+
+
+def arch():
+    """T3 Code's name for this computer's architecture, and its feed suffix."""
+    machine = platform.machine()
+    if machine == "x86_64":
+        return "x86_64", ""
+    if machine == "aarch64":
+        return "arm64", "-arm64"
+    sys.exit(f"redfox-t3code: T3 Code has no Linux AppImage for {machine}")
+
+
+def state_file():
+    base = os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state")
+    return os.path.join(base, "redfox", "t3code.json")
+
+
+def read_state():
+    try:
+        with open(state_file(), encoding="utf-8") as f:
+            state = json.load(f)
+    except (OSError, ValueError):
+        return None
+    if not isinstance(state, dict) or state.get("channel") not in CHANNELS:
+        return None
+    if not isinstance(state.get("path"), str) or not os.path.isfile(state["path"]):
+        return None
+    return state
+
+
+def write_state(state):
+    path = state_file()
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path + ".tmp", "w", encoding="utf-8") as f:
+        json.dump(state, f)
+    os.replace(path + ".tmp", path)
+
+
+def fetch(url, accept=None):
+    headers = {"User-Agent": "redfox-t3code"}
+    if accept:
+        headers["Accept"] = accept
+    with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=60) as r:
+        return r.read()
+
+
+def newest_release(channel):
+    """The newest published release on a channel, from GitHub's API."""
+    if channel == "stable":
+        releases = [json.loads(fetch(f"{API}/releases/latest", "application/vnd.github+json"))]
+    else:
+        releases = json.loads(fetch(f"{API}/releases?per_page=50", "application/vnd.github+json"))
+        releases.sort(key=lambda r: r.get("published_at") or "", reverse=True)
+    for release in releases:
+        if release.get("draft") or release.get("prerelease") != (channel == "nightly"):
+            continue
+        match = TAGS[channel].match(release.get("tag_name") or "")
+        if match:
+            return release, match.group(1)
+    sys.exit(f"redfox-t3code: no {channel} release of T3 Code found")
+
+
+def asset(release, name):
+    """A release asset by name, checked to come from the release itself."""
+    for a in release.get("assets") or []:
+        if a.get("name") == name:
+            url = f"{DOWNLOADS}/{release['tag_name']}/{name}"
+            if a.get("browser_download_url") != url:
+                sys.exit(f"redfox-t3code: {name} isn't at the release's own address")
+            return a
+    sys.exit(f"redfox-t3code: release {release['tag_name']} has no {name}")
+
+
+def download(url, dest, size):
+    """Download to dest, returning the SHA-256 (hex) and SHA-512 (base64)."""
+    sha256, sha512 = hashlib.sha256(), hashlib.sha512()
+    req = urllib.request.Request(url, headers={"User-Agent": "redfox-t3code"})
+    got = 0
+    with urllib.request.urlopen(req, timeout=60) as r, open(dest, "wb") as out:
+        while True:
+            chunk = r.read(1 << 20)
+            if not chunk:
+                break
+            got += len(chunk)
+            sha256.update(chunk)
+            sha512.update(chunk)
+            out.write(chunk)
+    if got != size:
+        sys.exit(f"redfox-t3code: downloaded {got} bytes, expected {size}")
+    return sha256.hexdigest(), base64.b64encode(sha512.digest()).decode()
+
+
+def gearlever(*args, check=True):
+    argv = ["flatpak", "run", GEARLEVER, *args]
+    res = subprocess.run(argv, capture_output=True, text=True, check=False)
+    if check and res.returncode != 0:
+        sys.stderr.write(res.stdout + res.stderr)
+        sys.exit(f"redfox-t3code: Gear Lever failed: {' '.join(args[:1])}")
+    return res
+
+
+def ensure_gearlever():
+    if subprocess.run(["flatpak", "info", GEARLEVER], capture_output=True,
+                      check=False).returncode == 0:
+        return
+    print("Installing Gear Lever, which keeps AppImages up to date", flush=True)
+    res = subprocess.run(["flatpak", "install", "--system", "--noninteractive", "-y",
+                          "flathub", GEARLEVER], check=False)
+    if res.returncode != 0:
+        sys.exit("redfox-t3code: couldn't install Gear Lever")
+
+
+def integrated():
+    """Gear Lever's T3 Code entries: [{"path", "desktop_id", ...}, ...]."""
+    res = gearlever("--list-installed", "--json")
+    try:
+        apps = json.loads(res.stdout)["installed"]
+    except (ValueError, KeyError, TypeError):
+        sys.exit("redfox-t3code: couldn't read Gear Lever's list of apps")
+    return [a for a in apps if GEARLEVER_NAME.match(a.get("name") or "") and a.get("path")]
+
+
+def icon_link():
+    """Where RedFox's software list finds T3 Code's icon (see software.yaml)."""
+    return os.path.join(os.path.dirname(state_file()), "t3code-icon")
+
+
+def link_icon(app):
+    """Point icon_link() at the icon Gear Lever extracted, named after the
+    AppImage, so the software list doesn't depend on that name."""
+    data = os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share")
+    icon = None
+    try:
+        with open(os.path.join(data, "applications", app.get("desktop_id") or ""),
+                  encoding="utf-8") as f:
+            for line in f:
+                if line.startswith("Icon="):
+                    icon = line[5:].strip()
+                    break
+    except OSError:
+        pass
+    link = icon_link()
+    try:
+        os.remove(link)
+    except FileNotFoundError:
+        pass
+    if icon and os.path.isabs(icon) and os.path.isfile(icon):
+        os.makedirs(os.path.dirname(link), exist_ok=True)
+        os.symlink(icon, link)
+
+
+def set_update_source(path, channel, name_arch):
+    """Gear Lever checks GitHub for the newest release on the channel: stable
+    releases only, or every release whose AppImage is a nightly's."""
+    pattern = (f"T3-Code-*-{name_arch}.AppImage" if channel == "stable"
+               else f"T3-Code-*-nightly.*-{name_arch}.AppImage")
+    gearlever("--set-update-source", path, "--manager", "GithubUpdater",
+              f"repo={REPO}", f"repo_filename={pattern}",
+              f"allow_prereleases={'true' if channel == 'nightly' else 'false'}")
+
+
+def install(channel):
+    if read_state():
+        print(f"{NAME} is already installed", flush=True)
+        return 0
+    name_arch, feed_suffix = arch()
+    ensure_gearlever()
+    apps = integrated()
+    if apps:
+        # Added to Gear Lever by hand earlier: keep that copy and point its
+        # updates at the official releases on the chosen channel.
+        print(f"Gear Lever already has {NAME}; setting it to update from the {channel} channel",
+              flush=True)
+        set_update_source(apps[0]["path"], channel, name_arch)
+        write_state({"channel": channel, "path": apps[0]["path"], "version": None})
+        link_icon(apps[0])
+        return 0
+
+    release, version = newest_release(channel)
+    appimage = asset(release, f"T3-Code-{version}-{name_arch}.AppImage")
+    feed_name = f"{'latest' if channel == 'stable' else 'nightly'}-linux{feed_suffix}.yml"
+    feed = yaml.safe_load(fetch(asset(release, feed_name)["browser_download_url"]))
+    expected_sha512 = next((f.get("sha512") for f in feed.get("files") or []
+                            if f.get("url") == appimage["name"]), None)
+    expected_sha256 = appimage.get("digest") or ""
+    if not expected_sha512 or not expected_sha256.startswith("sha256:"):
+        sys.exit(f"redfox-t3code: release {release['tag_name']} has no checksum for "
+                 f"{appimage['name']}")
+
+    print(f"Downloading {NAME} {version} ({channel})", flush=True)
+    cache = os.environ.get("XDG_CACHE_HOME") or os.path.expanduser("~/.cache")
+    os.makedirs(cache, exist_ok=True)
+    work = tempfile.mkdtemp(prefix="redfox-t3code-", dir=cache)
+    try:
+        path = os.path.join(work, appimage["name"])
+        sha256, sha512 = download(appimage["browser_download_url"], path, appimage["size"])
+        if sha512 != expected_sha512 or f"sha256:{sha256}" != expected_sha256:
+            sys.exit(f"redfox-t3code: {appimage['name']} doesn't match its release's "
+                     "checksums; nothing was installed")
+        print("Checksums match the release", flush=True)
+        os.chmod(path, 0o755)
+        gearlever("--integrate", path, "--yes")
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+    apps = integrated()
+    if len(apps) != 1:
+        sys.exit(f"redfox-t3code: Gear Lever didn't add {NAME}")
+    set_update_source(apps[0]["path"], channel, name_arch)
+    write_state({"channel": channel, "path": apps[0]["path"], "version": version})
+    link_icon(apps[0])
+    print(f"{NAME} {version} installed; Gear Lever updates it from the {channel} channel",
+          flush=True)
+    return 0
+
+
+def remove():
+    state = read_state()
+    paths = [state["path"]] if state else []
+    if shutil.which("flatpak") and subprocess.run(
+            ["flatpak", "info", GEARLEVER], capture_output=True, check=False).returncode == 0:
+        paths = list(dict.fromkeys(paths + [a["path"] for a in integrated()]))
+        for path in paths:
+            gearlever("--remove", path, "--yes")
+    for path in (state_file(), icon_link()):
+        try:
+            os.remove(path)
+        except FileNotFoundError:
+            pass
+    remove_url_handler(paths)
+    return 0
+
+
+def remove_url_handler(removed):
+    """T3 Code adds a hidden desktop entry of its own when it starts, to open
+    its links (T3_DESKTOP_ENTRY). Remove it if it runs an AppImage that was
+    just removed, with its icon, so nothing points at a missing file."""
+    data = os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share")
+    apps = os.path.join(data, "applications")
+    entry = os.path.join(apps, T3_DESKTOP_ENTRY)
+    try:
+        with open(entry, encoding="utf-8") as f:
+            text = f.read()
+    except OSError:
+        return
+    exec_lines = [line for line in text.splitlines() if line.startswith("Exec=")]
+    if not removed or not any(p in line for p in removed for line in exec_lines):
+        return
+    for path in (entry, os.path.join(data, "icons", T3_DESKTOP_ENTRY + ".png")):
+        try:
+            os.remove(path)
+        except FileNotFoundError:
+            pass
+    if shutil.which("update-desktop-database"):
+        subprocess.run(["update-desktop-database", apps], capture_output=True, check=False)
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(prog="redfox-t3code", description=__doc__.splitlines()[0])
+    sub = parser.add_subparsers(dest="command", required=True)
+    p_install = sub.add_parser("install")
+    p_install.add_argument("--channel", choices=CHANNELS,
+                           default=os.environ.get("REDFOX_CHOICE") or "stable")
+    sub.add_parser("remove")
+    sub.add_parser("check")
+    sub.add_parser("channel")
+    args = parser.parse_args(argv)
+    if args.command == "install":
+        if args.channel not in CHANNELS:
+            parser.error(f"unknown channel {args.channel}")
+        return install(args.channel)
+    if args.command == "remove":
+        return remove()
+    state = read_state()
+    if args.command == "check":
+        return 0 if state else 1
+    if state:
+        print(state["channel"])
+    return 0 if state else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

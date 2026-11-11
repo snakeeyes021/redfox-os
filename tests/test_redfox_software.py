@@ -26,6 +26,7 @@ loader.exec_module(rs)
 # catalog, resolved through the recipe dependencies (just runs each once).
 # Non-Flatpak items use the catalog's recipe slugs.
 TODAY = {
+    "ai": ['com.jeffser.Alpaca', 't3code'],
     "audio": ['info.puredata.Pd', 'net.purrdata.PurrData', 'net.sourceforge.VMPK', 'org.ardour.Ardour', 'org.audacityteam.Audacity', 'org.pipewire.Helvum', 'soundthread', 'tech.redfoxlabs.Pianola'],
     "basic": ['org.gnome.Calendar', 'org.gnome.Contacts', 'org.gnome.Maps', 'org.gnome.Snapshot', 'org.gnome.Weather', 'org.gnome.World.PikaBackup', 'org.gnome.clocks'],
     "bluefin-dx": ['de.leopoldluley.Clapgrep', 'io.github.getnf.embellish', 'io.github.ronniedroid.concessio', 'me.iepure.devtoolbox', 'org.freedesktop.Bustle', 'org.pipewire.Helvum'],
@@ -37,7 +38,7 @@ TODAY = {
     "dewy": ['app.drey.Warp', 'be.alexandervanhee.gradia', 'com.bambulab.BambuStudio', 'com.brave.Browser', 'com.dropbox.Client', 'com.slack.Slack', 'com.spotify.Client', 'dev.vencord.Vesktop', 'net.cozic.joplin_desktop', 'net.pixieditor.PixiEditor', 'org.gnome.SimpleScan', 'org.libreoffice.LibreOffice', 'org.signal.Signal', 'org.texstudio.TeXstudio', 'org.videolan.VLC', 'texlive', 'zed'],
     "gnome-dev": ['org.gnome.Builder', 're.sonny.Workbench'],
     "graphics": ['com.orama_interactive.Pixelorama', 'net.pixieditor.PixiEditor', 'nl.hjdskes.gcolor3', 'org.blender.Blender', 'org.gimp.GIMP', 'org.inkscape.Inkscape', 'org.kde.krita'],
-    "matt": ['antigravity-cli', 'app.drey.Warp', 'be.alexandervanhee.gradia', 'ca.desrt.dconf-editor', 'ch.theologeek.Manuskript', 'com.getmailspring.Mailspring', 'com.github.geigi.cozy', 'com.github.johnfactotum.Foliate', 'com.github.unrud.VideoDownloader', 'com.jeffser.Alpaca', 'com.obsproject.Studio', 'com.orama_interactive.Pixelorama', 'com.spotify.Client', 'com.usebottles.bottles', 'de.leopoldluley.Clapgrep', 'dev.geopjr.Tuba', 'dev.vencord.Vesktop', 'info.puredata.Pd', 'io.github.getnf.embellish', 'io.github.ronniedroid.concessio', 'io.github.wartybix.Constrict', 'io.gitlab.news_flash.NewsFlash', 'io.podman_desktop.PodmanDesktop', 'me.iepure.devtoolbox', 'net.cozic.joplin_desktop', 'net.pixieditor.PixiEditor', 'net.purrdata.PurrData', 'net.sourceforge.VMPK', 'nl.hjdskes.gcolor3', 'org.ardour.Ardour', 'org.audacityteam.Audacity', 'org.blender.Blender', 'org.bunkus.mkvtoolnix-gui', 'org.cvfosammmm.Setzer', 'org.darktable.Darktable', 'org.freedesktop.Bustle', 'org.frescobaldi.Frescobaldi', 'org.gimp.GIMP', 'org.gnome.Builder', 'org.gnome.Calendar', 'org.gnome.Contacts', 'org.gnome.Maps', 'org.gnome.Music', 'org.gnome.SimpleScan', 'org.gnome.Snapshot', 'org.gnome.Weather', 'org.gnome.World.PikaBackup', 'org.gnome.clocks', 'org.gnome.dspy', 'org.gnome.gitlab.YaLTeR.VideoTrimmer', 'org.inkscape.Inkscape', 'org.kde.digikam', 'org.kde.kdenlive', 'org.kde.krita', 'org.libreoffice.LibreOffice', 'org.musescore.MuseScore', 'org.pipewire.Helvum', 'org.signal.Signal', 're.sonny.Workbench', 'soundthread', 'tech.redfoxlabs.Pianola', 'tech.redfoxlabs.Thirties', 'zed'],
+    "matt": ['antigravity-cli', 'app.drey.Warp', 'be.alexandervanhee.gradia', 'ca.desrt.dconf-editor', 'ch.theologeek.Manuskript', 'com.getmailspring.Mailspring', 'com.github.geigi.cozy', 'com.github.johnfactotum.Foliate', 'com.github.unrud.VideoDownloader', 'com.jeffser.Alpaca', 'com.obsproject.Studio', 'com.orama_interactive.Pixelorama', 'com.spotify.Client', 'com.usebottles.bottles', 'de.leopoldluley.Clapgrep', 'dev.geopjr.Tuba', 'dev.vencord.Vesktop', 'info.puredata.Pd', 'io.github.getnf.embellish', 'io.github.ronniedroid.concessio', 'io.github.wartybix.Constrict', 'io.gitlab.news_flash.NewsFlash', 'io.podman_desktop.PodmanDesktop', 'me.iepure.devtoolbox', 'net.cozic.joplin_desktop', 'net.pixieditor.PixiEditor', 'net.purrdata.PurrData', 'net.sourceforge.VMPK', 'nl.hjdskes.gcolor3', 'org.ardour.Ardour', 'org.audacityteam.Audacity', 'org.blender.Blender', 'org.bunkus.mkvtoolnix-gui', 'org.cvfosammmm.Setzer', 'org.darktable.Darktable', 'org.freedesktop.Bustle', 'org.frescobaldi.Frescobaldi', 'org.gimp.GIMP', 'org.gnome.Builder', 'org.gnome.Calendar', 'org.gnome.Contacts', 'org.gnome.Maps', 'org.gnome.Music', 'org.gnome.SimpleScan', 'org.gnome.Snapshot', 'org.gnome.Weather', 'org.gnome.World.PikaBackup', 'org.gnome.clocks', 'org.gnome.dspy', 'org.gnome.gitlab.YaLTeR.VideoTrimmer', 'org.inkscape.Inkscape', 'org.kde.digikam', 'org.kde.kdenlive', 'org.kde.krita', 'org.libreoffice.LibreOffice', 'org.musescore.MuseScore', 'org.pipewire.Helvum', 'org.signal.Signal', 're.sonny.Workbench', 'soundthread', 't3code', 'tech.redfoxlabs.Pianola', 'tech.redfoxlabs.Thirties', 'zed'],
     "normie": ['app.drey.Warp', 'be.alexandervanhee.gradia', 'com.getmailspring.Mailspring', 'com.github.geigi.cozy', 'com.github.johnfactotum.Foliate', 'com.spotify.Client', 'dev.geopjr.Tuba', 'dev.vencord.Vesktop', 'io.gitlab.news_flash.NewsFlash', 'net.cozic.joplin_desktop', 'org.gnome.Calendar', 'org.gnome.Contacts', 'org.gnome.Maps', 'org.gnome.Music', 'org.gnome.SimpleScan', 'org.gnome.Snapshot', 'org.gnome.Weather', 'org.gnome.World.PikaBackup', 'org.gnome.clocks', 'org.libreoffice.LibreOffice', 'org.signal.Signal'],
     "notation": ['org.frescobaldi.Frescobaldi', 'org.musescore.MuseScore'],
     "photos": ['org.darktable.Darktable', 'org.kde.digikam'],
@@ -110,7 +111,8 @@ class TestCatalog(unittest.TestCase):
         for pack_id, expected in TODAY.items():
             self.assertEqual(sorted(self.catalog.resolve(pack_id)), sorted(expected), pack_id)
         # The Gaming and Hardware packs are new, built from Bazzite's own
-        # recipes; every other pack replaced an install-* recipe.
+        # recipes, and so is the AI pack; every other pack replaced an
+        # install-* recipe.
         self.assertEqual(set(TODAY), {pid for pid, pack in self.catalog.pack_by_id.items()
                                       if pack["section"] in ("packs", "dev")})
 
@@ -173,7 +175,7 @@ class TestList(unittest.TestCase):
             self.assertIsInstance(pack["includes"], list)
             for item in pack["items"]:
                 self.assertEqual(set(item), {"id", "kind", "name", "summary", "installed", "icon",
-                                             "restart"})
+                                             "restart", "choice"})
                 self.assertIsInstance(item["restart"], bool)
                 self.assertIn(item["kind"], ("flatpak", "redfox-app", "recipe"))
                 self.assertIsInstance(item["installed"], bool)
@@ -188,6 +190,10 @@ class TestList(unittest.TestCase):
         self.assertTrue(seen["soundthread"]["installed"])
         self.assertFalse(seen["zed"]["installed"])
         self.assertIsNone(seen["zed"]["icon"])
+        self.assertIsNone(seen["zed"]["choice"])
+        self.assertEqual(seen["t3code"]["choice"], {
+            "name": "Channel", "current": None,
+            "options": [{"id": "stable", "name": "Stable"}, {"id": "nightly", "name": "Nightly"}]})
         self.assertTrue(next(p for p in data["packs"] if p["id"] == "matt")["hidden"])
         self.assertEqual(next(p for p in data["packs"] if p["id"] == "creative")["items"], [])
 
@@ -340,6 +346,57 @@ class TestInstallRemove(unittest.TestCase):
                     self.assertIn({"event": "done", "id": "thing", "ok": True}, events)
                     if verb == "install":
                         self.assertIn({"event": "log", "id": "thing", "line": "hello"}, events)
+
+    def choice_catalog(self, d):
+        out = Path(d) / "chosen"
+        return out, rs.Catalog({
+            "items": [{
+                "id": "thing", "kind": "recipe", "name": "Thing", "summary": "t",
+                "install": f"echo \"$REDFOX_CHOICE\" > '{out}'",
+                "remove": f"rm -f '{out}'",
+                "check": f"test -e '{out}'",
+                "choice": {"name": "Channel", "current": f"cat '{out}'",
+                           "options": [{"id": "stable", "name": "Stable"},
+                                       {"id": "nightly", "name": "Nightly"}]},
+            }],
+            "packs": [{"id": "p", "name": "P", "description": "p", "items": ["thing"]}],
+        })
+
+    def test_choice_given_default_and_current(self):
+        for given, expected in (({"thing": "nightly"}, "nightly"), ({}, "stable")):
+            with tempfile.TemporaryDirectory() as d:
+                out, catalog = self.choice_catalog(d)
+                with unittest.mock.patch.object(rs, "installed_flatpaks", return_value=set()):
+                    buf = io.StringIO()
+                    with redirect_stdout(buf):
+                        self.assertEqual(rs.apply(catalog, "install", ["p"], True, given), 0)
+                    self.assertEqual(out.read_text().strip(), expected)
+                    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+                    name = expected.capitalize()
+                    self.assertIn({"event": "log", "id": "thing", "line": f"Channel: {name}"}, events)
+                    listed = rs.list_packs(catalog)["packs"][0]["items"][0]
+                    self.assertEqual(listed["choice"]["current"], expected)
+
+    def test_choice_is_asked_in_a_terminal(self):
+        with tempfile.TemporaryDirectory() as d:
+            out, catalog = self.choice_catalog(d)
+            with unittest.mock.patch.object(rs, "installed_flatpaks", return_value=set()), \
+                    unittest.mock.patch.object(rs.sys.stdin, "isatty", return_value=True), \
+                    unittest.mock.patch("builtins.input", side_effect=["9", "2"]), \
+                    unittest.mock.patch.object(rs.subprocess, "run", wraps=rs.subprocess.run), \
+                    redirect_stdout(io.StringIO()):
+                self.assertEqual(rs.apply(catalog, "install", ["p"], False), 0)
+            self.assertEqual(out.read_text().strip(), "nightly")
+
+    def test_bad_choices_are_rejected(self):
+        catalog = self.catalog
+        self.assertEqual(rs.parse_choices(catalog, ["t3code=nightly"]), {"t3code": "nightly"})
+        for bad in ("t3code=beta", "zed=stable", "t3code", "nope=stable"):
+            with self.assertRaises(rs.CatalogError, msg=bad):
+                rs.parse_choices(catalog, [bad])
+        with self.assertRaises(rs.CatalogError):
+            rs.Catalog({"items": [{"id": "a.b.C", "kind": "flatpak", "name": "C", "summary": "c",
+                                   "choice": {"name": "X", "options": [{"id": "a", "name": "A"}]}}]})
 
     def test_catalog_env_override(self):
         with tempfile.TemporaryDirectory() as d:

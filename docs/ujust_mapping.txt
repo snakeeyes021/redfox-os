@@ -111,6 +111,10 @@ me.iepure.devtoolbox                # Dev Toolbox
 io.github.getnf.embellish           # Embellish
 org.pipewire.Helvum                 # Helvum
 
+ujust install-ai:
+ujust install-t3code                # T3 Code (AppImage via Gear Lever; stable or nightly)
+com.jeffser.Alpaca                  # Alpaca
+
 ujust install-creative:
 ujust install-audio
 ujust install-graphics
@@ -122,6 +126,7 @@ ujust install-writing
 ujust install-matt:
 ujust install-dev
 ujust install-bluefin-dx
+ujust install-ai
 ujust install-creative
 ujust install-daily
 ujust install-productivity

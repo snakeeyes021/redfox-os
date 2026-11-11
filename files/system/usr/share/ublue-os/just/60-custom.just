@@ -179,6 +179,14 @@ install-antigravity-cli:
 uninstall-antigravity-cli:
     /usr/bin/redfox-software remove antigravity-cli
 
+# Install T3 Code (asks: the stable or the nightly channel)
+install-t3code:
+    /usr/bin/redfox-software install t3code
+
+# Uninstall T3 Code
+uninstall-t3code:
+    /usr/bin/redfox-software remove t3code
+
 # Configure Heroic
 configure-heroic:
     echo "TODO: Implement configure-heroic"
@@ -674,6 +682,10 @@ install-dev:
 # Install Bluefin DX Extras
 install-bluefin-dx:
     /usr/bin/redfox-software install bluefin-dx
+
+# Install AI Apps (T3 Code asks: the stable or the nightly channel)
+install-ai:
+    /usr/bin/redfox-software install ai
 
 # Install Creative Suite
 install-creative:

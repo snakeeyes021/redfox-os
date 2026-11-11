@@ -8,10 +8,16 @@ the JSON printed by `list --json` and `install|remove --json`:
   list --json      {"version": 1, "packs": [{"id", "name", "description",
                     "section", "hidden", "includes": [...], "items": [{"id",
                     "kind", "name", "summary", "installed", "icon",
-                    "restart"}]}]}
+                    "restart", "choice"}]}]}
                    Items that need hardware this computer doesn't have (an
                    item's `gpu`) are left out. "restart" is true for items
-                   that take effect after a restart.
+                   that take effect after a restart. "choice" is null, or
+                   {"name", "options": [{"id", "name"}], "current"} for an
+                   item installed one of several ways (the first option is
+                   the default; "current" is the installed one's id or null).
+  install [--choice ITEM=OPTION]... ID...
+                   asks for any choice it isn't given when run in a
+                   terminal, else takes the default.
   install|remove --json ID...
                    one JSON object per line:
                      {"event": "start", "id": ...}
@@ -70,6 +76,16 @@ class Catalog:
                         raise CatalogError(f"{iid}: a recipe needs {key}")
             if item.get("gpu") is not None and item["gpu"] not in GPU_VENDORS:
                 raise CatalogError(f"{iid}: unknown gpu {item['gpu']!r}")
+            choice = item.get("choice")
+            if choice is not None:
+                if kind != "recipe":
+                    raise CatalogError(f"{iid}: only a recipe can have a choice")
+                options = choice.get("options") if isinstance(choice, dict) else None
+                if not choice.get("name") or not options or not all(
+                        isinstance(o, dict) and o.get("id") and o.get("name") for o in options):
+                    raise CatalogError(f"{iid}: a choice needs a name and options with ids and names")
+                if len({o["id"] for o in options}) != len(options):
+                    raise CatalogError(f"{iid}: duplicate choice option")
             self.items[iid] = item
 
         self.packs = []
@@ -335,14 +351,20 @@ def flatpak_batch(rep, verb, ids):
     return results
 
 
-def install_one(rep, item):
+def install_one(rep, item, option=None):
     iid = item["id"]
     rep.start(iid)
     if item["kind"] == "redfox-app":
         rep.run([REDFOX_APPS_UPDATER, iid], iid)
         ok = iid in installed_flatpaks()
     else:
-        status = rep.run(bash(item["install"]), iid)
+        argv = bash(item["install"])
+        if option is not None:
+            # The recipe reads the chosen option from $REDFOX_CHOICE.
+            argv = ["env", f"REDFOX_CHOICE={option}", *argv]
+            name = next(o["name"] for o in item["choice"]["options"] if o["id"] == option)
+            rep.log(iid, f"{item['choice']['name']}: {name}")
+        status = rep.run(argv, iid)
         ok = status == 0 and recipe_installed(item)
     rep.done(iid, ok)
     return ok
@@ -366,7 +388,73 @@ def remove_one(rep, item):
     return ok
 
 
-def apply(catalog, verb, ids, json_mode):
+def ask_choice(item):
+    """Ask in the terminal which way to install an item; Enter takes the default."""
+    choice = item["choice"]
+    options = choice["options"]
+    print(f"{item['name']}: {choice['name']}?", flush=True)
+    for n, option in enumerate(options, 1):
+        default = " (default)" if n == 1 else ""
+        print(f"  {n}. {option['name']}{default}", flush=True)
+    while True:
+        try:
+            answer = input(f"Choose 1-{len(options)} [1]: ").strip()
+        except EOFError:
+            answer = ""
+        if not answer:
+            return options[0]["id"]
+        if answer.isdigit() and 1 <= int(answer) <= len(options):
+            return options[int(answer) - 1]["id"]
+        by_id = [o["id"] for o in options if o["id"] == answer.lower()]
+        if by_id:
+            return by_id[0]
+
+
+def choose(items, given, json_mode):
+    """The option for each item that has a choice: given, asked, or the default."""
+    chosen = {}
+    for item in items:
+        choice = item.get("choice")
+        if not choice:
+            continue
+        if item["id"] in given:
+            chosen[item["id"]] = given[item["id"]]
+        elif not json_mode and sys.stdin.isatty():
+            chosen[item["id"]] = ask_choice(item)
+        else:
+            chosen[item["id"]] = choice["options"][0]["id"]
+    return chosen
+
+
+def parse_choices(catalog, pairs):
+    """--choice ITEM=OPTION values, checked against the catalog."""
+    given = {}
+    for pair in pairs or []:
+        iid, sep, option = pair.partition("=")
+        item = catalog.items.get(iid)
+        if not sep or item is None or not item.get("choice"):
+            raise CatalogError(f"--choice {pair}: no item {iid!r} with a choice")
+        if option not in [o["id"] for o in item["choice"]["options"]]:
+            raise CatalogError(f"--choice {pair}: {iid} has no option {option!r}")
+        given[iid] = option
+    return given
+
+
+def current_choice(item, installed):
+    """The installed item's option id, from the choice's `current` command."""
+    cmd = item["choice"].get("current")
+    if not installed or not cmd:
+        return None
+    try:
+        res = subprocess.run(["bash", "-c", cmd], stdin=subprocess.DEVNULL,
+                             capture_output=True, text=True, check=False)
+    except FileNotFoundError:
+        return None
+    value = res.stdout.strip()
+    return value if value in [o["id"] for o in item["choice"]["options"]] else None
+
+
+def apply(catalog, verb, ids, json_mode, given=None):
     rep = Reporter(catalog, json_mode, verb)
     item_ids = catalog.expand(ids)
     flatpaks = installed_flatpaks()
@@ -394,12 +482,18 @@ def apply(catalog, verb, ids, json_mode):
         else:
             pending.append(item)
 
+    # Choices are asked before anything installs, so nothing waits halfway.
+    chosen = choose(pending, given or {}, json_mode) if verb == "install" else {}
+
     batch = [i["id"] for i in pending if i["kind"] == "flatpak"]
     results.update(flatpak_batch(rep, verb, batch))
     for item in pending:
         if item["kind"] == "flatpak":
             continue
-        results[item["id"]] = (install_one if verb == "install" else remove_one)(rep, item)
+        if verb == "install":
+            results[item["id"]] = install_one(rep, item, chosen.get(item["id"]))
+        else:
+            results[item["id"]] = remove_one(rep, item)
 
     failed = [i for i in item_ids if not results.get(i)]
     rep.finished(not failed, failed)
@@ -422,7 +516,14 @@ def list_packs(catalog):
             "installed": installed,
             "icon": item_icon(item, installed),
             "restart": bool(item.get("restart", False)),
+            "choice": None,
         }
+        if item.get("choice"):
+            state[iid]["choice"] = {
+                "name": item["choice"]["name"],
+                "options": [{"id": o["id"], "name": o["name"]} for o in item["choice"]["options"]],
+                "current": current_choice(item, installed),
+            }
     packs = []
     for pack in catalog.packs:
         packs.append({
@@ -462,6 +563,9 @@ def main(argv=None):
     for verb in ("install", "remove"):
         p = sub.add_parser(verb, help=f"{verb} packs or single items")
         p.add_argument("--json", action="store_true")
+        if verb == "install":
+            p.add_argument("--choice", action="append", metavar="ITEM=OPTION",
+                           help="how to install an item that can be installed more than one way")
         p.add_argument("ids", nargs="+", metavar="ID")
     args = parser.parse_args(argv)
 
@@ -481,6 +585,7 @@ def main(argv=None):
 
     try:
         catalog.expand(args.ids)
+        given = parse_choices(catalog, getattr(args, "choice", None))
     except CatalogError as e:
         print(f"redfox-software: {e}", file=sys.stderr)
         return 2
@@ -488,7 +593,7 @@ def main(argv=None):
         print("redfox-software: flatpak isn't installed", file=sys.stderr)
         return 2
     try:
-        return apply(catalog, args.command, args.ids, args.json)
+        return apply(catalog, args.command, args.ids, args.json, given)
     except KeyboardInterrupt:
         return 130
 

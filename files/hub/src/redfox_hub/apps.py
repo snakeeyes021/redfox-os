@@ -27,6 +27,8 @@ class AppsSection(Section):
         self.items = {}        # id -> item dict
         self.checks = {}       # id -> [Gtk.CheckButton]
         self.spinners = {}     # id -> [Adw.Spinner]
+        self.dropdowns = {}    # id -> [Gtk.DropDown], for items with a choice
+        self.chosen = {}       # id -> option id, for items with a choice
         self.wanted = {}       # id -> bool, only where it differs from installed
         self.running = False
         self._guard = False
@@ -122,6 +124,7 @@ class AppsSection(Section):
         for page, group in self.groups:
             page.remove(group)
         self.groups, self.items, self.checks, self.spinners = [], {}, {}, {}
+        self.dropdowns, self.chosen = {}, {}
         self.wanted = {}
         used = set()
         for pack in data.get("packs", []):
@@ -193,6 +196,8 @@ class AppsSection(Section):
         row.add_prefix(icon)
         spinner = Adw.Spinner(visible=False)
         row.add_suffix(spinner)
+        if item.get("choice"):
+            row.add_suffix(self._choice(item))
         check = Gtk.CheckButton(active=item["installed"], valign=Gtk.Align.CENTER)
         check.connect("toggled", self._on_toggled, item["id"])
         row.add_suffix(check)
@@ -200,6 +205,36 @@ class AppsSection(Section):
         self.checks.setdefault(item["id"], []).append(check)
         self.spinners.setdefault(item["id"], []).append(spinner)
         return row
+
+    def _choice(self, item):
+        """A drop-down for an item that installs one of several ways (T3 Code's
+        channel). It's set before installing; once installed it shows the way
+        it was installed."""
+        choice = item["choice"]
+        ids = [o["id"] for o in choice["options"]]
+        selected = self.chosen.get(item["id"]) or choice.get("current") or ids[0]
+        self.chosen.setdefault(item["id"], selected)
+        dropdown = Gtk.DropDown.new_from_strings([o["name"] for o in choice["options"]])
+        dropdown.set_valign(Gtk.Align.CENTER)
+        dropdown.set_tooltip_text(choice["name"])
+        dropdown.update_property([Gtk.AccessibleProperty.LABEL], [choice["name"]])
+        dropdown.set_selected(ids.index(selected) if selected in ids else 0)
+        dropdown.set_sensitive(not item["installed"])
+        dropdown.connect("notify::selected", self._on_chosen, item["id"], ids)
+        self.dropdowns.setdefault(item["id"], []).append(dropdown)
+        return dropdown
+
+    def _on_chosen(self, dropdown, _pspec, item_id, ids):
+        if self._guard:
+            return
+        index = dropdown.get_selected()
+        if index >= len(ids):
+            return
+        self.chosen[item_id] = ids[index]
+        self._guard = True
+        for other in self.dropdowns.get(item_id, []):
+            other.set_selected(index)   # the same app can be in two packs
+        self._guard = False
 
     def _set_check(self, item_id, active):
         self._guard = True
@@ -268,11 +303,18 @@ class AppsSection(Section):
         for checks in self.checks.values():
             for check in checks:
                 check.set_sensitive(False)
+        for dropdowns in self.dropdowns.values():
+            for dropdown in dropdowns:
+                dropdown.set_sensitive(False)
         self.failed = []
         self.restart_names = []
         steps = []
         if add:
-            steps.append(["redfox-software", "install", "--json", *add])
+            choices = []
+            for item_id in add:
+                if item_id in self.chosen:
+                    choices += ["--choice", f"{item_id}={self.chosen[item_id]}"]
+            steps.append(["redfox-software", "install", "--json", *choices, *add])
         if remove:
             steps.append(["redfox-software", "remove", "--json", *remove])
         self.summary.set_label("Working…")

@@ -18,6 +18,11 @@
 #               optional `icon` is an icon name or a path ($HOME and ~ are
 #               expanded), reported only while the item is installed.
 #
+# A recipe can be installed one of several ways with `choice`: a `name`, its
+# `options` (each an `id` and a `name`; the first is the default) and an
+# optional `current` command that prints the installed option's id. The
+# install command gets the chosen id in $REDFOX_CHOICE.
+#
 # An item can name the graphics it needs with `gpu: amd|nvidia|intel`; on
 # computers without it, the item isn't listed and packs skip it.
 
@@ -164,6 +169,14 @@ packs:
       - io.github.getnf.embellish
       - org.pipewire.Helvum
 
+  - id: ai
+    name: AI
+    section: dev
+    description: An app for AI coding agents, and a chat app for AI models that run on this computer.
+    items:
+      - t3code
+      - com.jeffser.Alpaca
+
   - id: gaming
     name: Gaming
     section: gaming
@@ -202,10 +215,9 @@ packs:
     name: Matt's Bundle
     description: Matt's full set of apps.
     hidden: true
-    includes: [redfox-app-fleet, dev, bluefin-dx, creative, daily, productivity, compatibility, basic, comms]
+    includes: [redfox-app-fleet, dev, bluefin-dx, ai, creative, daily, productivity, compatibility, basic, comms]
     items:
       - antigravity-cli
-      - com.jeffser.Alpaca
 
   - id: dewy
     name: Dewy's Bundle
@@ -470,6 +482,22 @@ items:
       fi
     check: command -v zed &> /dev/null || [ -x "$HOME/.local/bin/zed" ]
     icon: $HOME/.local/zed.app/share/icons/hicolor/512x512/apps/zed.png
+  - id: t3code
+    kind: recipe
+    name: T3 Code
+    summary: A desktop app for AI coding agents such as Codex and Claude Code.
+    install: /usr/libexec/redfox-t3code install
+    remove: /usr/libexec/redfox-t3code remove
+    check: /usr/libexec/redfox-t3code check
+    icon: $HOME/.local/state/redfox/t3code-icon
+    choice:
+      name: Channel
+      current: /usr/libexec/redfox-t3code channel
+      options:
+        - id: stable
+          name: Stable
+        - id: nightly
+          name: Nightly
   - id: antigravity-cli
     kind: recipe
     name: Antigravity CLI

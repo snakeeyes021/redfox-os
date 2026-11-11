@@ -47,7 +47,7 @@
 - [x] **Replace Mission Center** (slow to start, frozen at first, heavy on memory) with a better system monitor: Resources (`net.nokyan.Resources`) for new setups and the Dewy dock. Ctrl+Shift+Esc, Ctrl+Alt+Del on the keypad and Logo Menu's button open it through `redfox-system-monitor`, which falls back to Mission Center where that's all there is.
 - [x] **VS Code:** install the Antigravity extension (`Google.google-antigravity`).
 - [x] **No Antigravity app or Antigravity IDE in the image:** VS Code with the Antigravity extension takes the IDE's place. The Antigravity CLI (`agy`) is installed per user only on request, with `ujust install-antigravity-cli`; it isn't part of `install-dev`.
-- [ ] **Proposed: T3 Code as the agent app,** in place of the Antigravity app: offered as an install (a `ujust` recipe, and in RedFox Hub).
+- [x] **T3 Code in the AI pack (AppImage + Gear Lever, stable or nightly):** a new AI pack (proposed; in Hub's Dev tab, `ujust install-ai`, and Matt's bundle) with T3 Code and Alpaca. T3 Code installs from its official AppImage, checked against its release's own checksums before anything runs, and Gear Lever (installed if missing) adds it to the app grid and keeps it updated on the chosen channel. The channel is a drop-down in Hub, and the terminal asks for it in `ujust install-ai`, `ujust install-t3code` and Full Setup.
 - [ ] **Starship themes:** Bluefin-style and Bazzite-style Starship themes alongside RedFox's own, plus off, chosen with `redfox-terminal`, Hub › Settings › Terminal and a `ujust` configure recipe for each. *(So far: one RedFox-styled prompt, readable on light terminals, opt-in through `redfox-terminal` and Hub; the terminal-app recipes `configure-terminal-default` and `configure-terminal-tilix` exist.)*
     - [x] **Terminal extras, opt-in:** `redfox-terminal` turns two things on or off for bash, zsh and fish: a styled prompt (Starship with RedFox's look, colours that read on light terminals too) and modern command-line tools (eza, ugrep, atuin, zoxide). RedFox Hub's Settings › Terminal has a switch for each.
     - [ ] **Open question: the default theme, and whether Starship is on by default.** Decided after comparing the three side by side in light and dark terminals. RedFox's own theme may be revised first, since its name makes it the natural default.
@@ -205,7 +205,7 @@
 - [ ] A clean-up pass on Hub after real-world use testing.
 - [ ] **Open question:** whether, how much and how to keep Bazzite's portal and settings: keep the Bazzite Portal in the image and adjust it there, integrate it into Hub, or fork GNOME Settings, as part of a broader settings discussion.
 - [x] **Welcome:** a short, cheerful tour of RedFoxOS at first login, in the spirit of GNOME Tour, ending in links to Apps, Settings and the Manual.
-    - [ ] **Proposed, to discuss:** apps still install at the first boot (they would make the ISOs too big). Once they're in, maybe at the second login, a follow-up that helps arrange them. The app grid is already alphabetical by default.
+    - [x] ~~**Proposed, to discuss:** apps still install at the first boot (they would make the ISOs too big). Once they're in, maybe at the second login, a follow-up that helps arrange them.~~ *(Dropped: the app grid is alphabetical by default, so newly installed apps are easy to find.)*
 - [ ] **Settings:** a front end to `redfox-config` / `config.yaml` and RedFox's settings, services and actions (see the setup-GUIs item in Fixups), including the layout picker with the RedFox layout names and previews. *(Done: the layout picker with names and previews, Start at Login, Terminal, Services, Storage, Sound & Music, Full Setup. Left: editing `config.yaml`.)*
     - [x] **"Start in tray at login" toggles, per app** (Signal, Joplin, and any others that support it). Long term there's no automatic autostart: each one is turned on in Hub, and the toggles write or remove the same autostart entries as `ujust configure-autostart-tray`. *(Signal, Joplin, Steam and Dropbox.)*
     - [x] **"MIDI archive folder" setting:** a folder chooser that writes `data_dir` to `~/.config/midikeep/config.yaml` and restarts the `midikeep` user service. Pianola should get the same in its preferences, since it reads the same file. *(Pianola's side: snakeeyes021/pianola#3.)*
@@ -220,6 +220,7 @@
 - [x] **New accounts start in the RedFox layout;** an existing account keeps its layout.
 - [x] **The old RedFox Updater launcher goes:** Hub › Updates is the updater.
 - [ ] **Open question, pinned:** replace Bazaar's Curated page (Bazzite's gaming-first list) with RedFox's own, built from the same packs as Hub's Software? Not decided; no work until it is.
+- [ ] **Open question: rethink app packs vs Hub's app tabs.** Hub's Software page has a Packs tab alongside tabs (Dev, Gaming, Hardware) that are effectively more packs; how should packs and tabs relate?
 - [ ] **Personal config export and import:** save a person's own setup to one file (profile picture, machine-specific tweaks, the VPN server fleet and similar) and use it during bootstrap on a new machine. Passwords and keys in the file are encrypted, and only settings that make sense on another machine are restored.
 
 ## 🖍️ Maniculos (screenshot markup)
@@ -293,7 +294,7 @@
 - [x] Set default hostname, etc (Implemented via static file `files/system/etc/hostname`) -- wrong, need to take a second swing at it (and remove the first attempt) -- Did we get this right? I think we did, but we should determine that and say so if so
 - [ ] Cursor Remote Tunnels fixes from AmyOS
 - [ ] vesktop icons fix (would like to use discord icons in system tray, perhaps different app icon too)
-- [ ] Android studio (add copr repo and package to main recipe) -- Not sure I want to keep this one (there are other methods than baking it in, including brew casks or whatever theyre called; there's one for jetbrains; there's also a ujust that does basically the same thing--both have a pathing issue that needs a workaround on systems with the whole /var/home/ setup)
+- [x] **Android Studio:** not in the default software; revisit if the /home → /var/home problem is fixed upstream.
 - [ ] Bake Ollama
 - [ ] implement 6 openclaw recipes (installs for openclaw, openclaw orchestrator, openclaw worker, and uninstalls for openclaw, orchestrator, and worker) -- see standalone to-do doc
 - [ ] rounded blur issue in blur my shell
@@ -308,7 +309,7 @@
 - [ ] Post-GNOME Builder install fix to reset file associations (GNOME builder steals just about any type of code file, python, json, sh, etc.)
 - [x] Text Editor should not open previous session by default
 - Manual steps still to automate:
-    - [ ] Install T3
+    - [x] Install T3 *(Matt's bundle includes the AI pack.)*
     - [ ] Install Claude Code
     - [ ] GitHub CLI (`configure-git` uses `gh`; make sure it's installed)
     - [ ] Insync folders as Nautilus bookmarks (named with both the local user and the Google account email); maybe also symlinked into Wine prefixes and/or home
