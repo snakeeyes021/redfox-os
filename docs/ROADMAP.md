@@ -39,6 +39,7 @@
 ## 📦 Default Software
 - [x] **Dropbox:** Install official Dropbox client (flatpak)
     - [x] Remove maestral after dropbox is tested and experience is satisfactory (if maestral is not removed, improve maestral uninstall script to remove leftovers)
+    - [x] **Starts at login:** the Flatpak's own "Start Dropbox on system startup" setting can't work from inside the Flatpak, so the image starts Dropbox at login for anyone who has it installed. Hub › Settings › Start at Login can turn it off.
 - [x] **Implement** System-level GNOME Boxes + Virt-Manager
 - [x] **Tailscale:** add to system defaults. *(Bazzite already ships Tailscale, off until `ujust tailscale enable`.)*
 - [x] **No Winboat:** its install and uninstall recipes are gone, and so is FreeRDP, which was only there for it.
@@ -176,6 +177,7 @@
 - [ ] **smooth-overview, hardened:** InjectionManager, safe to enable and disable twice, only the overview's and top bar's own lookups change, and the clock stays centred. Still to do: publish it on extensions.gnome.org.
 - [ ] **Proposed: maximize under a floating dock.** Whenever the dock is floating (it stops short of the screen edges, the same condition smooth-overview follows), a maximized window fills the whole screen except the top bar, covering the dock and its gaps, which is the same area as the smooth-overview work area. This applies to any setup with a floating dock, not particular layouts, and possibly to other docks such as Dash to Panel with margins. Tiled windows, including the full tile from dragging to the top, keep exactly the area and gaps they have today. Edge-to-edge docks and panels, and fullscreen, are unchanged. Possible route: while the dock floats, it stops reserving space and hides while a window is maximized, and Tiling Shell keeps being given the area beside the dock.
 - [ ] **Wash and Nostalgia taskbars:** a taller panel with more room above and below the icons; Wash's start menu centred on the screen; an overview button next to the start button in place of the tiling button, since Super opens the start menu in these layouts; and the same panel content on every monitor (start button, overview button and tray icons). Tray icons only appear on the main panel today, so showing them on every monitor needs its own work.
+- [x] **The taskbar follows "current workspace only":** Settings › Multitasking › App Switching › "Include apps from the current workspace only" now applies to the Nostalgia and Wash taskbar too, as it already did to the dock. While it's on, the taskbar shows only the current workspace's apps. While it's off, Dash to Panel's own switch is left as it is.
 
 ## 💿 RedFoxOS ISO
 *Today the only way to get RedFoxOS is to rebase onto it. The plan: a live ISO per image. See [`docs/iso.md`](iso.md).*
@@ -212,6 +214,7 @@
 - [ ] **Graphical front ends in Hub for RedFox's CLI tools** (later): proper graphical controls for the command-line tools and ujust recipes RedFox ships (for example the Nord configurator), so nobody needs a terminal for them.
 - [ ] **Full setup in one click:** a button in Hub, or at the end of the Welcome, that runs RedFox's full bootstrap for the person's setup (apps, layout, settings), with progress shown and a summary at the end of what was done or skipped.
     - [ ] **Settings › Full Setup:** each profile (Matt, Dewy, Normie, Fedora) with its stages and steps, read from the `bootstrap-*` recipes, and a button that runs it in a terminal window (some steps ask for a password), ending with the recap. Every bootstrap step with a Hub switch uses the same tool as the switch, so Hub shows the result.
+- [x] **Proposed: Settings › Desktop › Clicking an Open App** (in unstable): what clicking an open app in the taskbar or dock does, set for both at once. Previews (one window shows or minimizes it, several show their previews), App Spread, Cycle, or Cycle, Then Minimize; "Other" when either is set in its own settings. The taskbar now defaults to Previews, like the dock.
 - [ ] **Steam doesn't start at login on new accounts:** a switch in Settings › Start at Login turns it on. Accounts that already have Bazzite's entry keep it, shown as on.
 - [ ] **New accounts start in the RedFox layout;** an existing account keeps its layout.
 - [ ] **The old RedFox Updater launcher goes:** Hub › Updates is the updater.
@@ -238,6 +241,7 @@
 - [x] **VM testbed:** `tests/vm/` builds a Bazzite VM, `redfox-test`, and documents three ways to test a feature branch: a hotfix overlay, a local `bluebuild build` plus rebase, or CI's `pr-*` images.
 - [ ] **Rebase from elsewhere now and then:** we normally rebase from Bazzite. Occasionally test rebasing from Bluefin (and other uBlue images) to make sure our setup holds up. Not pressing.
     - [x] Bluefin → RedFox: works; details in `tests/vm/README.md`. It takes about 45 minutes, since the images share no layers. Bluefin-only extensions (Search Light, Logo Menu) disappear without a message, and some packages drop a version until the next update.
+- [x] **Bazzite recipes RedFox follows:** CI checks the Bazzite `ujust` recipes that RedFox has its own versions of (`tests/check_bazzite_recipes.py`), and fails when one changes. Bazzite's November changes are in: CoolerControl's container now has the system bus (its fan curves come back after suspend) and the time zone; RedFox's OpenRazer setup already matched. What RedFox does differently on purpose is noted per recipe in `tests/bazzite-recipes.json`.
 
 ## 🔐 User Config, Secrets & the ujust Audit
 - [ ] **One secrets/config note per user:** the user keeps a single note in their secrets manager (Bitwarden or similar) that is their `~/.config/redfox/config.yaml`. It holds the settings that belong to the user rather than the OS, plus every secret or sensitive value, and RedFox sets everything else up from it automatically. Only a few integrations read it so far (NordVPN, per-machine hostname and quirks); audit which still need wiring.
