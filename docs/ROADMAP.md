@@ -27,7 +27,7 @@
 - [x] **Dash to Dock (Disabled by default, but configured)**
     - [x] **Behavior:** Isolate Workspaces off (`false`); GNOME's App Switching setting "current workspace only" turns it on.
     - [x] **Click Action:** `focus-minimize-or-previews` (focus, minimize, or show previews). Hub › Settings › Desktop › Clicking an Open App changes it.
-    - [x] **Size:** Fixed icon size (Scroll to reveal).
+    - [x] **Size:** Icons shrink to fit when the dock is full, so no app is cut off the end (in every dock layout).
     - [x] **Size:** Icon size limit (56 px).
     - [x] **Appearance:** Shrink the dash (remove edge-to-edge).
 - [ ] **App Grid Defaults**
