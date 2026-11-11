@@ -5,15 +5,19 @@
 #   redfox-autostart on APP...       start APP in the tray at login
 #   redfox-autostart off APP...      stop doing that
 #
-# APP is a Flatpak id (org.signal.Signal, net.cozic.joplin_desktop), or
-# steam for the Steam that comes with the image.
+# APP is a Flatpak id (org.signal.Signal, net.cozic.joplin_desktop,
+# com.dropbox.Client), or steam for the Steam that comes with the image.
 # Opened any other way, the apps open normally. RedFox Hub (Settings) and the
 # configure-autostart-tray recipe are front ends to this.
 set -euo pipefail
 
 AUTOSTART="${XDG_CONFIG_HOME:-$HOME/.config}/autostart"
 APPS="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
-KNOWN=(org.signal.Signal net.cozic.joplin_desktop steam)
+KNOWN=(org.signal.Signal net.cozic.joplin_desktop com.dropbox.Client steam)
+# Dropbox starts at login by default through the image's own entry (for the
+# system-wide Flatpak); an entry of the same name in the account's autostart
+# folder overrides it, on (for a per-user install) or off (Hidden).
+DROPBOX_SYSTEM=/etc/xdg/autostart/com.dropbox.Client.desktop
 # Steam is part of the image; its own launcher starts it minimised with -silent.
 STEAM="$(command -v bazzite-steam 2>/dev/null || echo /usr/bin/bazzite-steam)"
 
@@ -21,6 +25,7 @@ name_of() {
     case "$1" in
         org.signal.Signal) echo Signal ;;
         net.cozic.joplin_desktop) echo Joplin ;;
+        com.dropbox.Client) echo Dropbox ;;
         steam) echo Steam ;;
         *) return 1 ;;
     esac
@@ -50,6 +55,13 @@ is_on() {
     case "$1" in
         org.signal.Signal) grep -qs 'start-in-tray' "$AUTOSTART/org.signal.Signal.desktop" ;;
         net.cozic.joplin_desktop) grep -qs 'redfox-joplin-launch' "$AUTOSTART/net.cozic.joplin_desktop.desktop" ;;
+        com.dropbox.Client)
+            if [ -f "$AUTOSTART/com.dropbox.Client.desktop" ]; then
+                ! grep -qs '^Hidden=true' "$AUTOSTART/com.dropbox.Client.desktop"
+            else
+                [ -f "$DROPBOX_SYSTEM" ] && [ -x /var/lib/flatpak/exports/bin/com.dropbox.Client ]
+            fi
+            ;;
         # Bazzite's own entry (from the account's first login) counts too.
         steam) grep -qs -- '-silent' "$AUTOSTART/steam.desktop" && ! grep -qs 'X-GNOME-Autostart-enabled=false' "$AUTOSTART/steam.desktop" ;;
     esac
@@ -85,6 +97,16 @@ turn_on() {
                     "$src" > "$APPS/net.cozic.joplin_desktop.desktop"
             fi
             ;;
+        com.dropbox.Client)
+            # The image's entry covers the system-wide install: just drop any
+            # override. A per-user install gets an entry of its own.
+            rm -f -- "$AUTOSTART/com.dropbox.Client.desktop"
+            if ! { [ -f "$DROPBOX_SYSTEM" ] && [ -x /var/lib/flatpak/exports/bin/com.dropbox.Client ]; }; then
+                printf '%s\n' '[Desktop Entry]' 'Type=Application' 'Name=Dropbox' 'Icon=com.dropbox.Client' \
+                    "TryExec=$(launcher com.dropbox.Client)" 'Exec=flatpak run com.dropbox.Client' \
+                    'X-Flatpak=com.dropbox.Client' 'X-GNOME-Autostart-Delay=5' > "$AUTOSTART/com.dropbox.Client.desktop"
+            fi
+            ;;
         steam)
             printf '%s\n' '[Desktop Entry]' 'Type=Application' 'Name=Steam' 'Icon=steam' \
                 "TryExec=$STEAM" "Exec=$STEAM -silent %U" 'X-GNOME-Autostart-Delay=5' \
@@ -106,6 +128,12 @@ turn_off() {
                 rm -f -- "$AUTOSTART/net.cozic.joplin_desktop.desktop"
             grep -qs 'redfox-joplin-launch' "$APPS/net.cozic.joplin_desktop.desktop" &&
                 rm -f -- "$APPS/net.cozic.joplin_desktop.desktop"
+            ;;
+        com.dropbox.Client)
+            # Hidden in the account's folder overrides the image's entry.
+            mkdir -p "$AUTOSTART"
+            printf '%s\n' '[Desktop Entry]' 'Type=Application' 'Name=Dropbox' 'Hidden=true' \
+                'X-Flatpak=com.dropbox.Client' > "$AUTOSTART/com.dropbox.Client.desktop"
             ;;
         steam)
             # Ours or Bazzite's: both start Steam with -silent.

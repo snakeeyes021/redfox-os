@@ -1,0 +1,14 @@
+[Desktop Entry]
+# Dropbox (the Flatpak) starts at login for anyone who has it installed, as
+# the desktop client does elsewhere: its own "Start Dropbox on system
+# startup" setting can't work from inside the Flatpak. TryExec skips this
+# entry for everyone without Dropbox. Hub › Settings › Start at Login (or
+# `redfox-autostart off com.dropbox.Client`) turns it off for one account.
+Type=Application
+Name=Dropbox
+Icon=com.dropbox.Client
+TryExec=/var/lib/flatpak/exports/bin/com.dropbox.Client
+Exec=/usr/bin/flatpak run com.dropbox.Client
+X-Flatpak=com.dropbox.Client
+X-GNOME-Autostart-Delay=5
+NoDisplay=true
