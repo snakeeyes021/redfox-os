@@ -201,6 +201,9 @@
 ## 🧩 RedFox Hub
 *One app for RedFox's own tooling, **RedFox Hub** (`tech.redfoxlabs.Hub`), with Welcome, Apps, Updates, Settings and Manual sections.*
 
+- [ ] **Settings, the one place for RedFox's own settings:** Hub › Settings holds every setting RedFox adds on top of GNOME, grouped by what a person wants to change (taskbar, dock, overview, windows, dimming), never by extension name. Settings are added one at a time as people use them, not as a mirror of every extension option. GNOME's Settings app stays for GNOME's own settings, and Hub links to it where they meet; the Extensions app stays available for power users.
+- [ ] A clean-up pass on Hub after real-world use testing.
+- [ ] **Open question:** whether, how much and how to keep Bazzite's portal and settings: keep the Bazzite Portal in the image and adjust it there, integrate it into Hub, or fork GNOME Settings, as part of a broader settings discussion.
 - [x] **Welcome:** a short, cheerful tour of RedFoxOS at first login, in the spirit of GNOME Tour, ending in links to Apps, Settings and the Manual.
     - [ ] **Proposed, to discuss:** apps still install at the first boot (they would make the ISOs too big). Once they're in, maybe at the second login, a follow-up that helps arrange them. The app grid is already alphabetical by default.
 - [ ] **Settings:** a front end to `redfox-config` / `config.yaml` and RedFox's settings, services and actions (see the setup-GUIs item in Fixups), including the layout picker with the RedFox layout names and previews. *(Done: the layout picker with names and previews, Start at Login, Terminal, Services, Storage, Sound & Music, Full Setup. Left: editing `config.yaml`.)*
