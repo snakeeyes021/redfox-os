@@ -17,6 +17,8 @@ Notes, backlog and roadmap entries, past chat logs, and pre-existing code (anyth
 
 ## How software gets into RedFox
 
+This is how RedFox decides what it ships or offers. What we recommend people do themselves (including Homebrew for command-line tools, and layering as a last resort) is in the user manual: `files/hub/data/manual/03-installing-apps.md`.
+
 Before proposing where an app goes, or questioning where one already is, walk this list.
 
 1. **Who is it for?** Everyone, or one profile?
@@ -26,5 +28,3 @@ Before proposing where an app goes, or questioning where one already is, walk th
    - otherwise an AppImage or binary in the user's local bin (AppImages through Gear Lever);
    - otherwise from source or an RPM. Avoid source installs: bake it into the image instead when a source install's friction and risk outweigh the cost of baking it.
 4. **Layering (`rpm-ostree install`) is never the answer.** If most users could reasonably want a package, one of the routes above handles it first.
-
-The user's side, how people install apps themselves, is the manual page `files/hub/data/manual/03-installing-apps.md`.
