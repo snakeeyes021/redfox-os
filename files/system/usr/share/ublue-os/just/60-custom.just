@@ -372,14 +372,14 @@ layout-tiling-default:
 # The grid is alphabetical by default (Alphabetical App Grid, on in the image's
 # default extensions), with GNOME's folders. These recipes change one or the other.
 
-# Keep the app grid alphabetical, and show dock apps in it too
+# Keep the app grid alphabetical
 sort-app-grid:
     # A one-time sort now, so it looks right before the extension loads.
     gsettings reset org.gnome.shell app-picker-layout
     # Alphabetical App Grid keeps it sorted, apps installed later included.
+    # (Dock apps stay in the grid too: Pinned Apps in App Grid is on by
+    # default; default-app-grid turns it off for GNOME's own grid.)
     gnome-extensions enable AlphabeticalAppGrid@stuarthayhurst
-    # Pinned Apps in App Grid keeps dock apps in the grid as well.
-    gnome-extensions enable pinned-apps-in-appgrid@brunosilva.io
 
 # GNOME's own app grid order: new apps go at the end, and icons can be arranged by hand
 default-app-grid:

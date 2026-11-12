@@ -35,7 +35,7 @@
     - [x] **Default:** alphabetical, with folders (Alphabetical App Grid, on by default).
     - [ ] **Folders off, and back on:** `flatten-app-folders` turns them off and `default-app-folders` brings back GNOME's default folders. *(Open question: how well a person's own folders can be restored after turning them off.)*
     - [ ] **GNOME's own order (not alphabetical), and back:** for vanilla-Fedora users and anyone who prefers it; `default-app-grid` exists. *(Open question: how well the original order comes back after switching to alphabetical and back.)*
-    - [ ] **Behavior:** Pinning to dock must not remove from grid. *(On in the profiles through `sort-app-grid` (Pinned Apps in App Grid); not yet on by default.)*
+    - [x] **Behavior:** Pinning to dock must not remove from grid. *(Default for everyone; the Fedora profile restores vanilla GNOME.)*
 - [x] **Default dock apps:** Files, Firefox, Calculator, Text Editor, Bazaar and Settings, in that order (`org.gnome.shell favorite-apps`), then RedFox Hub, last, once Hub is in the image, in place of the set inherited from Bazzite. Only apps that are in the image or installed automatically at the first boot go in the default dock. Each layout keeps its own set.
 
 ## 📦 Default Software
