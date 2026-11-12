@@ -23,6 +23,13 @@ intellihide=false
 hot-keys=false
 scroll-action='do-nothing'
 
+[org/gnome/shell/extensions/smooth-overview]
+# Whenever the dock floats (it stops short of the screen edges, as in the
+# RedFox and Cal layouts), a maximized window fills the screen below the top
+# bar, over the dock and its gaps, and the dock hides over it. Tiling and
+# fullscreen don't change, and nor do edge-to-edge docks and panels.
+maximize-over-floating-dock=true
+
 [org/gnome/shell/extensions/dash-to-panel]
 # The taskbar (Nostalgia, Wash) clicks like the dock above: one window shows
 # or minimizes it, several show their previews. Hub › Settings › Desktop
