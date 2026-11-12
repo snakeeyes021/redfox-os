@@ -31,7 +31,7 @@ PROFILES = [
     dict(id="normie", name="Normie",
          summary="A simple everyday setup: the basic apps, an easy layout and plain settings."),
     dict(id="fedora", name="Fedora",
-         summary="GNOME as Fedora ships it: its own layout and settings, with no extra apps."),
+         summary="GNOME as Fedora ships it: its apps, its own layout and settings."),
 ]
 
 

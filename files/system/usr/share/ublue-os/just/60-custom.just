@@ -706,6 +706,10 @@ install-dewy:
 install-normie:
     /usr/bin/redfox-software install normie
 
+# Install Fedora's Apps (the apps Fedora Workstation ships that RedFox lacks)
+install-fedora:
+    /usr/bin/redfox-software install fedora
+
 
 # Level 3: Organisms (User Bootstraps & Configs)
 
@@ -1041,7 +1045,7 @@ bootstrap-matt: _reset-bootstrap-recap configure-matt install-matt theme-matt la
 bootstrap-dewy: _reset-bootstrap-recap configure-dewy install-dewy theme-dewy layout-dewy _print-bootstrap-recap
 
 # Bootstrap Fedora
-bootstrap-fedora: _reset-bootstrap-recap theme-fedora layout-fedora configure-fedora _print-bootstrap-recap
+bootstrap-fedora: _reset-bootstrap-recap install-fedora theme-fedora layout-fedora configure-fedora _print-bootstrap-recap
 
 # Bootstrap Normie
 bootstrap-normie: _reset-bootstrap-recap install-normie theme-normie layout-normie configure-normie _print-bootstrap-recap

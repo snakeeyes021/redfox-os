@@ -125,8 +125,8 @@
     - [x] `install-matt`: Combines `install-dev`, `install-music`, `install-creative`, `install-productivity`, and `install-daily` if it is created.
     - [x] `install-dewy`
     - [x] `install-normie`: Combines `install-productivity`, `install-creative`, and `install-daily` if it is created.
-    - [ ] `install-fedora`: installs the apps Fedora Workstation ships, so `bootstrap-fedora` gets close to vanilla Fedora in one click. (The profiles let a RedFox user get close to vanilla Fedora, to Bluefin in a few clicks, or to a Bazzite-like look, as well as two developer setups.) **Open question:** how to give `bootstrap-fedora` the Fedora app set most cleanly: a Fedora app pack via `ujust`, a list inside the bootstrapper, or something else, since today's packs overlap the Fedora list.
-        - [ ] A short proposal with two or three options and their trade-offs.
+    - [x] `install-fedora`: installs the apps Fedora Workstation ships, so `bootstrap-fedora` gets close to vanilla Fedora in one click. (The profiles let a RedFox user get close to vanilla Fedora, to Bluefin in a few clicks, or to a Bazzite-like look, as well as two developer setups.) *(Done as a "Fedora's Apps" pack in the software catalog, also in Hub: the apps in Fedora 45's Workstation package groups that RedFox doesn't already have. Calendar, Clocks, Contacts, Maps, Weather, Camera, Document Scanner, LibreOffice and Fedora Media Writer. GNOME Software is left out, since Bazaar is RedFox's store, and so is GNOME System Monitor, which isn't on Flathub (RedFox has Resources).)*
+        - [x] A short proposal with two or three options and their trade-offs.
 
 - [ ] **Config Molecules (User/Tool Setup):**
     - [ ] `configure-matt`:
@@ -164,7 +164,7 @@
 ### Level 3: Organisms (User Bootstraps)
 - [x] `bootstrap-matt`: Runs `configure-matt`, `install-matt`, `theme-matt`, `layout-matt`, then a recap of what was done or skipped.
 - [x] `bootstrap-dewy`: Runs `configure-dewy`, `install-dewy`, `theme-dewy`, `layout-dewy`, then the recap.
-- [x] `bootstrap-fedora`: Runs `theme-fedora`, `layout-fedora`, `configure-fedora` (no install), then the recap.
+- [x] `bootstrap-fedora`: Runs `install-fedora`, `theme-fedora`, `layout-fedora`, `configure-fedora`, then the recap.
 - [x] `bootstrap-normie`: Runs `install-normie`, `theme-normie`, `layout-normie`, `configure-normie`, then the recap.
 
 ## 🪟 Layout Modes

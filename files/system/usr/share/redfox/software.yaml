@@ -132,6 +132,20 @@ packs:
       - org.cvfosammmm.Setzer
       - ch.theologeek.Manuskript
 
+  - id: fedora
+    name: Fedora's Apps
+    description: The apps Fedora Workstation comes with that RedFox doesn't already have.
+    items:
+      - org.gnome.Calendar
+      - org.gnome.clocks
+      - org.gnome.Contacts
+      - org.gnome.Maps
+      - org.gnome.Weather
+      - org.gnome.Snapshot
+      - org.gnome.SimpleScan
+      - org.libreoffice.LibreOffice
+      - org.fedoraproject.MediaWriter
+
   - id: compatibility
     name: Windows Compatibility
     description: Run Windows programs.
@@ -261,6 +275,10 @@ items:
     kind: flatpak
     name: Camera
     summary: Take photos and videos with your webcam.
+  - id: org.fedoraproject.MediaWriter
+    kind: flatpak
+    name: Fedora Media Writer
+    summary: Write operating system images to USB drives.
   - id: org.gnome.clocks
     kind: flatpak
     name: Clocks

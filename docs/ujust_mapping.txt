@@ -148,6 +148,17 @@ ujust install-daily
 ujust install-productivity
 install-comms
 
+ujust install-fedora:               # Fedora Workstation's apps that RedFox lacks
+org.gnome.Calendar                  # Calendar
+org.gnome.clocks                    # Clocks
+org.gnome.Contacts                  # Contacts
+org.gnome.Maps                      # Maps
+org.gnome.Weather                   # Weather
+org.gnome.Snapshot                  # Camera
+org.gnome.SimpleScan                # Document Scanner
+org.libreoffice.LibreOffice         # LibreOffice
+org.fedoraproject.MediaWriter       # Fedora Media Writer
+
 
 CONFIG
 ujust configure-dev:

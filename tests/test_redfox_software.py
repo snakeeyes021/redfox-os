@@ -27,6 +27,7 @@ loader.exec_module(rs)
 # Non-Flatpak items use the catalog's recipe slugs.
 TODAY = {
     "ai": ['com.jeffser.Alpaca', 't3code'],
+    "fedora": ['org.fedoraproject.MediaWriter', 'org.gnome.Calendar', 'org.gnome.Contacts', 'org.gnome.Maps', 'org.gnome.SimpleScan', 'org.gnome.Snapshot', 'org.gnome.Weather', 'org.gnome.clocks', 'org.libreoffice.LibreOffice'],
     "audio": ['info.puredata.Pd', 'net.purrdata.PurrData', 'net.sourceforge.VMPK', 'org.ardour.Ardour', 'org.audacityteam.Audacity', 'org.pipewire.Helvum', 'soundthread', 'tech.redfoxlabs.Pianola'],
     "basic": ['org.gnome.Calendar', 'org.gnome.Contacts', 'org.gnome.Maps', 'org.gnome.Snapshot', 'org.gnome.Weather', 'org.gnome.World.PikaBackup', 'org.gnome.clocks'],
     "bluefin-dx": ['de.leopoldluley.Clapgrep', 'io.github.getnf.embellish', 'io.github.ronniedroid.concessio', 'me.iepure.devtoolbox', 'org.freedesktop.Bustle', 'org.pipewire.Helvum'],
@@ -111,8 +112,8 @@ class TestCatalog(unittest.TestCase):
         for pack_id, expected in TODAY.items():
             self.assertEqual(sorted(self.catalog.resolve(pack_id)), sorted(expected), pack_id)
         # The Gaming and Hardware packs are new, built from Bazzite's own
-        # recipes, and so is the AI pack; every other pack replaced an
-        # install-* recipe.
+        # recipes, and so are the AI and Fedora packs; every other pack
+        # replaced an install-* recipe.
         self.assertEqual(set(TODAY), {pid for pid, pack in self.catalog.pack_by_id.items()
                                       if pack["section"] in ("packs", "dev")})
 
