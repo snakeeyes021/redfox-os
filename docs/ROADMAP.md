@@ -21,8 +21,9 @@
 - [x] **Keyboard Shortcuts Strategy**
     - [x] Determine which shortcuts should be controlled by GNOME and which by Tiling Shell (the below might not all be correct)
         - [x] Navigation: `Ctrl`+`Super`+`Arrow` (Workspaces).
-        - [x] Window Move: `Shift`+`Super`+`Arrow`.
-        - [x] Tiling Snap: `Super`+`Arrow`.
+        - [x] Window Focus: `Super`+`Arrow` (the neighbouring window).
+        - [x] Window Move (to a tile): `Super`+`Alt`+`Arrow`.
+        - [x] Window Span: `Shift`+`Super`+`Arrow`.
         - [x] Close Window: `Super`+`q`.
 - [x] **Dash to Dock (Disabled by default, but configured)**
     - [x] **Behavior:** Isolate Workspaces off (`false`); GNOME's App Switching setting "current workspace only" turns it on. *(Isolate Workspaces on (`true`) is Dewy's setting: `layout-dewy` turns on GNOME's App Switching "current workspace only", which the dock follows, so it survives layout switches.)*
