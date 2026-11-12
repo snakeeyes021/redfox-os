@@ -1,10 +1,20 @@
 #!/usr/bin/bash
 # redfox-terminal: the two optional terminal extras, each on or off by itself.
 #
-#   redfox-terminal status [--json]   {"prompt": true|false, "tools": true|false}
+#   redfox-terminal status [--json]   {"prompt": true|false, "tools": true|false,
+#                                      "theme": "<id>"}
 #   redfox-terminal prompt on|off|status
-#                                     the styled prompt: Starship with RedFox's
-#                                     look. Looks only; commands are unchanged.
+#                                     the styled prompt: Starship, in the theme
+#                                     chosen below (RedFox's own unless another
+#                                     is chosen). Looks only; commands are
+#                                     unchanged.
+#   redfox-terminal prompt themes [--json]
+#                                     the themes: RedFox's own, Starship's
+#                                     default and Starship's official presets
+#                                     ({"on", "current", "own_config",
+#                                       "themes": [{"id", "name", "nerd_font"}]})
+#   redfox-terminal prompt theme <id>
+#                                     use that theme (and turn the prompt on)
 #   redfox-terminal tools on|off|status
 #                                     modern command-line tools: eza for ls,
 #                                     ugrep for grep, atuin for Ctrl+R history,
@@ -18,6 +28,10 @@ set -euo pipefail
 BREW=/home/linuxbrew/.linuxbrew/bin/brew
 CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}"
 TOOLS=(eza ugrep atuin zoxide bat fd ripgrep)
+# The prompt themes (id, name, file, uses Nerd Font symbols), and the one
+# chosen. /etc/profile.d/redfox-starship.sh (and its fish twin) read the same.
+THEMES="${REDFOX_STARSHIP_THEMES:-/usr/share/redfox/starship/themes/themes.tsv}"
+THEME_FILE="$CONFIG/redfox/starship-theme"
 
 # shell name, startup file
 rc_files() {
@@ -81,19 +95,80 @@ switch() { # $1 = prompt|tools, $2 = on|off
     fi
 }
 
+themes() { grep -v '^#' "$THEMES"; }
+
+current_theme() {
+    local id=""
+    [ -f "$THEME_FILE" ] && id=$(head -n1 "$THEME_FILE")
+    if [ -n "$id" ] && themes | cut -f1 | grep -qxF "$id"; then echo "$id"; else echo redfox; fi
+}
+
+json_string() { printf '"%s"' "$(printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g')"; }
+
+list_themes() { # $1 = --json or empty
+    local current; current=$(current_theme)
+    if [ "${1:-}" = --json ]; then
+        local first=1
+        printf '{"on": %s, "current": %s, "own_config": %s, "themes": [' \
+            "$(is_on prompt && echo true || echo false)" "$(json_string "$current")" \
+            "$([ -e "$CONFIG/starship.toml" ] && echo true || echo false)"
+        while IFS=$'\t' read -r id name _file nerd; do
+            [ $first = 1 ] || printf ', '
+            first=0
+            printf '{"id": %s, "name": %s, "nerd_font": %s}' "$(json_string "$id")" \
+                "$(json_string "$name")" "$([ "$nerd" = yes ] && echo true || echo false)"
+        done < <(themes)
+        printf ']}\n'
+    else
+        while IFS=$'\t' read -r id name _file nerd; do
+            mark=" "; [ "$id" = "$current" ] && mark="*"
+            note=""; [ "$nerd" = yes ] && note=" (Nerd Font symbols)"
+            printf '%s %-22s %s%s\n' "$mark" "$id" "$name" "$note"
+        done < <(themes)
+    fi
+}
+
+set_theme() { # $1 = id
+    if ! themes | cut -f1 | grep -qxF "$1"; then
+        echo "redfox-terminal: no prompt theme \"$1\" (see: redfox-terminal prompt themes)" >&2
+        exit 2
+    fi
+    mkdir -p "$(dirname "$THEME_FILE")"
+    echo "$1" > "$THEME_FILE"
+    if [ -e "$CONFIG/starship.toml" ]; then
+        echo "Note: your own $CONFIG/starship.toml is used instead of a theme while it exists."
+    fi
+    if is_on prompt; then
+        echo "Theme set. New terminal windows show it."
+    else
+        switch prompt on
+    fi
+}
+
 case "${1:-}" in
     status)
         p=false t=false
         is_on prompt && p=true
         is_on tools && t=true
         if [ "${2:-}" = --json ]; then
-            printf '{"prompt": %s, "tools": %s}\n' "$p" "$t"
+            printf '{"prompt": %s, "tools": %s, "theme": %s}\n' "$p" "$t" "$(json_string "$(current_theme)")"
         else
             echo "prompt: $p"
             echo "tools: $t"
+            echo "theme: $(current_theme)"
         fi
         ;;
-    prompt|tools)
+    prompt)
+        case "${2:-}" in
+            on|off) switch prompt "$2" ;;
+            status) if is_on prompt; then echo on; else echo off; fi ;;
+            themes) list_themes "${3:-}" ;;
+            theme) [ -n "${3:-}" ] || { echo "Usage: redfox-terminal prompt theme <id>" >&2; exit 2; }
+                   set_theme "$3" ;;
+            *) echo "Usage: redfox-terminal prompt on|off|status|themes|theme <id>" >&2; exit 2 ;;
+        esac
+        ;;
+    tools)
         case "${2:-}" in
             on|off) switch "$1" "$2" ;;
             status) if is_on "$1"; then echo on; else echo off; fi ;;
@@ -101,7 +176,7 @@ case "${1:-}" in
         esac
         ;;
     *)
-        sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'
+        sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'
         exit 2
         ;;
 esac

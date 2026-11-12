@@ -1,0 +1,15 @@
+# id	name	file	nerd font
+redfox	RedFox	/usr/share/redfox/starship.toml	no
+starship	Starship's Default	/usr/share/redfox/starship/themes/starship.toml	no
+bracketed-segments	Bracketed Segments	/usr/share/redfox/starship/themes/bracketed-segments.toml	no
+catppuccin-powerline	Catppuccin Powerline	/usr/share/redfox/starship/themes/catppuccin-powerline.toml	yes
+gruvbox-rainbow	Gruvbox Rainbow	/usr/share/redfox/starship/themes/gruvbox-rainbow.toml	yes
+jetpack	Jetpack	/usr/share/redfox/starship/themes/jetpack.toml	yes
+nerd-font-symbols	Nerd Font Symbols	/usr/share/redfox/starship/themes/nerd-font-symbols.toml	yes
+no-empty-icons	No Empty Icons	/usr/share/redfox/starship/themes/no-empty-icons.toml	no
+no-nerd-font	No Nerd Fonts	/usr/share/redfox/starship/themes/no-nerd-font.toml	no
+no-runtime-versions	No Runtime Versions	/usr/share/redfox/starship/themes/no-runtime-versions.toml	no
+pastel-powerline	Pastel Powerline	/usr/share/redfox/starship/themes/pastel-powerline.toml	yes
+plain-text-symbols	Plain Text Symbols	/usr/share/redfox/starship/themes/plain-text-symbols.toml	no
+pure-preset	Pure	/usr/share/redfox/starship/themes/pure-preset.toml	no
+tokyo-night	Tokyo Night	/usr/share/redfox/starship/themes/tokyo-night.toml	yes

@@ -115,6 +115,15 @@ class SettingsSection(Section):
             page.add(group)
             self.toggle_groups[group_id] = group
         self.toggle_rows = []
+        # The styled prompt is a choice of theme rather than a switch: Off,
+        # then redfox-terminal's themes. It takes the prompt switch's place.
+        self.prompt_row = Adw.ComboRow(visible=False)
+        self.prompt_row.add_prefix(Gtk.Image(icon_name="utilities-terminal-symbolic"))
+        self.prompt_row.set_use_markup(False)
+        self.prompt_ids = []
+        self.prompt_subtitle = ""
+        self._prompt_guard = True
+        self.prompt_row.connect("notify::selected", self._on_prompt_selected)
         # One-off actions (redfox-actions) after the switches in their group.
         self.actions = []
         self.action_rows = []
@@ -216,6 +225,8 @@ class SettingsSection(Section):
         for group, row in self.toggle_rows:
             group.remove(row)
         self.toggle_rows = []
+        if self.prompt_row.get_parent():
+            self.toggle_groups["terminal"].remove(self.prompt_row)
         if self.midi_row.get_parent():
             self.toggle_groups["sound"].remove(self.midi_row)
         if error:
@@ -223,6 +234,14 @@ class SettingsSection(Section):
         for toggle in data.get("toggles", []):
             group = self.toggle_groups.get(toggle["group"])
             if group is None:
+                continue
+            if toggle["id"] == "prompt":
+                self.prompt_row.set_title(toggle["title"])
+                self.prompt_subtitle = toggle["subtitle"]
+                group.add(self.prompt_row)
+                group.set_visible(True)
+                host.run_json(["redfox-terminal", "prompt", "themes", "--json"],
+                              self._on_prompt_themes)
                 continue
             row = Adw.SwitchRow(title=toggle["title"], subtitle=toggle["subtitle"])
             if toggle["on"] is None:
@@ -236,6 +255,45 @@ class SettingsSection(Section):
             if toggle["id"] == "midikeep":
                 group.add(self.midi_row)
         self._place_actions()
+
+    # The prompt's theme
+
+    def _on_prompt_themes(self, data, error):
+        if error or not data:
+            self.prompt_row.set_visible(False)
+            return
+        themes = data.get("themes", [])
+        self.prompt_ids = [None] + [t["id"] for t in themes]
+        names = ["Off"] + [t["name"] for t in themes]
+        index = self.prompt_ids.index(data["current"]) if data.get("on") and \
+            data.get("current") in self.prompt_ids else 0
+        self._prompt_guard = True
+        self.prompt_row.set_model(Gtk.StringList.new(names))
+        self.prompt_row.set_selected(index)
+        self._prompt_guard = False
+        subtitle = self.prompt_subtitle
+        if data.get("own_config"):
+            subtitle += " Your own ~/.config/starship.toml is used while it exists."
+        self.prompt_row.set_subtitle(subtitle)
+        self.prompt_row.set_sensitive(True)
+        self.prompt_row.set_visible(True)
+
+    def _on_prompt_selected(self, row, _param):
+        if self._prompt_guard or row.get_selected() >= len(self.prompt_ids):
+            return
+        theme = self.prompt_ids[row.get_selected()]
+        argv = (["redfox-terminal", "prompt", "off"] if theme is None
+                else ["redfox-terminal", "prompt", "theme", theme])
+        row.set_sensitive(False)
+
+        def done(returncode, output):
+            if returncode != 0:
+                lines = output.strip().splitlines()
+                self.window.toast(lines[-1] if lines else "That didn't change")
+            host.run_json(["redfox-terminal", "prompt", "themes", "--json"],
+                          self._on_prompt_themes)
+
+        host.run(argv, on_done=done)
 
     def _on_actions(self, found):
         self.actions = found

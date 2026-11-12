@@ -719,6 +719,22 @@ install-fedora:
 configure-keybindings-default:
     gsettings reset-recursively org.gnome.shell.keybindings
 
+# Choose the terminal prompt's theme: RedFox's own, Starship's default, one of Starship's presets, or off
+configure-terminal-prompt THEME="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    theme="{{ THEME }}"
+    if [ -z "$theme" ]; then
+        redfox-terminal prompt themes
+        mapfile -t ids < <(redfox-terminal prompt themes | awk '{ print ($1 == "*") ? $2 : $1 }')
+        theme=$(ugum choose off "${ids[@]}")
+    fi
+    if [ "$theme" = off ]; then
+        redfox-terminal prompt off
+    else
+        redfox-terminal prompt theme "$theme"
+    fi
+
 # Enable Tilix as the default terminal (Shortcuts + Context Menu)
 configure-terminal-tilix:
     @echo "Activating Tilix integration..."
