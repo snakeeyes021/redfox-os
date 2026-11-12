@@ -26,7 +26,7 @@
         - [x] Close Window: `Super`+`q`.
 - [x] **Dash to Dock (Disabled by default, but configured)**
     - [x] **Behavior:** Isolate Workspaces off (`false`); GNOME's App Switching setting "current workspace only" turns it on. *(Isolate Workspaces on (`true`) is Dewy's setting: `layout-dewy` turns on GNOME's App Switching "current workspace only", which the dock follows, so it survives layout switches.)*
-    - [x] **Click Action:** `minimize-or-previews` (Focus, minimize, or show previews). *(The image uses `focus-minimize-or-previews`, and each layout has its own click default since 2026-11-11; Hub › Settings › Desktop › Clicking an Open App changes it.)*
+    - [x] **Click Action:** `focus-minimize-or-previews` (Focus, minimize, or show previews).
     - [x] **Size:** Fixed icon size (Scroll to reveal).
     - [x] **Size:** Icon size limit (40px). *(40 px is layout-dewy's; the system default is 56 px)*
     - [x] **Appearance:** Shrink the dash (remove edge-to-edge).
@@ -157,7 +157,7 @@
         - [x] Runs `set-window-controls-right-full`.
         - [x] Runs `preset-dock-ubuntu` (or custom Dewy dock settings).
     - [x] `layout-fedora`: "Reset" recipe to restore Vanilla Fedora layout.
-    - [ ] `layout-normie`: the flexible layout switcher is Hub's layout picker (done). **Proposed:** the normie profile doesn't change the layout at all, keeping whatever the person has (RedFox's default unless they picked another). *(Today the recipe sets an alphabetical grid with GNOME's folders, window buttons on the left and default tiling.)*
+    - [x] `layout-normie`: the flexible layout switcher is Hub's layout picker (done). The normie profile doesn't change the layout at all, keeping whatever the person has (RedFox's default unless they picked another). *(`bootstrap-normie` no longer runs `layout-normie`.)*
 
 - [ ] **Theme Molecules (Visuals/Assets):**
     - [ ] `theme-matt`: Sets wallpapers, GTK theme (Adwaita Dark), Icons. *(Exists, for the text editor theme, sound and window corners; left: wallpapers, GTK theme, icons.)*
@@ -168,7 +168,7 @@
 - [x] `bootstrap-matt`: Runs `install-matt`, `theme-matt`, `layout-matt`, `configure-matt`. *(Current order: `configure-matt`, `install-matt`, `theme-matt`, `layout-matt`, then a recap of what was done or skipped.)*
 - [x] `bootstrap-dewy`: Runs `install-dewy`, `theme-dewy`, `layout-dewy`, `configure-dewy`. *(Current order: `configure-dewy`, `install-dewy`, `theme-dewy`, `layout-dewy`, then the recap.)*
 - [x] `bootstrap-fedora`: Runs `theme-fedora`, `layout-fedora`, `configure-fedora` ~~(no install-fedora)~~. *(Current order: `install-fedora`, `theme-fedora`, `layout-fedora`, `configure-fedora`, then the recap.)*
-- [x] `bootstrap-normie`: Runs `install-normie`, `theme-normie`, `layout-normie`, `configure-normie`. *(Then the recap.)*
+- [x] `bootstrap-normie`: Runs `install-normie`, `theme-normie`, `layout-normie`, `configure-normie`. *(Then the recap. It no longer runs `layout-normie`: the normie profile leaves the layout alone.)*
 
 ## 🪟 Layout Modes
 *`redfox-layout list/get/set` switches between the RedFox, GNOME, Ubuntu, Cal, Wash and Nostalgia layouts without logging out, and the `preset-dock-*` recipes call it. Wash and Nostalgia use Dash to Panel + ArcMenu.*

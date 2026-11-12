@@ -1067,4 +1067,4 @@ bootstrap-dewy: _reset-bootstrap-recap configure-dewy install-dewy theme-dewy la
 bootstrap-fedora: _reset-bootstrap-recap install-fedora theme-fedora layout-fedora configure-fedora _print-bootstrap-recap
 
 # Bootstrap Normie
-bootstrap-normie: _reset-bootstrap-recap install-normie theme-normie layout-normie configure-normie _print-bootstrap-recap
+bootstrap-normie: _reset-bootstrap-recap install-normie theme-normie configure-normie _print-bootstrap-recap
