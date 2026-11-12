@@ -26,9 +26,9 @@
         - [x] Close Window: `Super`+`q`.
 - [x] **Dash to Dock (Disabled by default, but configured)**
     - [x] **Behavior:** Isolate Workspaces off (`false`); GNOME's App Switching setting "current workspace only" turns it on. *(Isolate Workspaces on (`true`) is Dewy's setting, applied in `layout-dewy`.)*
-    - [x] **Click Action:** `focus-minimize-or-previews` (focus, minimize, or show previews). Hub › Settings › Desktop › Clicking an Open App changes it.
+    - [x] **Click Action:** `minimize-or-previews` (Focus, minimize, or show previews). *(The image uses `focus-minimize-or-previews`, and each layout has its own click default since 2026-11-11; Hub › Settings › Desktop › Clicking an Open App changes it.)*
     - [x] **Size:** Icons shrink to fit when the dock is full, so no app is cut off the end (in every dock layout).
-    - [x] **Size:** Icon size limit (56 px).
+    - [x] **Size:** Icon size limit (40px). *(The image uses 56 px; icons shrink to fit since the 2026-11-11 clipping fix.)*
     - [x] **Appearance:** Shrink the dash (remove edge-to-edge).
 - [ ] **App Grid Defaults**
     - [x] **Default:** alphabetical, with folders (Alphabetical App Grid, on by default).
@@ -69,10 +69,10 @@
 
 ### Level 1: Atoms (Single-Purpose Scripts)
 - [ ] `configure-git`: Interactive setup (User/Email/SSH) using `gh` CLI. *(A stub so far.)*
-- [x] `setup-vscode` (now the user-setup hook `90-vscode.sh`; the `configure-vscode` recipe is still a stub):
+- [x] `setup-vscode`: *(Now the user-setup hook `90-vscode.sh`; the `configure-vscode` recipe is still a stub.)*
     - [x] **Task:** Compile final list of extensions.
     - [x] **Task:** Implement `jq` script to inject settings (Theme, Fonts, etc.).
-- [x] `setup-cursor`: Mirror `setup-vscode` logic (also in `90-vscode.sh`).
+- [x] `setup-cursor`: Mirror `setup-vscode` logic. *(Also in `90-vscode.sh`.)*
 - [x] `install-zed`: Script to install Zed via `curl | sh` to `~/.local`.
 - [x] `install-gemini-cli`: `brew install gemini-cli`. (deprecated/removed)
 - [ ] `configure-heroic`: *(a stub so far)*
@@ -81,14 +81,14 @@
         - `sudo flatpak override --filesystem=xdg-data/themes`
         - `sudo flatpak mask org.gtk.Gtk3theme.adw-gtk3`
         - `sudo flatpak mask org.gtk.Gtk3theme.adw-gtk3-dark`
-    - [x] `layout-tiling-dewy` (Deviation):
+    - [x] `configure-tiling-dewy` (Deviation): *(now `layout-tiling-dewy`)*
         - [x] Show Indicator = true, Gaps (Inner/Outer) = 0.
         - [x] Enable Snap Assistant = false.
         - [x] **Keybindings:** Move (Super+Arrow), Cycle (Ctrl+Right Arrow), Focus (Remove Super+Arrow).
-    - [x] `layout-tiling-default` (Reset): Revert Tiling Shell extension to system defaults.
+    - [x] `configure-tiling-default` (Reset): Revert Tiling Shell extension to system defaults. *(now `layout-tiling-default`)*
     - [x] `configure-text-editor-dev` (Deviation):
         - [x] Indentation: Spaces, 4 per tab/indent.
-    - [x] `theme-text-editor-dewy` (Deviation):
+    - [x] `configure-text-editor-dewy-visuals` (Deviation): *(now `theme-text-editor-dewy`)*
         - [x] Dark Mode, Line Numbers, Overview Map, Highlight Current Line.
     - [x] `configure-text-editor-reset` (Reset): Revert indentation and visuals to system defaults.
     - [x] `set-window-controls-right-full` (Deviation): Sets `:minimize,maximize,close`.
@@ -99,7 +99,10 @@
     - [x] `flatten-app-folders` (Deviation): Puts every app in the main grid, with no folders.
     - [x] `default-app-folders` (Reset): Restores the default app folders.
     - [x] `preset-dock-gnome` (Reset): Reset to default Gnome Dash (dash in overview)
-    - [x] `preset-dock-redfox` (Hybrid): the RedFox layout through `redfox-layout`. The layout helper extension switches between a floating dock on big screens and the GNOME dash on small ones, live, with no logout.
+    - [x] `_preset-dock-redfox` (Hybrid): TODO: A hacky stub of a recipe has been implemented; it works, but should be considered a proof of concept. *(Now `preset-dock-redfox`: the RedFox layout through `redfox-layout`. The layout helper extension switches between a floating dock on big screens and the GNOME dash on small ones, live, with no logout.)*
+        - Default behavior will be to automatically switch between GNOME style dash and redfox style dock depending on monitor size (and scaling) -- this means we may need to create an additional recipe that sets the user to the default switching behavior and likely a systemd service to monitor monitor size(s)
+        - The stub recipe requires logging out and logging in any time it is switched to or from
+        - A true fix will likely involve forking (or getting a PR accepted with) Dash to Dock.
         - [x] Don't disable overview on startup (in dash to dock) -- it's a nice touch starting up to the overview
         - [x] Clock and Overview search should probably remain centered even if the usable workspace size changes
     - [x] `preset-dock-ubuntu` (Deviation): Configure Dash to Dock (Left side). Turn on Dash to Dock.
@@ -162,10 +165,10 @@
     - [x] `theme-fedora`: Reset visuals to default.
 
 ### Level 3: Organisms (User Bootstraps)
-- [x] `bootstrap-matt`: Runs `configure-matt`, `install-matt`, `theme-matt`, `layout-matt`, then a recap of what was done or skipped.
-- [x] `bootstrap-dewy`: Runs `configure-dewy`, `install-dewy`, `theme-dewy`, `layout-dewy`, then the recap.
-- [x] `bootstrap-fedora`: Runs `install-fedora`, `theme-fedora`, `layout-fedora`, `configure-fedora`, then the recap.
-- [x] `bootstrap-normie`: Runs `install-normie`, `theme-normie`, `layout-normie`, `configure-normie`, then the recap.
+- [x] `bootstrap-matt`: Runs `install-matt`, `theme-matt`, `layout-matt`, `configure-matt`. *(Current order: `configure-matt`, `install-matt`, `theme-matt`, `layout-matt`, then a recap of what was done or skipped.)*
+- [x] `bootstrap-dewy`: Runs `install-dewy`, `theme-dewy`, `layout-dewy`, `configure-dewy`. *(Current order: `configure-dewy`, `install-dewy`, `theme-dewy`, `layout-dewy`, then the recap.)*
+- [x] `bootstrap-fedora`: Runs `theme-fedora`, `layout-fedora`, `configure-fedora` ~~(no install-fedora)~~. *(Current order: `install-fedora`, `theme-fedora`, `layout-fedora`, `configure-fedora`, then the recap.)*
+- [x] `bootstrap-normie`: Runs `install-normie`, `theme-normie`, `layout-normie`, `configure-normie`. *(Then the recap.)*
 
 ## 🪟 Layout Modes
 *`redfox-layout list/get/set` switches between the RedFox, GNOME, Ubuntu, Cal, Wash and Nostalgia layouts without logging out, and the `preset-dock-*` recipes call it. Wash and Nostalgia use Dash to Panel + ArcMenu.*
