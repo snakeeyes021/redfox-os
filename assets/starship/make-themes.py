@@ -9,18 +9,18 @@ Font symbols). In the presets that show Starship's `os` module, the fox
 replaces the symbol for the systems Starship can report RedFox as (it reads
 /etc/os-release; RedFox's ID isn't one it knows, so it falls back to Fedora).
 
-The fox is FOX below. While it's None the presets keep Starship's own OS
-symbols and RedFox's own prompt (files/system/usr/share/redfox/starship.toml)
-is left as it is. Set it (to RedFox's symbolic fox glyph, once chosen) and
-run this again to put it in every preset that shows the OS, and in RedFox's
-own prompt.
+The fox is FOX below: RedFox's fox-face symbol, U+10F000 in the RedFox
+Symbols font (assets/fox-glyph/), which has no colour of its own and takes
+the preset's colours. None leaves Starship's own symbols. RedFox's own prompt
+(files/system/usr/share/redfox/starship.toml) isn't touched: it keeps its 🦊.
 
 Usage: assets/starship/make-themes.py   (from the repository root)
 """
 import os
 import re
 
-FOX = None
+# RedFox's fox face in the RedFox Symbols font (fonts/redfox-symbols).
+FOX = "\U0010F000"
 STARSHIP_VERSION = "1.27.0"
 # The os.symbols entries the fox replaces (or adds).
 FOX_KEYS = ["Fedora", "Linux", "Unknown", "Bazzite"]
@@ -79,12 +79,6 @@ def with_fox(text):
 
 def main():
     os.makedirs(OUT, exist_ok=True)
-    own = os.path.join(ROOT, "files", "system", REDFOX.lstrip("/"))
-    if FOX and os.path.exists(own):
-        with open(own, encoding="utf-8") as f:
-            text = f.read()
-        with open(own, "w", encoding="utf-8") as f:
-            f.write(with_fox(text))
     rows = [
         ("redfox", "RedFox", REDFOX, "no"),
         ("starship", "Starship's Default", f"{THEMES_DIR}/starship.toml", "no"),

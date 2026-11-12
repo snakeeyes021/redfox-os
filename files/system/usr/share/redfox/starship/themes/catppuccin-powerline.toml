@@ -1,5 +1,6 @@
 # Starship's "Catppuccin Powerline" preset (starship.rs/presets), from Starship 1.27.0.
 # ISC licence, Starship Contributors: see LICENSE in this folder.
+# RedFox: the fox is the OS symbol.
 "$schema" = 'https://starship.rs/config-schema.json'
 
 format = """
@@ -45,9 +46,9 @@ Raspbian = "󰐿 "
 Mint = "󰣭 "
 Macos = "󰀵 "
 Manjaro = " "
-Linux = "󰌽 "
+Linux = "􏀀 "
 Gentoo = "󰣨 "
-Fedora = "󰣛 "
+Fedora = "􏀀 "
 Alpine = " "
 Amazon = " "
 Android = " "
@@ -60,7 +61,8 @@ Debian = "󰣚 "
 Redhat = "󱄛 "
 RedHatEnterprise = "󱄛 "
 Void = " "
-
+Unknown = "􏀀 "
+Bazzite = "􏀀 "
 [username]
 show_always = true
 style_user = "bg:red fg:crust"
