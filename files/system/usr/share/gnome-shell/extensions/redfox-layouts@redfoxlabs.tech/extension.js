@@ -36,8 +36,11 @@ function extensionSettings(extension, schemaId) {
 }
 
 // Dash to Dock already leaves a few pixels between the dock and the screen
-// edge. Floating replaces that with `gap` pixels on the screen-facing sides
-// and none on the side facing the windows.
+// edge. Floating replaces that with `gap` pixels on the side facing the
+// screen edge and none on the side facing the windows. The two ends along
+// the dock get no margin: Dash to Dock already centres a dock that isn't
+// full, and on a full one a margin there pushed the dock's end (its rounded
+// background) past the space Dash to Dock gives it, where it was cut off.
 //
 // It's set as the dock's inline style, not a stylesheet: St keeps a stylesheet
 // that has been loaded twice into one theme (GNOME copies runtime stylesheets
@@ -45,10 +48,10 @@ function extensionSettings(extension, schemaId) {
 // way to remove it. The floating margins then stayed on after a switch to a
 // full-height dock (RedFox -> GNOME -> Ubuntu gave it an 8 px gap).
 const floatingMargins = (side, gap) => ({
-    bottom: `0 ${gap}px ${gap}px ${gap}px`,
-    top: `${gap}px ${gap}px 0 ${gap}px`,
-    left: `${gap}px 0 ${gap}px ${gap}px`,
-    right: `${gap}px ${gap}px ${gap}px 0`,
+    bottom: `0 0 ${gap}px 0`,
+    top: `${gap}px 0 0 0`,
+    left: `0 0 0 ${gap}px`,
+    right: `0 ${gap}px 0 0`,
 }[side]);
 
 const DOCK_SIDES = ['bottom', 'top', 'left', 'right'];

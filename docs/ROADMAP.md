@@ -27,8 +27,8 @@
 - [x] **Dash to Dock (Disabled by default, but configured)**
     - [x] **Behavior:** Isolate Workspaces off (`false`); GNOME's App Switching setting "current workspace only" turns it on. *(Isolate Workspaces on (`true`) is Dewy's setting: `layout-dewy` turns on GNOME's App Switching "current workspace only", which the dock follows, so it survives layout switches.)*
     - [x] **Click Action:** `minimize-or-previews` (Focus, minimize, or show previews). *(The image uses `focus-minimize-or-previews`, and each layout has its own click default since 2026-11-11; Hub › Settings › Desktop › Clicking an Open App changes it.)*
-    - [x] **Size:** Icons shrink to fit when the dock is full, so no app is cut off the end (in every dock layout).
-    - [x] **Size:** Icon size limit (40px). *(The image uses 56 px; icons shrink to fit since the 2026-11-11 clipping fix.)*
+    - [x] **Size:** Fixed icon size (Scroll to reveal).
+    - [x] **Size:** Icon size limit (40px). *(40 px is layout-dewy's; the system default is 56 px)*
     - [x] **Appearance:** Shrink the dash (remove edge-to-edge).
 - [ ] **App Grid Defaults**
     - [x] **Default:** alphabetical, with folders (Alphabetical App Grid, on by default).

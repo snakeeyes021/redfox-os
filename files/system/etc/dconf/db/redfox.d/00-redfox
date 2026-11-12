@@ -6,9 +6,7 @@ show-mounts-network=true
 dock-position='LEFT'
 dock-fixed=true
 intellihide-mode='ALL_WINDOWS'
-# Icons shrink to fit when the dock is full (a fixed size hid the last apps
-# off the end of the dock, with no sign they were there).
-icon-size-fixed=false
+icon-size-fixed=true
 custom-theme-shrink=true
 extend-height=true
 shift-click-action='launch'
