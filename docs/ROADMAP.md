@@ -25,7 +25,7 @@
         - [x] Tiling Snap: `Super`+`Arrow`.
         - [x] Close Window: `Super`+`q`.
 - [x] **Dash to Dock (Disabled by default, but configured)**
-    - [x] **Behavior:** Isolate Workspaces off (`false`); GNOME's App Switching setting "current workspace only" turns it on.
+    - [x] **Behavior:** Isolate Workspaces off (`false`); GNOME's App Switching setting "current workspace only" turns it on. *(Isolate Workspaces on (`true`) is Dewy's setting, applied in `layout-dewy`.)*
     - [x] **Click Action:** `focus-minimize-or-previews` (focus, minimize, or show previews). Hub › Settings › Desktop › Clicking an Open App changes it.
     - [x] **Size:** Icons shrink to fit when the dock is full, so no app is cut off the end (in every dock layout).
     - [x] **Size:** Icon size limit (56 px).
