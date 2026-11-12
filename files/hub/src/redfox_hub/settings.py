@@ -20,16 +20,25 @@ DIM = "redfox-dim@redfoxlabs.tech"
 TOGGLE_GROUPS = [("terminal", "Terminal"), ("services", "Services"),
                  ("storage", "Storage"), ("sound", "Sound & Music")]
 # What clicking an open app in the taskbar or dock does: name, explanation,
-# Dash to Panel's value, Dash to Dock's. Both docks get the same choice, so
-# it holds in every layout. Dash to Dock has no exact match for the two cycle
+# Dash to Panel's value, Dash to Dock's. Each layout starts with its own
+# default (see redfox-layout); the row shows the current layout's dock and
+# sets both docks. Dash to Dock has no exact match for the two cycle
 # choices; it cycles.
 CLICK_PATHS = ("/org/gnome/shell/extensions/dash-to-panel/click-action",
                "/org/gnome/shell/extensions/dash-to-dock/click-action")
+# Layouts whose taskbar is Dash to Panel; the others use Dash to Dock, except
+# GNOME's, which has no dock to set.
+PANEL_LAYOUTS = ("wash", "nostalgia")
+NO_DOCK_LAYOUTS = ("gnome",)
 CLICK_CHOICES = [
     ("Previews", "One window: show or minimize it. Several: show their previews to pick one",
      "TOGGLE-SHOWPREVIEW", "focus-minimize-or-previews"),
     ("App Spread", "One window: show or minimize it. Several: spread them out to pick one",
      "TOGGLE-SPREAD", "focus-minimize-or-appspread"),
+    ("Focus or App Spread", "Bring the app forward; if it's already in front, spread its "
+     "windows out to pick one", "TOGGLE-SPREAD", "focus-or-appspread"),
+    ("Bring Forward", "Bring the app's windows to the front; clicking again doesn't minimize them",
+     "RAISE", "skip"),
     ("Cycle", "One window: show or minimize it. Several: show the next one with each click",
      "TOGGLE-CYCLE", "cycle-windows"),
     ("Cycle, Then Minimize", "Each click shows the next window; after the last, they're minimized",
@@ -126,14 +135,25 @@ class SettingsSection(Section):
         actions.load(self._on_actions)
         host.run_json(["midikeep", "data-dir", "--json"], self._on_midi)
         host.run(["gnome-extensions", "info", DIM], on_done=self._on_dim_info)
-        host.run(["dconf", "read", CLICK_PATHS[0]], on_done=self._on_click_read)
+        host.run(["redfox-layout", "get"], on_done=self._on_click_layout)
 
     # Clicking an open app
 
-    def _on_click_read(self, returncode, output):
+    def _on_click_layout(self, returncode, output):
+        layout = output.strip() if returncode == 0 else ""
+        if layout in NO_DOCK_LAYOUTS:
+            self.click_row.set_visible(False)
+            return
+        panel = layout in PANEL_LAYOUTS
+        host.run(["dconf", "read", CLICK_PATHS[0 if panel else 1]],
+                 on_done=lambda rc, out: self._on_click_read(rc, out, panel))
+
+    def _on_click_read(self, returncode, output, panel):
         value = output.strip().strip("'") if returncode == 0 else ""
-        index = next((i for i, choice in enumerate(CLICK_CHOICES) if choice[2] == value),
-                     len(CLICK_CHOICES))
+        # Nothing written means the image's default, which is Previews.
+        column = 2 if panel else 3
+        index = next((i for i, choice in enumerate(CLICK_CHOICES) if choice[column] == value),
+                     0 if not value else len(CLICK_CHOICES))
         # "Other" is in the list only while it's what the docks are set to.
         model = self.click_row.get_model()
         if index == len(CLICK_CHOICES) and model.get_n_items() == len(CLICK_CHOICES):

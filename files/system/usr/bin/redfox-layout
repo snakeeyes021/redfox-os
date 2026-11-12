@@ -153,10 +153,25 @@ def dash_to_panel(elements, **extra):
             # the taskbar matches RedFox's top bar.
             "trans-use-custom-opacity": True,
             "trans-panel-opacity": 0.4,
+            "click-action": "TOGGLE-SHOWPREVIEW",
             **extra,
         },
     }
 
+
+# What clicking an open app does starts out as the system each layout is
+# modelled on does it (RedFox Hub's Settings › Desktop changes it):
+# - RedFox: one window shows or minimizes it; several show their previews.
+# - Ubuntu: Ubuntu Dock's default, focus the app or, if it's already in
+#   front, spread its windows (click-action='focus-or-appspread' in
+#   https://git.launchpad.net/ubuntu/+source/gnome-shell-extension-ubuntu-dock/tree/schemas/10_ubuntu-dock.gschema.override).
+# - Cal, like macOS: clicking brings the app forward and never minimizes it
+#   (https://support.apple.com/guide/mac-help/use-the-dock-on-mac-mh35859/mac).
+# - Wash and Nostalgia, like Windows: one window shows or minimizes it;
+#   several show their thumbnails to pick from
+#   (https://learn.microsoft.com/en-us/windows/win32/shell/taskbar-extensions).
+# - GNOME has no dock; the dash in the overview opens the app.
+# Switching layout resets these, like the rest of the dock's settings.
 
 # In the order a layout picker shows them: RedFox's own first, then the
 # open-source desktops, then the ones modelled on other systems.
@@ -171,6 +186,7 @@ LAYOUTS = {
             DTD: {
                 "extend-height": False,
                 "disable-overview-on-startup": False,
+                "click-action": "focus-minimize-or-previews",
             },
             RFL: {"floating-dock": True, "auto-dock": True},
         },
@@ -186,6 +202,7 @@ LAYOUTS = {
         "description": "A full-height dock on the left, always visible.",
         "extensions": [DASH_TO_DOCK],
         "settings": {
+            DTD: {"click-action": "focus-or-appspread"},
             WM: {"button-layout": BUTTONS_RIGHT},
             # Blur my Shell clears the top bar in the overview but keeps the
             # dock's blur, so the two would differ in colour where they meet.
@@ -204,6 +221,7 @@ LAYOUTS = {
                 "show-apps-at-top": True,
                 "dash-max-icon-size": 48,
                 "running-indicator-style": "DOTS",
+                "click-action": "skip",
             },
             RFL: {"floating-dock": True},
             WM: {"button-layout": BUTTONS_MAC},
