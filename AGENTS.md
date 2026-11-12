@@ -14,3 +14,17 @@
 ## Prior notes and pre-existing code are drafts
 
 Notes, backlog and roadmap entries, past chat logs, and pre-existing code (anything written before the current piece of work and not explicitly confirmed since) are drafts: ideas to look into, not decisions. Don't treat a library, format, name or approach as settled just because it appears there. Only explicit, current decisions by the project owner are settled. When unsure, ask.
+
+## How software gets into RedFox
+
+Before proposing where an app goes, or questioning where one already is, walk this list.
+
+1. **Who is it for?** Everyone, or one profile?
+2. **For everyone and obligatory:** bake it into the image, or put it in the required Flatpak list.
+3. **Not obligatory** (offered to everyone, or for one profile), in this order:
+   - a Flatpak, if a good one exists, offered through the packs (Hub's Software page, `ujust`);
+   - otherwise an AppImage or binary in the user's local bin (AppImages through Gear Lever);
+   - otherwise from source or an RPM. Avoid source installs: bake it into the image instead when a source install's friction and risk outweigh the cost of baking it.
+4. **Layering (`rpm-ostree install`) is never the answer.** If most users could reasonably want a package, one of the routes above handles it first.
+
+The user's side, how people install apps themselves, is the manual page `files/hub/data/manual/03-installing-apps.md`.
