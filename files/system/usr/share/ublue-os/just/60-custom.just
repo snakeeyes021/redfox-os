@@ -988,7 +988,10 @@ layout-matt: sort-app-grid flatten-app-folders layout-tiling-default preset-dock
 
 # Layout Dewy
 layout-dewy: sort-app-grid flatten-app-folders layout-tiling-dewy preset-dock-ubuntu set-window-controls-right-full
-    gsettings set org.gnome.shell.extensions.dash-to-dock isolate-workspaces true
+    # Apps from the current workspace only, in the dock and Super+Tab: GNOME's
+    # own switch (Settings › Multitasking › App Switching), which the dock and
+    # taskbar follow, so it survives layout switches.
+    gsettings set org.gnome.shell.app-switcher current-workspace-only true
     gsettings set org.gnome.shell.extensions.dash-to-dock dash-max-icon-size 40
     gsettings set org.gnome.shell favorite-apps "['org.gnome.Nautilus.desktop', 'net.nokyan.Resources.desktop', 'org.gnome.Settings.desktop', 'org.gnome.Ptyxis.desktop', 'org.mozilla.firefox.desktop', 'com.brave.Browser.desktop', 'org.gnome.Calculator.desktop', 'org.gnome.TextEditor.desktop', 'dev.zed.Zed.desktop', 'cursor.desktop', 'com.spotify.Client.desktop', 'com.slack.Slack.desktop', 'org.signal.Signal.desktop', 'dev.vencord.Vesktop.desktop']"
 

@@ -50,6 +50,12 @@ class TestClickDefaults(unittest.TestCase):
             "wash": (None, "TOGGLE-SHOWPREVIEW"),
             "nostalgia": (None, "TOGGLE-SHOWPREVIEW"),
         })
+        # Wash and Nostalgia show the current desktop's apps only; the dock
+        # layouts leave it to GNOME's App Switching switch.
+        for name, layout in rl.LAYOUTS.items():
+            self.assertEqual(layout["settings"].get(rl.DTP, {}).get("isolate-workspaces"),
+                             True if name in ("wash", "nostalgia") else None, name)
+            self.assertNotIn("isolate-workspaces", layout["settings"].get(rl.DTD, {}), name)
         # Switching layout resets the taskbar's click too, not just the dock's.
         self.assertIn("click-action", rl.managed_keys()[rl.DTP])
         self.assertIn(rl.DTD, rl.RESET_SCHEMAS)

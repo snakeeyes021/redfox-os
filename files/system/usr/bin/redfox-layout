@@ -154,6 +154,10 @@ def dash_to_panel(elements, **extra):
             "trans-use-custom-opacity": True,
             "trans-panel-opacity": 0.4,
             "click-action": "TOGGLE-SHOWPREVIEW",
+            # The taskbar shows the current desktop's apps only, as Windows'
+            # does. GNOME's Settings › Multitasking › App Switching switch
+            # turns it off again (the layout helper follows that switch).
+            "isolate-workspaces": True,
             **extra,
         },
     }
