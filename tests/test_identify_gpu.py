@@ -25,8 +25,8 @@ PAGE = "https://redfoxlabs.tech/download/"
 # Each download's name, as on the download page and in RedFox Hub
 DOWNLOADS = {
     "redfox-os": "RedFoxOS (AMD & Intel)",
-    "redfox-os-nvidia": "RedFoxOS NVIDIA (GTX 16xx, RTX 20xx and newer)",
-    "redfox-os-nvidia-legacy": "RedFoxOS NVIDIA Legacy (GTX 10xx, 9xx and 750)",
+    "redfox-os-nvidia": "RedFoxOS NVIDIA",
+    "redfox-os-nvidia-legacy": "RedFoxOS NVIDIA Legacy",
 }
 PWSH = shlex.split(os.environ.get("RFX_PWSH", "pwsh"))
 HAVE_PWSH = "RFX_PWSH" in os.environ or shutil.which("pwsh") is not None
@@ -50,16 +50,25 @@ class Checks:
         for v, d in case["devices"]:
             self.assertIn(f"  {v}:{d}", lines)
         if case["image"]:
-            self.assertIn(f"The download to get:\n  {DOWNLOADS[case['image']]}\n", out, case["name"])
-            self.assertIn(f"Get it at:\n  {PAGE}\n", out)
+            # The result is last, on its own line: the download's name and
+            # nothing else (plain, as the output isn't a terminal here)
+            self.assertTrue(out.endswith(
+                "Nothing about this computer has been sent anywhere.\n\n"
+                f"The download to get:\n{DOWNLOADS[case['image']]}\n"), case["name"])
+            self.assertIn("Why this download:\n", out, case["name"])
+            # The link marks that download's card on the page
+            self.assertIn(f"The download page, with it marked:\n  {PAGE}#{case['image']}\n", out)
         else:
             self.assertIn("No single download works best on your machine:", out, case["name"])
             self.assertIn(f"The downloads are at:\n  {PAGE}\n", out)
+            self.assertNotIn("The download to get:", out)
+            self.assertNotIn(f"{PAGE}#", out)
+            self.assertTrue(out.endswith("Nothing about this computer has been sent anywhere.\n"))
         self.assertEqual("Two graphics chips:" in out, bool(case.get("hybrid")), case["name"])
-        self.assertTrue(out.endswith("Nothing about this computer has been sent anywhere.\n"))
-        # No paste code, no pre-selected link, and lines a terminal shows whole
+        # No colour codes when the output isn't a terminal, no paste code,
+        # and lines a terminal shows whole
+        self.assertNotIn("\033[", out)
         self.assertNotIn("RFX1", out)
-        self.assertNotIn("#gpu", out)
         self.assertTrue(all(len(line) <= 80 for line in lines), out)
 
     def test_every_case(self):
