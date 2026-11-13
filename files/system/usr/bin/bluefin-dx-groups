@@ -57,7 +57,7 @@ fi
 systemd-tmpfiles --create || true
 
 # SCRIPT VERSION (increment this number every time you update this script)
-GROUP_SETUP_VER=3
+GROUP_SETUP_VER=4
 GROUP_SETUP_VER_FILE="/etc/ublue/dx-groups"
 GROUP_SETUP_VER_RAN=$(cat "$GROUP_SETUP_VER_FILE" 2>/dev/null || echo "0")
 
@@ -91,11 +91,13 @@ append_group docker
 append_group incus-admin
 append_group libvirt
 
-wheelarray=($(getent group wheel | cut -d ":" -f 4 | tr ',' '\n'))
-for user in $wheelarray; do
-  usermod -aG docker $user
-  usermod -aG incus-admin $user
-  usermod -aG libvirt $user
+# Every administrator (member of wheel), not just the first: "${wheelarray[@]}", not
+# "$wheelarray". Adding someone to a group they're already in changes nothing.
+mapfile -t wheelarray < <(getent group wheel | cut -d ":" -f 4 | tr ',' '\n' | sed '/^$/d')
+for user in "${wheelarray[@]}"; do
+  usermod -aG docker "$user"
+  usermod -aG incus-admin "$user"
+  usermod -aG libvirt "$user"
 done
 
 # Prevent future executions
