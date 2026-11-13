@@ -312,7 +312,6 @@
 - [ ] Idea: skip automatic updates on battery, metered connections or high load (uupd `--hw-check`). Not built.
 - [ ] Restarting with a USB-C (Thunderbolt) dock attached: on a System76 laptop with NVIDIA graphics, the dock currently has to be unplugged for a restart to go through. Find out whether it can stay plugged in.
 - [ ] Mailspring: bring email accounts over to a new install, for example with the rest of a person's saved configuration, even if some accounts need signing in again in the browser.
-- [ ] Wine and Proton programs: their window previews go black when the window is on another workspace in GNOME. Find out whether they can keep showing the window.
 - [x] Midikeep: let the user set where the session archive goes, in a config Pianola also reads: `data_dir` in `~/.config/midikeep/config.yaml` (see `docs/midikeep.md`); Pianola side in snakeeyes021/pianola#3.
 
 
