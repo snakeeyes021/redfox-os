@@ -40,6 +40,12 @@ LAST_MANUAL = STATE_DIR / "last-update-now.json"
 TIME_DROPIN = Path(os.environ.get("REDFOX_UUPD_DROPIN_DIR", "/etc/systemd/system/uupd.timer.d")) \
     / "50-redfox-time.conf"
 HOUR = re.compile(r"(?:[01]\d|2[0-3]):00")
+# When uupd.timer last fired. systemd keeps this file while the timer is disabled, unlike the
+# timer's LastTriggerUSec, which a stopped timer no longer reports.
+TIMER_STAMP = Path(os.environ.get("REDFOX_UUPD_STAMP", "/var/lib/systemd/timers/stamp-uupd.timer"))
+# systemd's journal message ids for a unit's start job: "Starting …" and "Finished …"
+JOB_STARTING = "7d4958e842da4a758f6c1cdc7b36dcc5"
+JOB_FINISHED = "39f53479d3a045ac8e11786248231fbf"
 
 
 def sh(*argv):
@@ -90,6 +96,53 @@ def calendar_time(timers_calendar):
     return f"{int(match.group(1)):02d}:{match.group(2)}" if match else None
 
 
+def journal_runs(journal_json):
+    """The last finished automatic update in uupd.service's journal (one JSON record per line,
+    oldest first): (unix time it ended, "success" or "failed"), or None. A run starts with a
+    "Starting" job record; it succeeded if the next job record is "Finished" with result done,
+    and otherwise it failed or was cut off (by a shutdown, say). A run still going is skipped."""
+    last, started = None, False
+    for line in journal_json.splitlines():
+        try:
+            record = json.loads(line)
+        except ValueError:
+            continue
+        if not record.get("JOB_TYPE"):
+            continue
+        if record.get("MESSAGE_ID") == JOB_STARTING:
+            started = True
+            continue
+        if started:
+            ok = record.get("MESSAGE_ID") == JOB_FINISHED and record.get("JOB_RESULT") == "done"
+            try:
+                ended = int(record["__REALTIME_TIMESTAMP"]) // 1_000_000
+            except (KeyError, ValueError):
+                continue
+            last, started = (ended, "success" if ok else "failed"), False
+    return last
+
+
+def last_auto_run(service, timer):
+    """(time, result) of the last automatic update. This boot's run if there was one; else the
+    journal (readable by admins); else when the timer last fired (result unknown); else (None,
+    None), which is the only case Hub calls "Never"."""
+    ended = unix(service.get("ExecMainExitTimestamp"))
+    if ended:
+        return ended, service.get("Result") or None
+    _, out = sh("journalctl", "--quiet", "--no-pager", "-u", "uupd.service", "-n", "2000",
+                "-o", "json", "--output-fields=MESSAGE_ID,JOB_TYPE,JOB_RESULT")
+    found = journal_runs(out)
+    if found:
+        return found
+    fired = unix(timer.get("LastTriggerUSec"))
+    if not fired:
+        try:
+            fired = int(TIMER_STAMP.stat().st_mtime)
+        except OSError:
+            fired = None
+    return fired, None
+
+
 def deployment(d):
     if not d:
         return None
@@ -129,6 +182,7 @@ def status():
     service = unit_props("uupd.service", "ActiveState", "Result",
                          "ExecMainExitTimestamp", "ExecMainStartTimestamp")
     auto_running = service.get("ActiveState") in ("active", "activating")
+    last_run, last_result = last_auto_run(service, timer)
     _, top = sh("pgrep", "-x", "topgrade")
     manual = None
     try:
@@ -145,9 +199,8 @@ def status():
             # The hour it runs (HH:MM), and whether that's the base image's own time
             "at": calendar_time(timer.get("TimersCalendar")),
             "at_default": not TIME_DROPIN.exists(),
-            "last_run": unix(service.get("ExecMainExitTimestamp"))
-                        or unix(timer.get("LastTriggerUSec")),
-            "last_result": service.get("Result") or None,
+            "last_run": last_run,
+            "last_result": last_result,
         },
         "now": {
             "running": bool(top.strip()),

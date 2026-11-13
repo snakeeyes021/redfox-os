@@ -2,6 +2,7 @@
 uupd.timer drop-in, and redfox-updates validates the hour and reports it."""
 
 import importlib.machinery
+import json
 import importlib.util
 import os
 import subprocess
@@ -139,6 +140,67 @@ class Cli(unittest.TestCase):
         (self.tmp / "50-redfox-time.conf").write_text("[Timer]\nOnCalendar=\nOnCalendar=*-*-* 21:00:00\n")
         auto = self.status_with("{ OnCalendar=*-*-* 21:00:00 ; next_elapse=n/a }")
         self.assertEqual((auto["at"], auto["at_default"]), ("21:00", False))
+
+
+def job(ts, msg_id, job_type, result=None):
+    """One journal record for uupd.service's start or stop job, as journalctl -o json prints it."""
+    record = {"__REALTIME_TIMESTAMP": str(ts * 1_000_000), "MESSAGE_ID": msg_id, "JOB_TYPE": job_type}
+    if result:
+        record["JOB_RESULT"] = result
+    return json.dumps(record)
+
+
+STARTING = "7d4958e842da4a758f6c1cdc7b36dcc5"
+FINISHED = "39f53479d3a045ac8e11786248231fbf"
+STOPPED = "9d1aaa27d60140bd96365438aad20286"
+
+
+class LastRun(unittest.TestCase):
+    """"Last Automatic Update" survives the timer being turned off and restarts."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        with unittest.mock.patch.dict(os.environ, {"REDFOX_UUPD_STAMP": str(self.tmp / "stamp")}):
+            self.ru = load_cli(self.tmp)
+
+    def tearDown(self):
+        subprocess.run(["rm", "-rf", "--", str(self.tmp)], check=True)
+
+    def test_journal_runs(self):
+        runs = self.ru.journal_runs
+        ok = [job(100, STARTING, "start"), job(160, FINISHED, "start", "done")]
+        self.assertEqual(runs("\n".join(ok)), (160, "success"))
+        # Cut off by a shutdown: the stop job comes before any Finished
+        cut = ok + [job(500, STARTING, "start"), job(540, STOPPED, "stop", "done")]
+        self.assertEqual(runs("\n".join(cut)), (540, "failed"))
+        # Failed to start, then a run still going: the last finished one counts
+        failed = ok + [job(600, STARTING, "start"), job(610, "other", "start", "failed"),
+                       job(700, STARTING, "start")]
+        self.assertEqual(runs("\n".join(failed)), (610, "failed"))
+        # Other unit messages (no JOB_TYPE) and junk are ignored; nothing at all is None
+        noise = [json.dumps({"__REALTIME_TIMESTAMP": "1", "MESSAGE": "x"}), "not json"] + ok
+        self.assertEqual(runs("\n".join(noise)), (160, "success"))
+        self.assertIsNone(runs(""))
+        self.assertIsNone(runs(job(700, STARTING, "start")))
+
+    def last(self, service, timer, journal=""):
+        with unittest.mock.patch.object(self.ru, "sh", return_value=(0, journal)):
+            return self.ru.last_auto_run(service, timer)
+
+    def test_this_boot_first_then_the_journal_then_the_stamp(self):
+        journal = "\n".join([job(100, STARTING, "start"), job(160, FINISHED, "start", "done")])
+        self.assertEqual(self.last({"ExecMainExitTimestamp": "@900", "Result": "success"}, {}, journal),
+                         (900, "success"))
+        # Timer off and a restart since: no exit time, no LastTrigger, but the journal has it
+        self.assertEqual(self.last({"Result": "success"}, {"LastTriggerUSec": ""}, journal), (160, "success"))
+        # Journal unreadable (not an admin): when the timer last fired, from its stamp file
+        (self.tmp / "stamp").touch()
+        os.utime(self.tmp / "stamp", (1_700_000_000, 1_700_000_000))
+        self.assertEqual(self.last({}, {}), (1_700_000_000, None))
+        self.assertEqual(self.last({}, {"LastTriggerUSec": "@1800000000"}), (1_800_000_000, None))
+        # Truly never: no run, no journal, no stamp
+        (self.tmp / "stamp").unlink()
+        self.assertEqual(self.last({}, {}), (None, None))
 
 
 if __name__ == "__main__":
