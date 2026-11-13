@@ -24,17 +24,19 @@ The image lives in `/usr`, which is read-only. You can't change it by accident, 
 
 On some computers, the first start after installing restarts once by itself, a few minutes in. That's Bazzite's hardware setup adding settings that only some hardware needs, such as AMD graphics, handheld PCs and Microsoft Surface devices. The screen says "Preparing System - Please wait, this may take a while" while it works. Let it finish: the computer comes back to the login screen, and it doesn't happen again.
 
+After you first log in, RedFox's basic apps keep installing in the background for a while. They appear in the app grid as they arrive, so an app that isn't there yet is usually still on its way.
+
 ## Three images
 
 There are three versions of the image, depending on the graphics card:
 
-- **RedFoxOS (AMD & Intel)** (`redfox-os`), for AMD & Intel graphics, and NVIDIA cards older than the GTX 750,
+- **RedFoxOS (AMD & Intel)** (`redfox-os`), for AMD & Intel graphics, and for older NVIDIA cards that NVIDIA's drivers no longer support: the GTX 600 series and most of the 700 series, such as the GTX 760, 770 and 780,
 - **RedFoxOS NVIDIA** (`redfox-os-nvidia`), for NVIDIA GTX 16xx, RTX 20xx and newer,
-- **RedFoxOS NVIDIA Legacy** (`redfox-os-nvidia-legacy`), for NVIDIA GTX 10xx, 9xx and 750.
+- **RedFoxOS NVIDIA Legacy** (`redfox-os-nvidia-legacy`), for NVIDIA GTX 10xx, 9xx, 750 and 745.
 
-You can switch to another one in [Hub › Updates](hub:updates), under System Image.
+You can switch to another one in [Hub › Updates](hub:updates), under **System Image › Graphics**. The one that suits this computer's graphics is marked **Works best on your machine**.
 
-To see which one you're running:
+To see which one you're running, look under **Go Back › This System** in [Hub › Updates](hub:updates), or in a terminal:
 
 ```sh
 rpm-ostree status

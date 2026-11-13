@@ -38,6 +38,8 @@ A command-line tool written in Python, installed for you alone:
 uv tool install ruff
 ```
 
+The tool's command goes in `~/.local/bin`. If a new terminal can't find it, run `uv tool update-shell` once and open another terminal.
+
 A one-off script with a package it needs, without setting anything up:
 
 ```sh

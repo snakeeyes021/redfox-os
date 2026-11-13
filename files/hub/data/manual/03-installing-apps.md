@@ -6,7 +6,14 @@ Get desktop apps from Bazaar, command-line tools from Homebrew, and anything els
 
 **Bazaar** is the app store. It installs apps from [Flathub](https://flathub.org) as Flatpaks, which run alongside the system rather than inside it, are updated with it, and never get in the way of a system update. Look here first.
 
-[Hub › Software](hub:apps) has RedFox's packs of favourites (Productivity, Creative, Dev and others), ready to tick and install.
+[Hub › Software](hub:apps) has RedFox's packs of favourites, such as Basics, Productivity and Creative Suite, with more under the **Dev**, **Gaming**, **Hardware** and **Other** tabs. Tick the apps you want, untick the ones you want to remove, then choose **Apply** in the bar that appears at the bottom. Nothing changes until you do. A few items have a choice next to them, such as which version to install, and some hardware and gaming items ask for your password or a restart.
+
+The same packs work from a terminal:
+
+```sh
+redfox-software list
+redfox-software install productivity
+```
 
 To install a Flatpak from a terminal:
 
@@ -34,7 +41,11 @@ distrobox create --name ubuntu --image ubuntu:24.04
 distrobox enter ubuntu
 ```
 
-Inside the box, `sudo apt install` works as usual. To put an app from the box in your app grid, run `distrobox-export --app` with its name, from inside the box.
+Inside the box, `sudo apt install` works as usual. To put an app from the box in your app grid, run `distrobox-export --app` with the app's command name, from inside the box. For example, after `sudo apt install gimp`:
+
+```sh
+distrobox-export --app gimp
+```
 
 **DistroShelf**, in the app grid, does the same with buttons.
 

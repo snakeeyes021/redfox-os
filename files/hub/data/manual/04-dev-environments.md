@@ -6,7 +6,7 @@ To give a whole team the same tools, such as one exact Node version, put the pro
 
 A dev container is a container described by a file in the project, `.devcontainer/devcontainer.json`. VS Code opens the project inside it, so everyone who opens the project gets the same operating system, the same Node and the same tools, on RedFoxOS, macOS or Windows alike. Nothing is installed on your own system.
 
-RedFoxOS comes ready for this: **VS Code**, **Docker** and **Podman** are in the image, and VS Code's **Dev Containers** extension is installed the first time you log in.
+RedFoxOS comes ready for this: **VS Code**, **Cursor**, **Docker** and **Podman** are in the image, and the **Dev Containers** extension for VS Code and for Cursor is installed when you log in. It's downloaded, so if you weren't online the first time, it's installed at a later login when you are.
 
 ## Set one up
 
@@ -22,10 +22,16 @@ Collaborators need Docker (or Podman) and VS Code with the Dev Containers extens
 
 ## If Docker says "permission denied"
 
-Your account is added to the `docker` group when RedFoxOS first starts. Log out and back in once for it to take effect. To check:
+Administrator accounts that exist when RedFoxOS first starts are added to the `docker` group. Log out and back in once for it to take effect. To check:
 
 ```sh
 docker run --rm hello-world
+```
+
+An account added later, or a standard (non-administrator) account, isn't added by itself. An administrator can add it, then that person logs out and back in:
+
+```sh
+sudo usermod -aG docker username
 ```
 
 ## Distrobox, for your own setup
