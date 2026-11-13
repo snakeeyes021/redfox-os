@@ -15,6 +15,8 @@ Commands:
                       and the booted, staged and rollback systems
   now                 update everything now (topgrade), then report
   auto on|off         turn the automatic updates on or off (asks for a password)
+  auto at HH:00       run them at that hour every day instead of the default
+                      (04:00); `auto at default` goes back (asks for a password)
   restart             restart to finish an update
 
 RedFox Hub (Updates) is a front end to this command.
@@ -34,6 +36,10 @@ TOPGRADE_CONFIG = "/usr/share/ublue-os/topgrade.toml"
 IMAGE_INFO = Path("/usr/share/ublue-os/image-info.json")
 STATE_DIR = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state")) / "redfox"
 LAST_MANUAL = STATE_DIR / "last-update-now.json"
+# Written by /usr/libexec/redfox-updates-auto when an hour is chosen
+TIME_DROPIN = Path(os.environ.get("REDFOX_UUPD_DROPIN_DIR", "/etc/systemd/system/uupd.timer.d")) \
+    / "50-redfox-time.conf"
+HOUR = re.compile(r"(?:[01]\d|2[0-3]):00")
 
 
 def sh(*argv):
@@ -77,6 +83,13 @@ def channel_of(ref):
     return "pinned"
 
 
+def calendar_time(timers_calendar):
+    """The time of day in uupd.timer's TimersCalendar, e.g.
+    '{ OnCalendar=*-*-* 21:00:00 ; next_elapse=... }' -> '21:00', or None."""
+    match = re.search(r"OnCalendar=\S*\s+(\d{1,2}):(\d{2})(?::\d{2})?", timers_calendar or "")
+    return f"{int(match.group(1)):02d}:{match.group(2)}" if match else None
+
+
 def deployment(d):
     if not d:
         return None
@@ -112,7 +125,7 @@ def status():
     next_boot = staged or (deployments[0] if pending else None)
 
     timer = unit_props("uupd.timer", "UnitFileState", "ActiveState",
-                       "LastTriggerUSec", "NextElapseUSecRealtime")
+                       "LastTriggerUSec", "NextElapseUSecRealtime", "TimersCalendar")
     service = unit_props("uupd.service", "ActiveState", "Result",
                          "ExecMainExitTimestamp", "ExecMainStartTimestamp")
     auto_running = service.get("ActiveState") in ("active", "activating")
@@ -129,6 +142,9 @@ def status():
             "enabled": timer.get("UnitFileState") == "enabled",
             "running": auto_running,
             "next": unix(timer.get("NextElapseUSecRealtime")),
+            # The hour it runs (HH:MM), and whether that's the base image's own time
+            "at": calendar_time(timer.get("TimersCalendar")),
+            "at_default": not TIME_DROPIN.exists(),
             "last_run": unix(service.get("ExecMainExitTimestamp"))
                         or unix(timer.get("LastTriggerUSec")),
             "last_result": service.get("Result") or None,
@@ -162,6 +178,8 @@ def print_status(s):
     print(f"Automatic updates: {'on' if a['enabled'] else 'off'}"
           f"{' (running now)' if a['running'] else ''}")
     print(f"  last run:        {when(a['last_run'])} ({a['last_result'] or 'n/a'})")
+    if a["at"]:
+        print(f"  runs daily at:   {a['at']} ({'default' if a['at_default'] else 'chosen'})")
     if a["enabled"]:
         print(f"  next run:        {when(a['next'])}")
     print(f"Last update now:   {when(s['now']['last_run'])}")
@@ -203,8 +221,9 @@ def main():
     p = sub.add_parser("status", help="show the state of updates")
     p.add_argument("--json", action="store_true")
     sub.add_parser("now", help="update everything now")
-    p = sub.add_parser("auto", help="turn automatic updates on or off")
-    p.add_argument("state", choices=["on", "off"])
+    p = sub.add_parser("auto", help="turn automatic updates on or off, or choose their hour")
+    p.add_argument("state", choices=["on", "off", "at"])
+    p.add_argument("hour", nargs="?", help="with at: HH:00, or default")
     sub.add_parser("restart", help="restart to finish an update")
     args = parser.parse_args()
 
@@ -220,11 +239,21 @@ def main():
         return update_now()
     if args.command == "auto":
         helper = "/usr/libexec/redfox-updates-auto"
+        argv = [helper, args.state]
+        if args.state == "at":
+            # Checked here too, so a typo doesn't ask for a password first
+            if args.hour != "default" and not HOUR.fullmatch(args.hour or ""):
+                print("redfox-updates: auto at takes a whole hour, HH:00 (00:00 to 23:00), "
+                      "or default", file=sys.stderr)
+                return 2
+            argv.append(args.hour)
+        elif args.hour is not None:
+            parser.error(f"auto {args.state} takes no hour")
         if os.geteuid() == 0:
-            return subprocess.call([helper, args.state])
+            return subprocess.call(argv)
         # pkexec asks for the password, in the desktop's dialog or on the
         # terminal (polkit action tech.redfoxlabs.hub.automatic-updates).
-        return subprocess.call(["pkexec", helper, args.state])
+        return subprocess.call(["pkexec"] + argv)
     if args.command == "restart":
         return subprocess.call(["systemctl", "reboot"])
     return 1

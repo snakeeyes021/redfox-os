@@ -309,6 +309,7 @@
 - [x] Mailspring doesn't get Adwaita as its default theme, but it should. *(Shipped 2026-11-03: RedFox Adwaita Light and Dark, written from scratch, with Adwaita symbolic icons from the system theme and a small plugin for GNOME's button layout and Reply/Forward in the header; see [`docs/mailspring-adwaita.md`](mailspring-adwaita.md). Known limits: no GNOME split header, no native window corners or menus, and Mailspring puts the plugin's Reply group after its own buttons. A GNOME front end over Mailspring's sync engine was looked at and isn't recommended: [`docs/mailspring-gnome-frontend.md`](mailspring-gnome-frontend.md).)*
 - [ ] Setup/bootstrapping/config GUIs for managing RedFox's app sets, settings, services, actions, etc. *(Hub now covers app sets, settings, services, actions and Full Setup; left: editing `config.yaml`.)*
 - [ ] Midikeep: GNOME notifications don't group.
+- [ ] Idea: skip automatic updates on battery, metered connections or high load (uupd `--hw-check`). Not built.
 - [x] Midikeep: let the user set where the session archive goes, in a config Pianola also reads: `data_dir` in `~/.config/midikeep/config.yaml` (see `docs/midikeep.md`); Pianola side in snakeeyes021/pianola#3.
 
 

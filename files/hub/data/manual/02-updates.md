@@ -6,6 +6,8 @@ RedFoxOS updates itself every day, applies the update when you restart, and keep
 
 Once a day, RedFoxOS downloads the newest image in the background and prepares it for the next start. Your current system keeps running unchanged until then. **Restart to apply the update.** There's no rush: you can carry on working, and the new system is used the next time you start the computer.
 
+It runs at 4:00 by default. To choose another hour, use **Update At** in [Hub › Updates](hub:updates): for example, an evening hour if you switch the computer off at night, so the update is ready when you start it in the morning. If the computer is off or asleep at that hour, the update runs soon after it starts.
+
 To update now, open [Hub › Updates](hub:updates) and choose **Update Now**. It updates the system, your Flatpak apps, Homebrew tools, firmware and RedFox's own apps. When it's done, **Restart** starts the new system.
 
 ## Rolling back

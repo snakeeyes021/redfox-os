@@ -29,13 +29,30 @@ def when(ts, capital=True):
     return text
 
 
+def twelve_hour():
+    try:
+        return Gio.Settings.new("org.gnome.desktop.interface").get_string("clock-format") == "12h"
+    except Exception:
+        return False
+
+
 def clock():
     """strftime for a time of day, following GNOME's 12h/24h setting."""
-    try:
-        twelve = Gio.Settings.new("org.gnome.desktop.interface").get_string("clock-format") == "12h"
-    except Exception:
-        twelve = False
-    return "%-I:%M %p" if twelve else "%H:%M"
+    return "%-I:%M %p" if twelve_hour() else "%H:%M"
+
+
+# The hours automatic updates can run at: the default (the base image's 04:00) first, then
+# every other whole hour. Values are what `redfox-updates auto at` takes.
+DEFAULT_HOUR = 4
+UPDATE_HOURS = ["default"] + [f"{h:02d}:00" for h in range(24) if h != DEFAULT_HOUR]
+
+
+def hour_label(value):
+    """'default' -> '4:00 (Default)', '21:00' -> '21:00' (or '9:00 PM' on a 12-hour clock)."""
+    hour = DEFAULT_HOUR if value == "default" else int(value[:2])
+    text = time.strftime("%-I:%M %p" if twelve_hour() else "%-H:%M",
+                         time.struct_time((2000, 1, 1, hour, 0, 0, 0, 1, -1)))
+    return f"{text} (Default)" if value == "default" else text
 
 
 def _when(ts):
@@ -150,11 +167,17 @@ class UpdatesSection(Section):
             title="Update Automatically",
             subtitle="Every day, and soon after startup if a day was missed")
         self.auto_row.connect("notify::active", self.on_auto_toggled)
+        self._hour_guard = False
+        self.hour_row = Adw.ComboRow(
+            title="Update At",
+            model=Gtk.StringList.new([hour_label(v) for v in UPDATE_HOURS]),
+            sensitive=False)
+        self.hour_row.connect("notify::selected", self.on_hour_changed)
         self.last_row = Adw.ActionRow(title="Last Automatic Update", subtitle="…")
         self.last_row.add_css_class("property")
         self.next_row = Adw.ActionRow(title="Next Automatic Update", subtitle="…")
         self.next_row.add_css_class("property")
-        for row in (self.auto_row, self.last_row, self.next_row):
+        for row in (self.auto_row, self.hour_row, self.last_row, self.next_row):
             auto.add(row)
         page.add(auto)
 
@@ -333,6 +356,7 @@ class UpdatesSection(Section):
         self.update_button.set_label("Update Now")
 
         self._set_auto(auto["enabled"])
+        self._set_hour(auto)
         result = auto.get("last_result")
         last = when(auto["last_run"])
         if auto["last_run"] and result and result != "success":
@@ -446,6 +470,33 @@ class UpdatesSection(Section):
             self.refresh()
 
         host.run(["redfox-updates", "auto", state], on_done=done)
+
+    def _set_hour(self, auto):
+        """Show the hour from the status; the row only works while updates are on."""
+        value = auto.get("at")
+        if auto.get("at_default", True) or value == f"{DEFAULT_HOUR:02d}:00":
+            value = "default"
+        # Any other time (set by hand to a minute past the hour) isn't in the list, and the
+        # row stays read-only rather than show the wrong hour.
+        self._hour_guard = True
+        if value in UPDATE_HOURS:
+            self.hour_row.set_selected(UPDATE_HOURS.index(value))
+        self.hour_row.set_sensitive(bool(auto["enabled"]) and value in UPDATE_HOURS)
+        self._hour_guard = False
+
+    def on_hour_changed(self, row, _param):
+        if self._hour_guard:
+            return
+        value = UPDATE_HOURS[row.get_selected()]
+
+        def done(returncode, output):
+            if returncode != 0:
+                self.window.toast("Nothing changed: the password was cancelled"
+                                  if cancelled(output) or returncode in (126, 127)
+                                  else "The update time wasn't changed")
+            self.refresh()
+
+        host.run(["redfox-updates", "auto", "at", value], on_done=done)
 
     # Restart
 

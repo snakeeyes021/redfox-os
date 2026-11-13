@@ -1,10 +1,47 @@
 #!/usr/bin/bash
-# Turn RedFoxOS's automatic updates (uupd.timer) on or off. Run as root, by
-# `redfox-updates auto on|off` through pkexec; the polkit action
-# tech.redfoxlabs.hub.automatic-updates gives the password dialog its words.
+# Turn RedFoxOS's automatic updates (uupd.timer) on or off, or choose the hour they run.
+# Run as root, by `redfox-updates auto on|off` and `redfox-updates auto at HH:00|default`
+# through pkexec; the polkit action tech.redfoxlabs.hub.automatic-updates gives the password
+# dialog its words.
+#
+# `at HH:00` writes a drop-in that replaces uupd.timer's OnCalendar (the base image runs it
+# at 04:00); `at default` deletes the drop-in, so the base image's time applies again. The
+# timer keeps Persistent=true: if the computer is off or asleep at that hour, the update
+# runs soon after it starts or wakes.
 set -euo pipefail
+
+# Tests point these elsewhere; pkexec clears the environment, so they can't be set through it.
+dropin_dir="${REDFOX_UUPD_DROPIN_DIR:-/etc/systemd/system/uupd.timer.d}"
+systemctl="${REDFOX_SYSTEMCTL:-systemctl}"
+dropin="$dropin_dir/50-redfox-time.conf"
+
+usage() { echo "Usage: $0 on|off|at HH:00|at default" >&2; exit 2; }
+
 case "${1:-}" in
-    on) exec systemctl enable --now uupd.timer ;;
-    off) exec systemctl disable --now uupd.timer ;;
-    *) echo "Usage: $0 on|off" >&2; exit 2 ;;
+    on) exec "$systemctl" enable --now uupd.timer ;;
+    off) exec "$systemctl" disable --now uupd.timer ;;
+    at)
+        hour="${2:-}"
+        if [ "$hour" = default ]; then
+            rm -f -- "$dropin"
+            rmdir --ignore-fail-on-non-empty -- "$dropin_dir" 2>/dev/null || true
+        elif [[ "$hour" =~ ^([01][0-9]|2[0-3]):00$ ]]; then
+            mkdir -p -- "$dropin_dir"
+            tmp="$(mktemp "$dropin_dir/.50-redfox-time.XXXXXX")"
+            printf '%s\n' \
+                "# The hour RedFoxOS's automatic updates run, chosen in RedFox Hub › Updates." \
+                "# Delete this file (or choose the default there) for the base image's time." \
+                "[Timer]" \
+                "OnCalendar=" \
+                "OnCalendar=*-*-* $hour:00" >"$tmp"
+            chmod 644 -- "$tmp"
+            mv -f -- "$tmp" "$dropin"
+        else
+            usage
+        fi
+        "$systemctl" daemon-reload
+        # Recompute the next run now; a disabled (stopped) timer stays stopped.
+        exec "$systemctl" try-restart uupd.timer
+        ;;
+    *) usage ;;
 esac
