@@ -114,7 +114,10 @@ class TestRun(unittest.TestCase):
             out, err = io.StringIO(), io.StringIO()
             with redirect_stdout(out), redirect_stderr(err):
                 code = ra.main(["run", action_id])
-        return code, calls, out.getvalue() + err.getvalue()
+        # stderr first: Python can print a ResourceWarning there at any time
+        # (another test's unclosed file being collected), and it mustn't
+        # displace the action's own last line on stdout.
+        return code, calls, err.getvalue() + out.getvalue()
 
     def test_restart_audio(self):
         code, calls, out = self.run_action("restart-audio")
