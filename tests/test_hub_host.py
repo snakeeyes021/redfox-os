@@ -4,6 +4,7 @@
 """
 
 import sys
+import unittest.mock
 import unittest
 from pathlib import Path
 
@@ -48,6 +49,25 @@ class TestRun(unittest.TestCase):
         GLib.timeout_add_seconds(5, loop.quit)
         loop.run()
         self.assertEqual(result[0][0], 127)
+
+    def test_a_read_error_stops_the_command_and_reports(self):
+        loop = GLib.MainLoop()
+        result = []
+
+        def done(rc, out):
+            result.append((rc, out))
+            loop.quit()
+
+        # Decoding its first output fails, while the command would run for another minute
+        broken = unittest.mock.Mock()
+        broken.return_value.return_value.decode.side_effect = ValueError("boom")
+        with unittest.mock.patch.object(host.codecs, "getincrementaldecoder", broken):
+            host.run(["bash", "-c", "echo hi; sleep 60"], on_done=done)
+            GLib.timeout_add_seconds(20, loop.quit)
+            loop.run()
+        self.assertEqual(len(result), 1)
+        self.assertNotEqual(result[0][0], 0)
+        self.assertIn("Stopped bash: boom", result[0][1])
 
 
 if __name__ == "__main__":

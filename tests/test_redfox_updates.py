@@ -202,6 +202,52 @@ class LastRun(unittest.TestCase):
         (self.tmp / "stamp").unlink()
         self.assertEqual(self.last({}, {}), (None, None))
 
+    def test_the_journal_query_asks_only_for_job_records(self):
+        # So a run that logs thousands of lines can't push its "Starting" record out of reach
+        with unittest.mock.patch.object(self.ru, "sh", return_value=(0, "")) as sh:
+            self.ru.last_auto_run({}, {})
+        argv = sh.call_args.args
+        self.assertEqual(argv[0], "journalctl")
+        self.assertIn("UNIT=uupd.service", argv)
+        self.assertIn("JOB_TYPE=start", argv)
+        self.assertIn("JOB_TYPE=stop", argv)
+        self.assertNotIn("-u", argv)
+
+
+class HourLabels(unittest.TestCase):
+    """The "Update At" labels in RedFox Hub."""
+
+    @classmethod
+    def setUpClass(cls):
+        try:
+            import gi
+            gi.require_version("Gtk", "4.0")
+            gi.require_version("Adw", "1")
+            import sys
+            sys.path.insert(0, str(ROOT / "files/hub/src"))
+            from redfox_hub import updates
+        except (ImportError, ValueError) as error:
+            raise unittest.SkipTest(f"RedFox Hub's libraries aren't here: {error}")
+        cls.updates = updates
+
+    def test_24_hour(self):
+        self.assertEqual(self.updates.hour_label("default", False), "4:00 (Default)")
+        self.assertEqual(self.updates.hour_label("21:00", False), "21:00")
+
+    def test_12_hour_without_am_pm_words_in_the_language(self):
+        real = self.updates.time.strftime
+
+        def no_am_pm(fmt, t):
+            return "" if fmt == "%p" else real(fmt, t)
+
+        with unittest.mock.patch.object(self.updates.time, "strftime", side_effect=no_am_pm):
+            self.assertEqual(self.updates.hour_label("04:00", True), "4:00 AM")
+            self.assertEqual(self.updates.hour_label("16:00", True), "4:00 PM")
+            self.assertEqual(self.updates.hour_label("default", True), "4:00 AM (Default)")
+        labels = self.updates.hour_labels()
+        self.assertEqual(len(labels), 24)
+        self.assertEqual(len(set(labels)), 24)
+
 
 if __name__ == "__main__":
     unittest.main()

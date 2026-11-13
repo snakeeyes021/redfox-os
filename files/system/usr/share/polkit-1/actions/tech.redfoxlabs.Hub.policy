@@ -8,7 +8,7 @@
 
   <action id="tech.redfoxlabs.hub.automatic-updates">
     <description>Change automatic updates</description>
-    <message>Changing when RedFoxOS updates itself automatically needs your password.</message>
+    <message>Changing whether and when RedFoxOS updates itself automatically needs your password.</message>
     <defaults>
       <allow_any>auth_admin</allow_any>
       <allow_inactive>auth_admin</allow_inactive>

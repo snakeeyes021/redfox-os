@@ -233,6 +233,16 @@ def item_icon(item, installed):
 # --- Output -----------------------------------------------------------------
 
 
+def stop(proc):
+    """End a command nobody will read any more, and reap it."""
+    proc.terminate()
+    try:
+        proc.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.wait()
+
+
 class Reporter:
     def __init__(self, catalog, json_mode, verb):
         self.catalog = catalog
@@ -309,6 +319,10 @@ class Reporter:
                             current = b
                             break
                 self.log(current, line)
+        except BaseException:
+            # Nothing will read its output any more: stop it, and don't leave it behind
+            stop(proc)
+            raise
         finally:
             proc.stdout.close()
         return proc.wait()

@@ -410,5 +410,22 @@ class TestInstallRemove(unittest.TestCase):
                 self.assertEqual(list(rs.load_catalog().pack_by_id), ["p"])
 
 
+class TestReporterRun(unittest.TestCase):
+    def test_a_failure_while_reading_stops_and_reaps_the_command(self):
+        rep = rs.Reporter(unittest.mock.Mock(items={}), True, "install")
+        started = []
+        real_popen = subprocess.Popen
+
+        def popen(*args, **kwargs):
+            started.append(real_popen(*args, **kwargs))
+            return started[-1]
+
+        with unittest.mock.patch.object(rs.subprocess, "Popen", popen), \
+                unittest.mock.patch.object(rep, "log", side_effect=RuntimeError("boom")), \
+                redirect_stdout(io.StringIO()), self.assertRaises(RuntimeError):
+            rep.run(["bash", "-c", "echo hi; sleep 60"], "x")
+        self.assertIsNotNone(started[0].returncode)  # reaped, not left running
+
+
 if __name__ == "__main__":
     unittest.main()

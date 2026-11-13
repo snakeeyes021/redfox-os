@@ -10,10 +10,17 @@
 # runs soon after it starts or wakes.
 set -euo pipefail
 
-# Tests point these elsewhere; pkexec clears the environment, so they can't be set through it.
-dropin_dir="${REDFOX_UUPD_DROPIN_DIR:-/etc/systemd/system/uupd.timer.d}"
-systemctl="${REDFOX_SYSTEMCTL:-systemctl}"
+# Tests point these elsewhere. They're ignored when running as root (through pkexec, which
+# clears the environment anyway, or sudo -E and the like), so root always uses the real ones.
+dropin_dir=/etc/systemd/system/uupd.timer.d
+systemctl=systemctl
+if [ "$(id -u)" -ne 0 ]; then
+    dropin_dir="${REDFOX_UUPD_DROPIN_DIR:-$dropin_dir}"
+    systemctl="${REDFOX_SYSTEMCTL:-$systemctl}"
+fi
 dropin="$dropin_dir/50-redfox-time.conf"
+tmp=""
+trap 'rm -f -- "${tmp:-}"' EXIT
 
 usage() { echo "Usage: $0 on|off|at HH:00|at default" >&2; exit 2; }
 
@@ -36,6 +43,7 @@ case "${1:-}" in
                 "OnCalendar=*-*-* $hour:00" >"$tmp"
             chmod 644 -- "$tmp"
             mv -f -- "$tmp" "$dropin"
+            tmp=""
         else
             usage
         fi

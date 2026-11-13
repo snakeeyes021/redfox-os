@@ -47,12 +47,26 @@ DEFAULT_HOUR = 4
 UPDATE_HOURS = ["default"] + [f"{h:02d}:00" for h in range(24) if h != DEFAULT_HOUR]
 
 
-def hour_label(value):
-    """'default' -> '4:00 (Default)', '21:00' -> '21:00' (or '9:00 PM' on a 12-hour clock)."""
+def hour_label(value, twelve=None):
+    """'default' -> '4:00 (Default)', '21:00' -> '21:00' (or '9:00 PM' on a 12-hour clock).
+    Some languages have no AM/PM words (%p is empty); then it's AM or PM, so the morning and
+    evening hours never read the same."""
+    if twelve is None:
+        twelve = twelve_hour()
     hour = DEFAULT_HOUR if value == "default" else int(value[:2])
-    text = time.strftime("%-I:%M %p" if twelve_hour() else "%-H:%M",
-                         time.struct_time((2000, 1, 1, hour, 0, 0, 0, 1, -1)))
+    moment = time.struct_time((2000, 1, 1, hour, 0, 0, 0, 1, -1))
+    if twelve:
+        suffix = time.strftime("%p", moment).strip() or ("AM" if hour < 12 else "PM")
+        text = f"{time.strftime('%-I:%M', moment)} {suffix}"
+    else:
+        text = time.strftime("%-H:%M", moment)
     return f"{text} (Default)" if value == "default" else text
+
+
+def hour_labels():
+    """The labels for UPDATE_HOURS, reading the 12h/24h setting once."""
+    twelve = twelve_hour()
+    return [hour_label(v, twelve) for v in UPDATE_HOURS]
 
 
 def _when(ts):
@@ -170,7 +184,7 @@ class UpdatesSection(Section):
         self._hour_guard = False
         self.hour_row = Adw.ComboRow(
             title="Update At",
-            model=Gtk.StringList.new([hour_label(v) for v in UPDATE_HOURS]),
+            model=Gtk.StringList.new(hour_labels()),
             sensitive=False)
         self.hour_row.connect("notify::selected", self.on_hour_changed)
         self.last_row = Adw.ActionRow(title="Last Automatic Update", subtitle="…")
@@ -485,9 +499,11 @@ class UpdatesSection(Section):
         self._hour_guard = False
 
     def on_hour_changed(self, row, _param):
-        if self._hour_guard:
+        if self._hour_guard or row.get_selected() >= len(UPDATE_HOURS):
             return
         value = UPDATE_HOURS[row.get_selected()]
+        # One change at a time; the refresh after it re-enables the row
+        row.set_sensitive(False)
 
         def done(returncode, output):
             if returncode != 0:

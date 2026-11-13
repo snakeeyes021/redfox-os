@@ -32,6 +32,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import urllib.error
 import urllib.request
 
 import yaml
@@ -134,6 +135,9 @@ def download(url, dest, size):
             if not chunk:
                 break
             got += len(chunk)
+            if got > size:
+                sys.exit(f"redfox-t3code: the download is bigger than the release says "
+                         f"({size} bytes); stopped")
             sha256.update(chunk)
             sha512.update(chunk)
             out.write(chunk)
@@ -232,8 +236,15 @@ def install(channel):
     appimage = asset(release, f"T3-Code-{version}-{name_arch}.AppImage")
     feed_name = f"{'latest' if channel == 'stable' else 'nightly'}-linux{feed_suffix}.yml"
     feed = yaml.safe_load(fetch(asset(release, feed_name)["browser_download_url"]))
-    expected_sha512 = next((f.get("sha512") for f in feed.get("files") or []
-                            if f.get("url") == appimage["name"]), None)
+    files = feed.get("files") if isinstance(feed, dict) else None
+    if not isinstance(files, list):
+        sys.exit(f"redfox-t3code: {feed_name} in release {release['tag_name']} isn't an "
+                 "update feed")
+    expected_sha512 = next((f.get("sha512") for f in files
+                            if isinstance(f, dict) and f.get("url") == appimage["name"]), None)
+    if not isinstance(appimage.get("size"), int):
+        sys.exit(f"redfox-t3code: release {release['tag_name']} doesn't say how big "
+                 f"{appimage['name']} is")
     expected_sha256 = appimage.get("digest") or ""
     if not expected_sha512 or not expected_sha256.startswith("sha256:"):
         sys.exit(f"redfox-t3code: release {release['tag_name']} has no checksum for "
@@ -258,8 +269,14 @@ def install(channel):
     apps = integrated()
     if len(apps) != 1:
         sys.exit(f"redfox-t3code: Gear Lever didn't add {NAME}")
-    set_update_source(apps[0]["path"], channel, name_arch)
-    write_state({"channel": channel, "path": apps[0]["path"], "version": version})
+    try:
+        set_update_source(apps[0]["path"], channel, name_arch)
+        write_state({"channel": channel, "path": apps[0]["path"], "version": version})
+    except (SystemExit, OSError):
+        # Don't leave a copy that nothing keeps up to date and RedFox doesn't count as
+        # installed: take it out again, so trying again starts clean.
+        gearlever("--remove", apps[0]["path"], "--yes", check=False)
+        raise
     link_icon(apps[0])
     print(f"{NAME} {version} installed; Gear Lever updates it from the {channel} channel",
           flush=True)
@@ -320,7 +337,12 @@ def main(argv=None):
     if args.command == "install":
         if args.channel not in CHANNELS:
             parser.error(f"unknown channel {args.channel}")
-        return install(args.channel)
+        try:
+            return install(args.channel)
+        except (urllib.error.URLError, TimeoutError, ConnectionError) as error:
+            sys.exit(f"redfox-t3code: couldn't reach GitHub: {getattr(error, 'reason', error)}")
+        except (yaml.YAMLError, ValueError, KeyError, TypeError) as error:
+            sys.exit(f"redfox-t3code: GitHub's answer wasn't what was expected ({error})")
     if args.command == "remove":
         return remove()
     state = read_state()

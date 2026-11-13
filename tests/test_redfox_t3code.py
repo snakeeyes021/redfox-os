@@ -77,9 +77,10 @@ class TestRelease(unittest.TestCase):
 
 
 class TestInstall(unittest.TestCase):
-    def run_install(self, rel, feed, channel="stable"):
+    def run_install(self, rel, feed, channel="stable", fail=None):
         """Install with GitHub, the download and Gear Lever faked; returns
-        Gear Lever's calls and the exit (None if it finished)."""
+        Gear Lever's calls and the exit (None if it finished). With fail, that
+        Gear Lever command fails."""
         calls = []
 
         def fake_fetch(url, accept=None):
@@ -92,6 +93,8 @@ class TestInstall(unittest.TestCase):
 
         def fake_gearlever(*args, check=True):
             calls.append(args)
+            if args[0] == fail and check:
+                raise SystemExit(f"redfox-t3code: Gear Lever failed: {fail}")
             res = unittest.mock.Mock(returncode=0)
             listed = [{"name": "T3 Code (Beta) (0.1.10-nightly.20261111.4529)", "path": "/home/u/AppImages/t3_code.appimage", "desktop_id": "t3_code.desktop"}]
             integrated = any(c[0] == "--integrate" for c in calls)
@@ -151,6 +154,42 @@ class TestInstall(unittest.TestCase):
         calls, code, _state, _left = self.run_install(rel, b"version: x\nfiles: []\n")
         self.assertIn("no checksum", str(code))
         self.assertFalse(any(c[0] == "--integrate" for c in calls))
+
+    def test_a_feed_that_isnt_one_runs_nothing(self):
+        rel = release("v0.1.9", False, "x")
+        for feed in (b"", b"just text\n", b"files: nope\n", b"- a\n- b\n"):
+            with self.subTest(feed=feed):
+                calls, code, _state, _left = self.run_install(rel, feed)
+                self.assertIn("isn't an update feed", str(code))
+                self.assertFalse(any(c[0] == "--integrate" for c in calls))
+
+    def test_a_download_bigger_than_the_release_says_stops(self):
+        rel = release("v0.1.9", False, "x")
+        rel["assets"][0]["size"] = len(PAYLOAD) - 5
+        calls, code, state, leftovers = self.run_install(rel, feed_for("T3-Code-0.1.9-x86_64.AppImage"))
+        self.assertIn("bigger than the release says", str(code))
+        self.assertFalse(any(c[0] == "--integrate" for c in calls))
+        self.assertIsNone(state)
+        self.assertEqual(leftovers, [])
+
+    def test_a_failed_update_source_takes_the_new_copy_out_again(self):
+        rel = release("v0.1.9", False, "x")
+        calls, code, state, _left = self.run_install(
+            rel, feed_for("T3-Code-0.1.9-x86_64.AppImage"), fail="--set-update-source")
+        self.assertIn("--set-update-source", str(code))
+        self.assertEqual(calls[-1], ("--remove", "/home/u/AppImages/t3_code.appimage", "--yes"))
+        self.assertIsNone(state)
+
+    def test_network_and_answer_errors_are_one_line(self):
+        cases = [(t3.urllib.error.URLError("no route"), "couldn't reach GitHub"),
+                 (TimeoutError("timed out"), "couldn't reach GitHub"),
+                 (ValueError("bad json"), "wasn't what was expected")]
+        for error, text in cases:
+            with self.subTest(error=error), \
+                    unittest.mock.patch.object(t3, "install", side_effect=error), \
+                    self.assertRaises(SystemExit) as raised:
+                t3.main(["install"])
+            self.assertIn(text, str(raised.exception.code))
 
 
 class TestRemove(unittest.TestCase):

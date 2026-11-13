@@ -36,13 +36,20 @@ TOPGRADE_CONFIG = "/usr/share/ublue-os/topgrade.toml"
 IMAGE_INFO = Path("/usr/share/ublue-os/image-info.json")
 STATE_DIR = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state")) / "redfox"
 LAST_MANUAL = STATE_DIR / "last-update-now.json"
+
+
+def _test_path(variable, default):
+    """A path tests can point elsewhere with an environment variable; ignored as root."""
+    return Path(default if os.geteuid() == 0 else os.environ.get(variable, default))
+
+
 # Written by /usr/libexec/redfox-updates-auto when an hour is chosen
-TIME_DROPIN = Path(os.environ.get("REDFOX_UUPD_DROPIN_DIR", "/etc/systemd/system/uupd.timer.d")) \
+TIME_DROPIN = _test_path("REDFOX_UUPD_DROPIN_DIR", "/etc/systemd/system/uupd.timer.d") \
     / "50-redfox-time.conf"
 HOUR = re.compile(r"(?:[01]\d|2[0-3]):00")
 # When uupd.timer last fired. systemd keeps this file while the timer is disabled, unlike the
 # timer's LastTriggerUSec, which a stopped timer no longer reports.
-TIMER_STAMP = Path(os.environ.get("REDFOX_UUPD_STAMP", "/var/lib/systemd/timers/stamp-uupd.timer"))
+TIMER_STAMP = _test_path("REDFOX_UUPD_STAMP", "/var/lib/systemd/timers/stamp-uupd.timer")
 # systemd's journal message ids for a unit's start job: "Starting …" and "Finished …"
 JOB_STARTING = "7d4958e842da4a758f6c1cdc7b36dcc5"
 JOB_FINISHED = "39f53479d3a045ac8e11786248231fbf"
@@ -129,7 +136,10 @@ def last_auto_run(service, timer):
     ended = unix(service.get("ExecMainExitTimestamp"))
     if ended:
         return ended, service.get("Result") or None
-    _, out = sh("journalctl", "--quiet", "--no-pager", "-u", "uupd.service", "-n", "2000",
+    # Only systemd's job records for the unit (start and stop), not the update's own output,
+    # so a run that logs a lot can't push its "Starting" record out of the window.
+    _, out = sh("journalctl", "--quiet", "--no-pager", "UNIT=uupd.service",
+                "JOB_TYPE=start", "JOB_TYPE=stop", "-n", "2000",
                 "-o", "json", "--output-fields=MESSAGE_ID,JOB_TYPE,JOB_RESULT")
     found = journal_runs(out)
     if found:

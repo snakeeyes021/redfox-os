@@ -191,8 +191,12 @@ class SettingsSection(Section):
             model.remove(len(CLICK_CHOICES))
             self._click_guard = False
         _name, _text, panel, dock = CLICK_CHOICES[row.get_selected()]
+        def done(returncode, _output):
+            if returncode != 0:
+                self.window.toast("The click setting wasn't changed")
+
         for path, value in zip(CLICK_PATHS, (panel, dock)):
-            host.run(["dconf", "write", path, f"'{value}'"])
+            host.run(["dconf", "write", path, f"'{value}'"], on_done=done)
 
     # Extra dimming
 

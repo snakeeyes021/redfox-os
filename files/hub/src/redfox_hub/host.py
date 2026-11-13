@@ -71,6 +71,19 @@ def run(argv, on_done=None, on_line=None, on_partial=None):
                         GLib.idle_add(on_partial, current)
                         partial_shown = True
                         last_partial = time.monotonic()
+        except Exception as error:
+            # Its output can't be read any more: stop it, reap it, and say so, so the page
+            # waiting for it doesn't wait forever.
+            proc.terminate()
+            try:
+                proc.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait()
+            if on_done:
+                GLib.idle_add(on_done, proc.returncode or 1,
+                              "\n".join(lines + [f"Stopped {argv[0]}: {error}"]))
+            return
         finally:
             proc.stdout.close()
         if pending.strip():
