@@ -113,8 +113,8 @@ hybrid="$(sed -n 3p <<< "$result")"
 # The download's name, as on the download page and in RedFox Hub
 case "$image" in
     redfox-os) download="RedFoxOS (AMD & Intel)" ;;
-    redfox-os-nvidia) download="RedFoxOS NVIDIA (GTX 16xx, RTX 20xx and newer)" ;;
-    redfox-os-nvidia-legacy) download="RedFoxOS NVIDIA Legacy (GTX 10xx, 9xx and 750)" ;;
+    redfox-os-nvidia) download="RedFoxOS NVIDIA" ;;
+    redfox-os-nvidia-legacy) download="RedFoxOS NVIDIA Legacy" ;;
     *) download="" ;;
 esac
 
@@ -138,10 +138,7 @@ wrap() {
 }
 
 if [ -n "$download" ]; then
-    echo "The download to get:"
-    echo "  ${download}"
-    echo
-    echo "Why:"
+    echo "Why this download:"
     wrap "This computer has ${why}."
 else
     echo "No single download works best on your machine:"
@@ -153,7 +150,25 @@ if [ "$hybrid" = hybrid ]; then
     wrap "This computer has built-in graphics next to its NVIDIA card, like most laptops with NVIDIA. The NVIDIA download drives the card with NVIDIA's driver, and the built-in graphics keep working. If the screen stays black when the USB stick starts, choose \"Start RedFoxOS (basic graphics)\" in its menu."
 fi
 echo
-if [ -n "$download" ]; then echo "Get it at:"; else echo "The downloads are at:"; fi
-echo "  ${PAGE}"
+if [ -n "$download" ]; then
+    # The page marks the card this anchor names
+    echo "The download page, with it marked:"
+    echo "  ${PAGE}#${image}"
+else
+    echo "The downloads are at:"
+    echo "  ${PAGE}"
+fi
 echo
 echo "Nothing about this computer has been sent anywhere."
+if [ -n "$download" ]; then
+    # The result comes last, on its own line: bold and red in a terminal,
+    # plain when the output goes to a file or another program, or NO_COLOR
+    # is set.
+    echo
+    echo "The download to get:"
+    if [ -t 1 ] && [ -z "${NO_COLOR:-}" ] && [ "${TERM:-dumb}" != dumb ]; then
+        printf '\033[1;31m%s\033[0m\n' "$download"
+    else
+        printf '%s\n' "$download"
+    fi
+fi
