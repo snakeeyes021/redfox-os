@@ -42,6 +42,7 @@ modules:
         - ccache
         - restic
         - rclone
+        - age # encrypted configs for redfox-config setup
         - zsh
         - python3-ramalama
         - gnome-boxes

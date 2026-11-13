@@ -10,6 +10,9 @@ One config file can describe all of a user's machines:
       ABC123SERIAL:          # DMI serial, board_version, product_name, ...
         hostname: oryx
         quirks: [fix-oryp9-mouse]
+
+`setup` also takes a config encrypted with `age -p` (binary or --armor), from any
+source: it asks for the passphrase and decrypts it in memory.
 """
 
 import os
@@ -155,45 +158,185 @@ def warn_legacy_quirks(cfg: dict):
               "  machines:\n    <serial-or-model>:\n      quirks: [<recipe>]", file=sys.stderr)
 
 
+# --- Encrypted configs (age, passphrase) ---
+
+AGE_ARMOR_BEGIN = b"-----BEGIN AGE ENCRYPTED FILE-----"
+AGE_ARMOR_END = "-----END AGE ENCRYPTED FILE-----"
+AGE_BINARY_HEADER = b"age-encryption.org/"
+PASSPHRASE_TRIES = 3
+
+
+class WrongPassphrase(Exception):
+    pass
+
+
+def is_encrypted(data: bytes) -> bool:
+    """True for an age file, binary or armored."""
+    return data.startswith(AGE_BINARY_HEADER) or data.lstrip().startswith(AGE_ARMOR_BEGIN)
+
+
+def age_decrypt(data: bytes, passphrase: str) -> bytes:
+    """Decrypt a passphrase-encrypted age file in memory.
+
+    age reads passphrases only from a terminal, so it runs on a private
+    pseudo-terminal and the passphrase is typed into that once age has turned
+    echo off to read it. The plaintext comes back on a pipe and never touches disk.
+    """
+    import shutil
+    import termios
+    import threading
+    import time
+
+    age = shutil.which("age")
+    if not age:
+        raise RuntimeError("age isn't installed, so an encrypted config can't be read.")
+
+    master, slave = os.openpty()
+    slave_name = os.ttyname(slave)
+
+    def attach_terminal():
+        os.setsid()
+        os.close(os.open(slave_name, os.O_RDWR))  # the controlling terminal: age's /dev/tty
+
+    try:
+        proc = subprocess.Popen([age, "--decrypt"], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE, preexec_fn=attach_terminal)
+    except BaseException:
+        os.close(master)
+        os.close(slave)
+        raise
+    os.close(slave)
+
+    def feed():
+        try:
+            proc.stdin.write(data)
+            proc.stdin.close()
+        except (BrokenPipeError, OSError):
+            pass
+
+    feeder = threading.Thread(target=feed, daemon=True)
+    feeder.start()
+    try:
+        deadline = time.monotonic() + 10
+        while proc.poll() is None and time.monotonic() < deadline:
+            if not termios.tcgetattr(master)[3] & termios.ECHO:
+                break
+            time.sleep(0.02)
+        if proc.poll() is None:
+            os.write(master, passphrase.encode("utf-8") + b"\n")
+        try:
+            out, err = proc.communicate(timeout=120)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.communicate()
+            raise RuntimeError("age didn't finish decrypting the config.")
+    finally:
+        feeder.join(timeout=5)
+        os.close(master)
+
+    if proc.returncode == 0:
+        return out
+    message = err.decode("utf-8", "replace")
+    if "incorrect passphrase" in message:
+        raise WrongPassphrase()
+    if "not passphrase-encrypted" in message:
+        raise RuntimeError("This file is encrypted to a key, not a passphrase. Encrypt it with 'age -p'.")
+    first = next((line for line in message.splitlines() if line.strip()), "unknown error")
+    raise RuntimeError(f"age couldn't decrypt the config: {first.removeprefix('age: error: ')}")
+
+
+def ask_passphrase(prompt: str) -> str:
+    """Read a passphrase from the terminal without echoing it (the terminal even if stdin is a pipe)."""
+    import getpass
+    try:
+        with open("/dev/tty"):
+            pass
+    except OSError:
+        raise RuntimeError("An encrypted config needs its passphrase typed in a terminal.")
+    return getpass.getpass(prompt)
+
+
+def decrypt_config(data: bytes, ask=None) -> bytes:
+    """Ask for the passphrase and decrypt, with a retry for a wrong one. None if the user gives up."""
+    ask = ask or ask_passphrase
+    print("This config is encrypted.")
+    for attempt in range(1, PASSPHRASE_TRIES + 1):
+        passphrase = ask("Passphrase (Enter to cancel): ")
+        if not passphrase:
+            return None
+        try:
+            return age_decrypt(data, passphrase)
+        except WrongPassphrase:
+            if attempt < PASSPHRASE_TRIES:
+                print("That passphrase is wrong. Try again.")
+    print(f"[ERROR] Wrong passphrase {PASSPHRASE_TRIES} times. Configuration unchanged.")
+    sys.exit(1)
+
+
+def graphical_session() -> bool:
+    return bool(os.environ.get("WAYLAND_DISPLAY") or os.environ.get("DISPLAY"))
+
+
+def pick_file() -> str:
+    """Choose a config file in a file picker. Empty if cancelled or there's no picker."""
+    try:
+        res = subprocess.run(["zenity", "--file-selection", "--title=Choose Your RedFox Config"],
+                             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+    except OSError:
+        return ""
+    return res.stdout.strip() if res.returncode == 0 else ""
+
+
+def unquote(text: str) -> str:
+    """A path dropped into a terminal can arrive in quotes."""
+    if len(text) >= 2 and text[0] == text[-1] and text[0] in "'\"":
+        return text[1:-1]
+    return text
+
+
 # --- Commands ---
+
+def read_source(source_str: str) -> bytes:
+    """The bytes of a config from an https:// URL or a file path (exits on failure)."""
+    if source_str.startswith("http://"):
+        print("[ERROR] Refusing to download configuration over plain http://. Use an https:// URL.")
+        sys.exit(1)
+    if source_str.startswith("https://"):
+        print(f"Downloading configuration from: {source_str}...")
+        try:
+            req = urllib.request.Request(source_str, headers={"User-Agent": "RedFoxOS-redfox-config/1.0"})
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                return resp.read()
+        except Exception as e:
+            print(f"[ERROR] Failed to download configuration: {e}")
+            sys.exit(1)
+    p = Path(unquote(source_str)).expanduser()
+    if not p.exists():
+        print(f"[ERROR] File not found: {p}")
+        sys.exit(1)
+    return p.read_bytes()
+
 
 def cmd_setup(args):
     """Run interactive setup or ingest configuration from a source."""
     source = getattr(args, "source", None)
-    raw_content = ""
+    raw = b""
 
     # 1. Non-interactive pipe (e.g. cat config.yaml | redfox-config setup)
     if not sys.stdin.isatty() and not source:
-        raw_content = sys.stdin.read().strip()
-        if not raw_content:
+        raw = sys.stdin.buffer.read()
+        if not raw.strip():
             print("[INFO] Empty input received. Setup skipped.")
             return
 
     # 2. Source argument provided (URL or file)
     elif source:
-        source_str = source.strip()
-        if source_str.startswith("http://"):
-            print("[ERROR] Refusing to download configuration over plain http://. Use an https:// URL.")
-            sys.exit(1)
-        if source_str.startswith("https://"):
-            print(f"Downloading configuration from: {source_str}...")
-            try:
-                req = urllib.request.Request(source_str, headers={"User-Agent": "RedFoxOS-redfox-config/1.0"})
-                with urllib.request.urlopen(req, timeout=15) as resp:
-                    raw_content = resp.read().decode("utf-8").strip()
-            except Exception as e:
-                print(f"[ERROR] Failed to download configuration: {e}")
-                sys.exit(1)
-        else:
-            p = Path(source_str).expanduser()
-            if not p.exists():
-                print(f"[ERROR] File not found: {p}")
-                sys.exit(1)
-            with open(p, "r", encoding="utf-8") as f:
-                raw_content = f.read().strip()
+        raw = read_source(source.strip())
 
     # 3. Interactive terminal prompt
     else:
+        import shutil
+        can_pick = graphical_session() and shutil.which("zenity") is not None
         print("=================================================================")
         print("                  RedFoxOS Configuration Setup                   ")
         print("=================================================================")
@@ -202,6 +345,9 @@ def cmd_setup(args):
             print("    (To edit existing values without overwriting, exit and run: redfox-config edit)")
             print("    Pasting a new configuration will replace the existing file (backup saved to .bak).\n")
         print("Enter an https:// URL, a file path, or paste your YAML configuration below.")
+        print("An age-encrypted config (age -p) works too: you'll be asked for its passphrase.")
+        if can_pick:
+            print("To choose a file instead, type F and press Enter.")
         print("(When pasting, press Enter twice on empty lines or Ctrl+D when finished. Press Enter now to skip):\n")
 
         lines = []
@@ -211,13 +357,22 @@ def cmd_setup(args):
                 print("\n[INFO] Configuration setup skipped. Using RedFoxOS defaults.")
                 return
 
+            if can_pick and first_line in ("f", "F"):
+                chosen = pick_file()
+                if not chosen:
+                    print("\n[INFO] No file chosen. Configuration unchanged.")
+                    return
+                args.source = chosen
+                cmd_setup(args)
+                return
+
             # Check if user entered a URL or file path on the first line
             if first_line.startswith("http://") or first_line.startswith("https://"):
                 args.source = first_line
                 cmd_setup(args)
                 return
 
-            potential_file = Path(first_line).expanduser()
+            potential_file = Path(unquote(first_line)).expanduser()
             if potential_file.exists() and potential_file.is_file():
                 args.source = str(potential_file)
                 cmd_setup(args)
@@ -225,16 +380,38 @@ def cmd_setup(args):
 
             # User is pasting YAML directly. Single blank lines are kept (YAML often
             # has them between sections); two empty lines in a row end the paste.
+            # A pasted armored age file ends at its END line.
             lines.append(first_line)
+            armored = first_line.encode() == AGE_ARMOR_BEGIN
             while True:
                 line = input()
                 if line == "" and lines and lines[-1] == "":
                     break
                 lines.append(line)
+                if armored and line.strip() == AGE_ARMOR_END:
+                    break
         except EOFError:
             pass
 
-        raw_content = "\n".join(lines).strip()
+        raw = "\n".join(lines).strip().encode("utf-8")
+
+    if raw and is_encrypted(raw):
+        try:
+            # Binary age data is passed as is; an armored one is tidied (pasted text).
+            raw = decrypt_config(raw if raw.startswith(AGE_BINARY_HEADER) else raw.strip() + b"\n")
+        except RuntimeError as e:
+            print(f"[ERROR] {e} Configuration unchanged.")
+            sys.exit(1)
+        if raw is None:
+            print("[INFO] No passphrase entered. Configuration unchanged.")
+            return
+        print("[OK] Decrypted.")
+
+    try:
+        raw_content = raw.decode("utf-8").strip()
+    except UnicodeDecodeError:
+        print("\n[ERROR] This isn't a text config or an age-encrypted one. Configuration unchanged.")
+        sys.exit(1)
 
     if not raw_content:
         print("[INFO] No content provided. Configuration unchanged.")
@@ -378,7 +555,8 @@ def build_parser():
     main_description = """Unified Declarative Configuration Engine for RedFoxOS.
 
 COMMANDS:
-    setup [SOURCE]    Ingest and validate configuration (paste, local file, or https URL)
+    setup [SOURCE]    Ingest and validate configuration (paste, local file, or https URL;
+                      plain YAML or encrypted with age -p)
     machine [FIELD]   Print this device's machines entry (e.g. 'hostname', 'quirks')
     get <KEY>         Retrieve a specific configuration value (e.g. 'nordvpn.token')
     show              Display active configuration with tokens masked
@@ -407,7 +585,8 @@ COMMANDS:
     p_setup = subparsers.add_parser(
         "setup",
         usage="redfox-config setup [SOURCE]",
-        description="Ingest and validate RedFoxOS configuration from a URL, local file, or interactive paste.",
+        description="Ingest and validate RedFoxOS configuration from a URL, local file, or interactive paste. "
+                    "A config encrypted with age -p is decrypted in memory after its passphrase.",
         help="Setup system configuration (paste, file, or URL)"
     )
     p_setup.add_argument("source", nargs="?", help="Optional file path or URL to configuration YAML")

@@ -1,0 +1,275 @@
+"""redfox-config setup: plain configs (file, pipe, URL, paste) work as before, and an
+age-encrypted config is decrypted in memory after its passphrase, with a retry.
+
+    python3 -m unittest tests.test_redfox_config
+
+The encrypted cases need `age` on PATH (the image has it) and are skipped without it.
+The fixtures' passphrase is "test passphrase".
+"""
+
+import argparse
+import importlib.machinery
+import importlib.util
+import io
+import os
+import shutil
+import stat
+import tempfile
+import unittest
+import unittest.mock
+from contextlib import redirect_stdout
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+SCRIPT = ROOT / "files" / "system" / "usr" / "bin" / "redfox-config"
+FIXTURES = ROOT / "tests" / "fixtures" / "redfox-config"
+PASSPHRASE = "test passphrase"
+PLAIN = "nordvpn:\n  token: plain-test-token\nmachines:\n  test-machine:\n    hostname: testbox\n"
+DECRYPTED = "nordvpn:\n  token: encrypted-test-token\nmachines:\n  test-machine:\n    hostname: testbox\n"
+
+loader = importlib.machinery.SourceFileLoader("redfox_config", str(SCRIPT))
+spec = importlib.util.spec_from_loader("redfox_config", loader)
+rc = importlib.util.module_from_spec(spec)
+loader.exec_module(rc)
+
+HAVE_AGE = shutil.which("age") is not None
+
+
+class FakeStdin:
+    def __init__(self, data=b"", tty=False):
+        self.buffer = io.BytesIO(data)
+        self.tty = tty
+
+    def isatty(self):
+        return self.tty
+
+
+class Response:
+    def __init__(self, data):
+        self.data = data
+
+    def read(self):
+        return self.data
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+class SetupBase(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp)
+        self.config = self.tmp / "redfox" / "config.yaml"
+        for name, value in (("USER_CONFIG_DIR", self.config.parent), ("USER_CONFIG_PATH", self.config)):
+            patcher = unittest.mock.patch.object(rc, name, value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        # No hardware lookups in the summary.
+        patcher = unittest.mock.patch.object(rc, "get_hardware_identifiers", return_value=[])
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def setup(self, source=None, stdin=None, inputs=None, passphrases=None):
+        """Run `redfox-config setup [source]`; returns (output, exit code or None)."""
+        stdin = stdin or FakeStdin(tty=True)
+        out = io.StringIO()
+        code = None
+        patches = [unittest.mock.patch.object(rc.sys, "stdin", stdin)]
+        if inputs is not None:
+            patches.append(unittest.mock.patch("builtins.input", side_effect=list(inputs) + [EOFError()]))
+        asked = []
+        if passphrases is not None:
+            def ask(prompt):
+                asked.append(prompt)
+                return passphrases.pop(0)
+            patches.append(unittest.mock.patch.object(rc, "ask_passphrase", side_effect=ask))
+        for p in patches:
+            p.start()
+        try:
+            with redirect_stdout(out):
+                rc.cmd_setup(argparse.Namespace(source=source))
+        except SystemExit as e:
+            code = e.code
+        finally:
+            for p in reversed(patches):
+                p.stop()
+        self.asked = asked
+        return out.getvalue(), code
+
+    def saved(self):
+        return self.config.read_text(encoding="utf-8")
+
+    def write(self, name, data):
+        path = self.tmp / name
+        path.write_bytes(data if isinstance(data, bytes) else data.encode())
+        return path
+
+
+class PlainConfigs(SetupBase):
+    def test_file(self):
+        out, code = self.setup(str(self.write("cfg.yaml", PLAIN)))
+        self.assertIsNone(code, out)
+        self.assertEqual(self.saved(), PLAIN)
+        self.assertEqual(stat.S_IMODE(self.config.stat().st_mode), 0o600)
+
+    def test_quoted_path_from_a_drop(self):
+        path = self.write("my cfg.yaml", PLAIN)
+        out, code = self.setup(inputs=[f"'{path}'"])
+        self.assertIsNone(code, out)
+        self.assertEqual(self.saved(), PLAIN)
+
+    def test_pipe(self):
+        out, code = self.setup(stdin=FakeStdin(PLAIN.encode()))
+        self.assertIsNone(code, out)
+        self.assertEqual(self.saved(), PLAIN)
+
+    def test_url(self):
+        with unittest.mock.patch.object(rc.urllib.request, "urlopen", return_value=Response(PLAIN.encode())):
+            out, code = self.setup("https://example.com/config.yaml")
+        self.assertIsNone(code, out)
+        self.assertEqual(self.saved(), PLAIN)
+
+    def test_plain_http_is_refused(self):
+        out, code = self.setup("http://example.com/config.yaml")
+        self.assertEqual(code, 1)
+        self.assertFalse(self.config.exists())
+
+    def test_paste_with_a_blank_line_inside(self):
+        lines = PLAIN.splitlines()
+        out, code = self.setup(inputs=lines[:2] + [""] + lines[2:] + ["", ""])
+        self.assertIsNone(code, out)
+        self.assertEqual(self.saved(), "\n".join(lines[:2] + [""] + lines[2:]) + "\n")
+
+    def test_skip(self):
+        out, code = self.setup(inputs=[""])
+        self.assertIsNone(code)
+        self.assertIn("skipped", out)
+        self.assertFalse(self.config.exists())
+
+    def test_invalid_yaml_keeps_the_old_config(self):
+        self.config.parent.mkdir(parents=True)
+        self.config.write_text(PLAIN)
+        out, code = self.setup(str(self.write("bad.yaml", "just a string")))
+        self.assertEqual(code, 1)
+        self.assertEqual(self.saved(), PLAIN)
+
+    def test_binary_junk_is_refused(self):
+        out, code = self.setup(str(self.write("junk.bin", b"\xff\xfe\x00junk")))
+        self.assertEqual(code, 1)
+        self.assertFalse(self.config.exists())
+
+    def test_no_passphrase_asked_for_plain(self):
+        self.setup(str(self.write("cfg.yaml", PLAIN)), passphrases=[])
+        self.assertEqual(self.asked, [])
+
+
+class Detection(unittest.TestCase):
+    def test_age_headers(self):
+        self.assertTrue(rc.is_encrypted((FIXTURES / "config.age").read_bytes()))
+        self.assertTrue(rc.is_encrypted((FIXTURES / "config.age.asc").read_bytes()))
+        self.assertTrue(rc.is_encrypted(b"\n  " + (FIXTURES / "config.age.asc").read_bytes()))
+        self.assertFalse(rc.is_encrypted(PLAIN.encode()))
+        self.assertFalse(rc.is_encrypted(b"age: 42\n"))
+
+
+class FilePicker(SetupBase):
+    def test_f_opens_the_picker_in_a_desktop_session(self):
+        path = self.write("cfg.yaml", PLAIN)
+        with unittest.mock.patch.dict(os.environ, {"WAYLAND_DISPLAY": "wayland-0"}), \
+                unittest.mock.patch("shutil.which", return_value="/usr/bin/zenity"), \
+                unittest.mock.patch.object(rc, "pick_file", return_value=str(path)) as pick:
+            out, code = self.setup(inputs=["F"])
+        pick.assert_called_once()
+        self.assertIsNone(code, out)
+        self.assertEqual(self.saved(), PLAIN)
+
+    def test_cancelled_picker_changes_nothing(self):
+        with unittest.mock.patch.dict(os.environ, {"WAYLAND_DISPLAY": "wayland-0"}), \
+                unittest.mock.patch("shutil.which", return_value="/usr/bin/zenity"), \
+                unittest.mock.patch.object(rc, "pick_file", return_value=""):
+            out, code = self.setup(inputs=["f"])
+        self.assertIsNone(code)
+        self.assertFalse(self.config.exists())
+
+    def test_no_picker_without_a_desktop(self):
+        env = {k: v for k, v in os.environ.items() if k not in ("WAYLAND_DISPLAY", "DISPLAY")}
+        with unittest.mock.patch.dict(os.environ, env, clear=True), \
+                unittest.mock.patch.object(rc, "pick_file") as pick:
+            out, code = self.setup(inputs=["F", "", ""])
+        pick.assert_not_called()
+        self.assertNotIn("choose a file", out)
+
+
+@unittest.skipUnless(HAVE_AGE, "age isn't installed")
+class EncryptedConfigs(SetupBase):
+    def test_binary_file(self):
+        out, code = self.setup(str(FIXTURES / "config.age"), passphrases=[PASSPHRASE])
+        self.assertIsNone(code, out)
+        self.assertEqual(self.saved(), DECRYPTED)
+        self.assertEqual(stat.S_IMODE(self.config.stat().st_mode), 0o600)
+
+    def test_armored_file(self):
+        out, code = self.setup(str(FIXTURES / "config.age.asc"), passphrases=[PASSPHRASE])
+        self.assertIsNone(code, out)
+        self.assertEqual(self.saved(), DECRYPTED)
+
+    def test_binary_pipe(self):
+        out, code = self.setup(stdin=FakeStdin((FIXTURES / "config.age").read_bytes()), passphrases=[PASSPHRASE])
+        self.assertIsNone(code, out)
+        self.assertEqual(self.saved(), DECRYPTED)
+
+    def test_url(self):
+        data = (FIXTURES / "config.age").read_bytes()
+        with unittest.mock.patch.object(rc.urllib.request, "urlopen", return_value=Response(data)):
+            out, code = self.setup("https://example.com/config.age", passphrases=[PASSPHRASE])
+        self.assertIsNone(code, out)
+        self.assertEqual(self.saved(), DECRYPTED)
+
+    def test_pasted_armor_ends_at_its_end_line(self):
+        lines = (FIXTURES / "config.age.asc").read_text().splitlines()
+        out, code = self.setup(inputs=lines + ["never read"], passphrases=[PASSPHRASE])
+        self.assertIsNone(code, out)
+        self.assertEqual(self.saved(), DECRYPTED)
+
+    def test_wrong_passphrase_then_right(self):
+        out, code = self.setup(str(FIXTURES / "config.age"), passphrases=["nope", PASSPHRASE])
+        self.assertIsNone(code, out)
+        self.assertIn("That passphrase is wrong. Try again.", out)
+        self.assertEqual(len(self.asked), 2)
+        self.assertEqual(self.saved(), DECRYPTED)
+
+    def test_wrong_three_times_keeps_the_old_config(self):
+        self.config.parent.mkdir(parents=True)
+        self.config.write_text(PLAIN)
+        out, code = self.setup(str(FIXTURES / "config.age"), passphrases=["a", "b", "c"])
+        self.assertEqual(code, 1)
+        self.assertIn("Configuration unchanged", out)
+        self.assertEqual(self.saved(), PLAIN)
+        self.assertFalse(list(self.config.parent.glob(".*.tmp")))
+
+    def test_cancel_at_the_passphrase(self):
+        out, code = self.setup(str(FIXTURES / "config.age"), passphrases=[""])
+        self.assertIsNone(code)
+        self.assertFalse(self.config.exists())
+
+    def test_encrypted_to_a_key(self):
+        out, code = self.setup(str(FIXTURES / "config-to-a-key.age"), passphrases=[PASSPHRASE])
+        self.assertEqual(code, 1)
+        self.assertIn("encrypted to a key, not a passphrase", out)
+        self.assertFalse(self.config.exists())
+
+
+class NoAge(SetupBase):
+    def test_missing_age_is_a_clear_error(self):
+        with unittest.mock.patch("shutil.which", return_value=None):
+            out, code = self.setup(str(FIXTURES / "config.age"), passphrases=[PASSPHRASE])
+        self.assertEqual(code, 1)
+        self.assertIn("age isn't installed", out)
+        self.assertFalse(self.config.exists())
+
+
+if __name__ == "__main__":
+    unittest.main()
