@@ -49,27 +49,30 @@ def run(argv, on_done=None, on_line=None, on_partial=None):
         pending = ""
         partial_shown = False
         last_partial = 0.0
-        while True:
-            chunk = os.read(proc.stdout.fileno(), 4096)
-            if not chunk:
-                break
-            pending += decoder.decode(chunk)
-            *finished, pending = pending.split("\n")
-            for line in finished:
-                # What's left after the last redraw is what the line says.
-                line = line.rstrip("\r").rsplit("\r", 1)[-1]
-                lines.append(line)
-                if partial_shown and on_partial:
-                    GLib.idle_add(on_partial, None)
-                    partial_shown = False
-                if on_line:
-                    GLib.idle_add(on_line, line)
-            if on_partial and "\r" in pending and time.monotonic() - last_partial > 0.25:
-                current = pending.rstrip("\r").rsplit("\r", 1)[-1]
-                if current.strip():
-                    GLib.idle_add(on_partial, current)
-                    partial_shown = True
-                    last_partial = time.monotonic()
+        try:
+            while True:
+                chunk = os.read(proc.stdout.fileno(), 4096)
+                if not chunk:
+                    break
+                pending += decoder.decode(chunk)
+                *finished, pending = pending.split("\n")
+                for line in finished:
+                    # What's left after the last redraw is what the line says.
+                    line = line.rstrip("\r").rsplit("\r", 1)[-1]
+                    lines.append(line)
+                    if partial_shown and on_partial:
+                        GLib.idle_add(on_partial, None)
+                        partial_shown = False
+                    if on_line:
+                        GLib.idle_add(on_line, line)
+                if on_partial and "\r" in pending and time.monotonic() - last_partial > 0.25:
+                    current = pending.rstrip("\r").rsplit("\r", 1)[-1]
+                    if current.strip():
+                        GLib.idle_add(on_partial, current)
+                        partial_shown = True
+                        last_partial = time.monotonic()
+        finally:
+            proc.stdout.close()
         if pending.strip():
             line = pending.rstrip("\r").rsplit("\r", 1)[-1]
             lines.append(line)

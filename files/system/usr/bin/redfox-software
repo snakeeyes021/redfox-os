@@ -298,16 +298,19 @@ class Reporter:
         except FileNotFoundError as e:
             self.log(iid, str(e))
             return 127
-        for raw in proc.stdout:
-            line = raw.rstrip("\n")
-            if not line.strip():
-                continue
-            if batch:
-                for b in batch:
-                    if b in line:
-                        current = b
-                        break
-            self.log(current, line)
+        try:
+            for raw in proc.stdout:
+                line = raw.rstrip("\n")
+                if not line.strip():
+                    continue
+                if batch:
+                    for b in batch:
+                        if b in line:
+                            current = b
+                            break
+                self.log(current, line)
+        finally:
+            proc.stdout.close()
         return proc.wait()
 
 

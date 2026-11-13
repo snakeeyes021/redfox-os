@@ -10,6 +10,7 @@ import sqlite3
 import subprocess
 import importlib.util
 import importlib.machinery
+from contextlib import closing
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -55,7 +56,7 @@ class TestDatabaseIndex(unittest.TestCase):
         )
         self.assertGreater(row_id, 0)
 
-        with self.db._get_connection() as conn:
+        with closing(self.db._get_connection()) as conn:
             row = conn.execute("SELECT * FROM sessions WHERE id = ?", (row_id,)).fetchone()
             self.assertIsNotNone(row)
             self.assertEqual(row["device_name"], "Test Controller")
@@ -159,7 +160,7 @@ class TestActiveSessionAndSilence(unittest.TestCase):
         self.assertGreater(Path(final_file).stat().st_size, 0)
 
         # Verify DB entry
-        with self.db._get_connection() as conn:
+        with closing(self.db._get_connection()) as conn:
             row = conn.execute("SELECT * FROM sessions WHERE file_path = ?", (final_file,)).fetchone()
             self.assertIsNotNone(row)
             self.assertEqual(row["note_count"], 2)
@@ -217,7 +218,7 @@ class TestCrashResilience(unittest.TestCase):
         self.assertGreater(target_file.stat().st_size, 0)
 
         # Check DB index
-        with self.db._get_connection() as conn:
+        with closing(self.db._get_connection()) as conn:
             row = conn.execute("SELECT * FROM sessions WHERE file_path = ?", (str(target_file),)).fetchone()
             self.assertIsNotNone(row)
             self.assertEqual(row["note_count"], 8)
@@ -386,7 +387,7 @@ class TestMarkerAndRestart(unittest.TestCase):
         self.assertIn("Clapper".encode("utf-8"), data)
 
         # Verify database entry has starred = 1
-        with self.db._get_connection() as conn:
+        with closing(self.db._get_connection()) as conn:
             row = conn.execute("SELECT * FROM sessions WHERE file_path = ?", (final_file,)).fetchone()
             self.assertEqual(row["starred"], 1)
             self.assertIn("Clapper", row["notes"])
@@ -425,7 +426,7 @@ class TestMarkerAndRestart(unittest.TestCase):
         self.assertIn(bytes([0xFF, 0x06]), data)
         self.assertIn("Verse 2 melody idea".encode("utf-8"), data)
 
-        with self.db._get_connection() as conn:
+        with closing(self.db._get_connection()) as conn:
             row = conn.execute("SELECT * FROM sessions WHERE file_path = ?", (final_file,)).fetchone()
             self.assertEqual(row["starred"], 1)
             self.assertIn("Verse 2 melody idea", row["notes"])
@@ -490,7 +491,7 @@ class TestMarkerAndRestart(unittest.TestCase):
         daemon.recover_orphaned_journals(self.journal_dir, self.db)
 
         self.assertFalse(journal.exists())
-        with self.db._get_connection() as conn:
+        with closing(self.db._get_connection()) as conn:
             row = conn.execute("SELECT * FROM sessions").fetchone()
         self.assertIsNotNone(row)
         self.assertEqual(row["note_count"], 1)
@@ -567,7 +568,7 @@ class TestCliCommands(unittest.TestCase):
         args.session_id = sid
         midikeep_cli.cmd_star(args, self.paths)
 
-        with self.db._get_connection() as conn:
+        with closing(self.db._get_connection()) as conn:
             row = conn.execute("SELECT starred FROM sessions WHERE id = ?", (sid,)).fetchone()
             self.assertEqual(row["starred"], 1)
 
