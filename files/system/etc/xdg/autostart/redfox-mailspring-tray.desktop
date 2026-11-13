@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=RedFox Mailspring Tray Fix
+Comment=Restarts Mailspring once after login so its tray icon shows
+Exec=/usr/libexec/redfox-mailspring-tray
+NoDisplay=true
+X-GNOME-Autostart-Phase=Application

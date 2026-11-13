@@ -1,0 +1,69 @@
+#!/usr/bin/bash
+# redfox-mailspring-tray: when Mailspring starts at login, restart it once after
+# its tray icon is up. At login Mailspring sets its tray icon twice and removes
+# the first icon file; the AppIndicator extension keeps showing the removed file
+# (three dots) until Mailspring is restarted. Started at login by
+# /etc/xdg/autostart/redfox-mailspring-tray.desktop; does nothing unless
+# Mailspring is set to start at login.
+set -uo pipefail
+
+APP=com.getmailspring.Mailspring
+ENTRY="${XDG_CONFIG_HOME:-$HOME/.config}/autostart/$APP.desktop"
+WAIT_FOR_TRAY=${REDFOX_MAILSPRING_WAIT:-120}
+SETTLE=${REDFOX_MAILSPRING_SETTLE:-5}
+
+log() { echo "redfox-mailspring-tray: $*"; }
+
+[ -f "$ENTRY" ] || exit 0
+grep -qs -E '^Hidden=true|^X-GNOME-Autostart-enabled=false' "$ENTRY" && exit 0
+flatpak info "$APP" >/dev/null 2>&1 || exit 0
+
+running() { flatpak ps --columns=application 2>/dev/null | grep -qx "$APP"; }
+
+# Mailspring's tray item is registered (as "busname" or "busname/path"; its Id
+# is Mailspring_status_icon_N).
+tray_up() {
+    local item bus path
+    for item in $(gdbus call --session --dest org.kde.StatusNotifierWatcher --object-path /StatusNotifierWatcher \
+            --method org.freedesktop.DBus.Properties.Get org.kde.StatusNotifierWatcher RegisteredStatusNotifierItems \
+            2>/dev/null | grep -o "'[^']*'" | tr -d "'"); do
+        bus=${item%%/*}
+        path=/StatusNotifierItem
+        [ "$bus" != "$item" ] && path="/${item#*/}"
+        gdbus call --session --dest "$bus" --object-path "$path" --method org.freedesktop.DBus.Properties.Get \
+            org.kde.StatusNotifierItem Id 2>/dev/null | grep -q "'Mailspring_" && return 0
+    done
+    return 1
+}
+
+# The main Mailspring process: in one of the app's sandboxes, the mailspring
+# process that isn't a helper (helpers have --type=).
+main_pid() {
+    local sandbox p
+    for sandbox in $(flatpak ps --columns=application,child-pid 2>/dev/null | awk -v app="$APP" '$1 == app { print $2 }'); do
+        for p in $(pgrep -P "$sandbox" -x mailspring); do
+            tr '\0' ' ' < "/proc/$p/cmdline" 2>/dev/null | grep -q -- ' --type=' || { echo "$p"; return 0; }
+        done
+    done
+    return 1
+}
+
+# Wait for Mailspring's tray icon, then give it a moment to finish switching icons.
+for _ in $(seq "$WAIT_FOR_TRAY"); do
+    running && tray_up && break
+    sleep 1
+done
+if ! running || ! tray_up; then
+    log "Mailspring's tray icon didn't appear; leaving it alone."
+    exit 0
+fi
+sleep "$SETTLE"
+
+# Quit it the way its own Quit does (SIGTERM to the app), then start it again
+# the way the login did, from its autostart entry.
+pid=$(main_pid) && kill -TERM "$pid" 2>/dev/null
+for _ in $(seq 20); do running || break; sleep 1; done
+running && flatpak kill "$APP" 2>/dev/null
+for _ in $(seq 10); do running || break; sleep 1; done
+log "restarting Mailspring once so its tray icon shows."
+exec gio launch "$ENTRY"
