@@ -5,7 +5,7 @@ The on/off settings in Services, Storage and Sound & Music come from
 `redfox-toggles`, which also changes them (asking for a password through
 polkit for the system-wide ones)."""
 
-from gi.repository import Adw, Gio, GLib, Gtk
+from gi.repository import Adw, Gdk, Gio, GLib, Gtk
 
 from . import actions, host
 from .paths import LAYOUTS
@@ -46,6 +46,20 @@ CLICK_CHOICES = [
 ]
 # Shown when the docks are set to something else (in their own settings).
 CLICK_OTHER = ("Other", "Set in the taskbar or dock's own settings")
+
+
+def login_apps(data):
+    """The Start at Login rows: only apps that are installed (redfox-autostart list --json)."""
+    return [app for app in data.get("apps", []) if app.get("installed")]
+
+
+def app_icon_name(app_id):
+    """The app's own icon (a Flatpak's exported icon, or the system's), or a generic app icon if
+    the icon theme doesn't have it, never the broken-image placeholder."""
+    display = Gdk.Display.get_default()
+    if display and Gtk.IconTheme.get_for_display(display).has_icon(app_id):
+        return app_id
+    return "application-x-executable"
 TERMINAL_NOTE = ("Each works in bash, zsh and fish, in any terminal app. "
                  "New terminal windows show the change.")
 
@@ -389,20 +403,20 @@ class SettingsSection(Section):
             row = Adw.ActionRow(title="Couldn't read the login apps", subtitle=error)
             self.login_group.add(row)
             self.login_rows.append(row)
+            self.login_group.set_visible(True)
             return
-        for app in data["apps"]:
+        # Only the apps that are installed, like GNOME's own startup list; one installed later
+        # shows up the next time the page is shown.
+        for app in login_apps(data):
             row = Adw.SwitchRow(title=app["name"])
-            icon = Gtk.Image(icon_name=app["id"], pixel_size=32)
+            icon = Gtk.Image(icon_name=app_icon_name(app["id"]), pixel_size=32)
             icon.add_css_class("lowres-icon")
             row.add_prefix(icon)
-            if app["installed"]:
-                row.set_active(app["on"])
-            else:
-                row.set_sensitive(False)
-                row.set_subtitle("Not installed")
+            row.set_active(app["on"])
             row.connect("notify::active", self._on_login_toggled, app["id"])
             self.login_group.add(row)
             self.login_rows.append(row)
+        self.login_group.set_visible(bool(self.login_rows))
 
     def _on_login_toggled(self, row, _param, app_id):
         if not row.get_sensitive():
