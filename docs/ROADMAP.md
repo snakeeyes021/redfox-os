@@ -30,7 +30,7 @@
     - [x] **Click Action:** `focus-minimize-or-previews` (Focus, minimize, or show previews).
     - [x] **Size:** Fixed icon size (Scroll to reveal).
     - [x] **Size:** Icon size limit (40px). *(40 px is layout-dewy's; the system default is 56 px)*
-    - [x] **Appearance:** Shrink the dash (remove edge-to-edge).
+    - [x] **Appearance:** Shrink the dash (remove edge-to-edge). *(Shrink the dash is on for every layout with a dock. "Edge-to-edge" refers to the RedFox layout's floating left dock, as opposed to Ubuntu's full-length one; the Ubuntu layout keeps the full-length dock.)*
 - [ ] **App Grid Defaults**
     - [x] **Default:** alphabetical, with folders (Alphabetical App Grid, on by default).
     - [ ] **Folders off, and back on:** `flatten-app-folders` turns them off and `default-app-folders` brings back GNOME's default folders. *(Open question: how well a person's own folders can be restored after turning them off.)*
@@ -39,7 +39,7 @@
 - [x] **Default dock apps:** Files, Firefox, Calculator, Text Editor, Bazaar and Settings, in that order (`org.gnome.shell favorite-apps`), then RedFox Hub, last, once Hub is in the image, in place of the set inherited from Bazzite. Only apps that are in the image or installed automatically at the first boot go in the default dock. Each layout keeps its own set.
 
 ## 📦 Default Software
-- [x] **Dropbox:** Install official Dropbox client (flatpak)
+- [x] **Dropbox:** Install official Dropbox client (flatpak) *(Installed by Dewy's bundle, not by default; anyone else can get it from Flathub or Bazaar.)*
     - [x] Remove maestral after dropbox is tested and experience is satisfactory (if maestral is not removed, improve maestral uninstall script to remove leftovers)
     - [x] **Starts at login:** the Flatpak's own "Start Dropbox on system startup" setting can't work from inside the Flatpak, so the image starts Dropbox at login for anyone who has it installed. Hub › Settings › Start at Login can turn it off.
 - [x] **Implement** System-level GNOME Boxes + Virt-Manager
@@ -96,6 +96,7 @@
     - [x] `set-window-controls-right-gnome` (Deviation): Sets `:close`.
     - [x] `set-window-controls-left-gnome` (Reset): Sets `close:` (reverts to system default).
     - [x] `sort-app-grid` (Hybrid): Keeps the app grid alphabetical (Alphabetical App Grid, on by default) and shows dock apps in it.
+        - *Shipped as: dock apps show in the grid by default for everyone; the Fedora profile hides them, as vanilla GNOME does.*
     - [x] `default-app-grid` (Deviation): GNOME's own order; new apps go at the end.
     - [x] `flatten-app-folders` (Deviation): Puts every app in the main grid, with no folders.
     - [x] `default-app-folders` (Reset): Restores the default app folders.
@@ -331,12 +332,12 @@
 - [x] brave in install-dewy
 - [x] slack in install-dewy
 - [x] square window corners (in as many situations as possible--libadwaita, gtk3, flatpak, etc.)
-- [x] cli speedtest (speedtest.net cli--system install)
+- [x] cli speedtest (speedtest.net cli--system install) *(In the image for everyone, on purpose: it's handy for anyone.)*
 - [x] reverse screenshot shortcuts
 - [ ] dewy: nightlight off
 - [ ] dewy: accent color: teal
 - [ ] dewy: when plugged in: automatic screen blank and automatic suspend off (on battery: 15 minutes)
-- [ ] dewy: tilix settings:
+- [ ] dewy: tilix settings: *(Tilix and Nautilus "Open Any Terminal" stay in the image for everyone, on purpose: Tilix is a supported terminal.)*
     - follow instructions at: https://gnunn1.github.io/tilix-web/manual/vteconfig/ preferences->profiles->Default->Command-> click "Run command as login shell" (NOTE: this step has already been attempted and there are still outstanding issues. The instructions are subsequently known to be either incomplete, insufficient, or incorrect for this project and more investigation is needed--specifically, while we do ensure that vte.sh is sourced from /etc/profile.d, where it definitely already exists and is probably already being sourced anyways, we're still getting the warning on tilix on each startup... maybe tilix always shows that? probably not; it seems to say that a configuration issue is DETECTED--it seems to work when using fish as our shell, so at least our solution there seems to either be working or superfluous)
     - General Tab -> custom font size = 16
     - goto Color Tab
@@ -344,6 +345,7 @@
     -> set background color to dark grey (e.g. #161616) (black too hard to see on black backgrounds)
     -> set transparency to 25% and unfocused dim to 50%
     - additional tilix issues: getting tilix set as the nautilus context menu "Open in terminal" is not working yet either. There is a nautilus extension for this called "nautilus-open-any-terminal" but we have yet to get this working also.
+- [ ] **Tilix integration:** finish it (the settings and Nautilus's "Open in Terminal" above), at low priority while GNOME improves choosing a default terminal, which is expected around GNOME 52.
 - [ ] GDM has monitors switched. Suspect we can simply have a ujust that takes user settings and applies them globally to whatever's in /etc/
 - [ ] get vpn settings file
 - [ ] dewy: qbittorent in flatpak recipe
