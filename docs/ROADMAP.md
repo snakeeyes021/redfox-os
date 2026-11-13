@@ -219,6 +219,7 @@
 - [x] **Manual:** a very short help guide, only for where RedFoxOS differs from mainline Linux (it's immutable) or from other immutable distros (the conveniences and tools we chose). For example: "I want to install a Flatpak / a CLI tool, what do I do?", "My collaborators and I need identical dev setups with a specific Node version", "I need a Python environment; what are my options?" (uv, and whatever else we provide).
 
 - [ ] **Graphical front ends in Hub for RedFox's CLI tools** (later): proper graphical controls for the command-line tools and ujust recipes RedFox ships (for example the Nord configurator), so nobody needs a terminal for them.
+    - [ ] **NordVPN fleet:** a graphical front end for `redfox-nord`: the installed servers and which one is connected, connecting, disconnecting and switching, running a sync, and editing the desired countries, rules and token.
 - [ ] **Full setup in one click:** a button in Hub, or at the end of the Welcome, that runs RedFox's full bootstrap for the person's setup (apps, layout, settings), with progress shown and a summary at the end of what was done or skipped.
     - [x] **Settings › Full Setup:** each profile (Matt, Dewy, Normie, Fedora) with its stages and steps, read from the `bootstrap-*` recipes, and a button that runs it in a terminal window (some steps ask for a password), ending with the recap. Every bootstrap step with a Hub switch uses the same tool as the switch, so Hub shows the result.
 - [x] **Settings › Desktop › Clicking an Open App** (in unstable): what clicking an open app in the taskbar or dock does, set for both at once. Previews (one window shows or minimizes it, several show their previews), App Spread, Focus or App Spread, Bring Forward, Cycle, or Cycle, Then Minimize; "Other" when it's set in the dock's own settings. The row shows the current layout's dock, and is hidden in the GNOME layout, which has no dock.
@@ -324,7 +325,8 @@
     - [ ] Install Claude Code
     - [ ] GitHub CLI (`configure-git` uses `gh`; make sure it's installed)
     - [ ] Insync folders as Nautilus bookmarks (named with both the local user and the Google account email); maybe also symlinked into Wine prefixes and/or home
-    - [ ] Profile picture
+    - [x] Profile picture
+        - *Shipped as: an optional `profile_picture:` key (a base64 PNG or JPEG) in `config.yaml`, which `redfox-config setup` sets as the account picture (login screen and Settings), for everyone.*
 
 ## Running Dewy fixes
 - [x] System Dropbox

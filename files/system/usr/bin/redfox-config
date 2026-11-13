@@ -13,6 +13,9 @@ One config file can describe all of a user's machines:
 
 `setup` also takes a config encrypted with `age -p` (binary or --armor), from any
 source: it asks for the passphrase and decrypts it in memory.
+
+An optional `profile_picture:` (a base64 PNG or JPEG) becomes the account picture
+(login screen, Settings) when setup runs.
 """
 
 import os
@@ -294,6 +297,77 @@ def unquote(text: str) -> str:
     return text
 
 
+# --- Profile picture ---
+
+PICTURE_FORMATS = {b"\x89PNG\r\n\x1a\n": "png", b"\xff\xd8\xff": "jpg"}
+MAX_PICTURE_BYTES = 1048576  # AccountsService refuses bigger icon files
+
+
+def decode_picture(value) -> tuple:
+    """(bytes, extension) from a base64 PNG or JPEG (a data: URL prefix is fine). Raises ValueError."""
+    import base64
+    import binascii
+    text = str(value).strip()
+    if text.startswith("data:") and "," in text:
+        text = text.split(",", 1)[1]
+    try:
+        data = base64.b64decode("".join(text.split()), validate=True)
+    except (binascii.Error, ValueError):
+        raise ValueError("profile_picture isn't valid base64.")
+    ext = next((e for magic, e in PICTURE_FORMATS.items() if data.startswith(magic)), None)
+    if not ext:
+        raise ValueError("profile_picture must be a PNG or JPEG image.")
+    if len(data) > MAX_PICTURE_BYTES:
+        raise ValueError("profile_picture is over 1 MB; use a smaller image (256 px is plenty).")
+    return data, ext
+
+
+def set_account_picture(path: Path):
+    """Set the current user's account picture through AccountsService (login screen, Settings)."""
+    import pwd
+    user = pwd.getpwuid(os.getuid()).pw_name
+    found = subprocess.run(
+        ["gdbus", "call", "--system", "--dest", "org.freedesktop.Accounts",
+         "--object-path", "/org/freedesktop/Accounts",
+         "--method", "org.freedesktop.Accounts.FindUserByName", user],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=20)
+    if found.returncode != 0:
+        raise RuntimeError(found.stderr.strip() or "AccountsService didn't find this user.")
+    import re
+    match = re.search(r"'(/[^']+)'", found.stdout)
+    if not match:
+        raise RuntimeError("AccountsService didn't find this user.")
+    object_path = match.group(1)
+    done = subprocess.run(
+        ["gdbus", "call", "--system", "--dest", "org.freedesktop.Accounts",
+         "--object-path", object_path,
+         "--method", "org.freedesktop.Accounts.User.SetIconFile", str(path)],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=20)
+    if done.returncode != 0:
+        raise RuntimeError(done.stderr.strip() or "AccountsService didn't take the picture.")
+
+
+def apply_profile_picture(cfg: dict):
+    """Apply `profile_picture:` (base64 image) as the account picture. Returns a summary line, or None if unset."""
+    value = cfg.get("profile_picture")
+    if not value:
+        return None
+    if os.getuid() == 0:
+        return "  [!] Profile picture : Not applied (run setup as yourself, not as root)."
+    import tempfile
+    try:
+        data, ext = decode_picture(value)
+        with tempfile.TemporaryDirectory(prefix="redfox-picture-") as tmp:
+            path = Path(tmp) / f"picture.{ext}"
+            path.write_bytes(data)
+            path.chmod(0o644)
+            Path(tmp).chmod(0o755)  # accounts-daemon reads it as root or as you
+            set_account_picture(path)
+    except (ValueError, RuntimeError, OSError, subprocess.SubprocessError) as e:
+        return f"  [!] Profile picture : Not applied: {e}"
+    return "  [✔] Profile picture : Set as your account picture."
+
+
 # --- Commands ---
 
 def read_source(source_str: str) -> bytes:
@@ -450,6 +524,9 @@ def cmd_setup(args):
             print("        (The DMI serial may need sudo to read; bootstrap recipes pass it in automatically.)")
     else:
         print("  [―] Machines        : No machine-specific settings registered.")
+    picture = apply_profile_picture(parsed)
+    if picture:
+        print(picture)
     warn_legacy_quirks(parsed)
 
     print("\n🎉 RedFoxOS configuration setup complete!")

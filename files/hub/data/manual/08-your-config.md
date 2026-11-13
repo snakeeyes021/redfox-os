@@ -24,3 +24,13 @@ A small config fits in a note in your password manager, ready to paste. Once it 
 On a new computer, give setup the encrypted file (a path, an `https://` link, or `F` to choose it), then type the passphrase. If it's wrong you can try again, and nothing is saved until the file decrypts.
 
 When you change your config, encrypt `~/.config/redfox/config.yaml` again the same way and replace the old copy.
+
+## Your profile picture
+
+Your config can also carry your account picture, as `profile_picture:` followed by the image in base64 (a PNG or JPEG of up to 1 MB; 256 pixels square is plenty). To get the base64 text of a picture, run:
+
+```
+base64 -w0 picture.jpg
+```
+
+Setup makes it your picture on the login screen and in Settings.

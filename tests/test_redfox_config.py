@@ -262,6 +262,99 @@ class EncryptedConfigs(SetupBase):
         self.assertFalse(self.config.exists())
 
 
+PNG = b"\x89PNG\r\n\x1a\n" + b"\0" * 32
+JPEG = b"\xff\xd8\xff\xe0" + b"\0" * 32
+
+
+def b64(data):
+    import base64
+    return base64.b64encode(data).decode()
+
+
+class ProfilePicture(unittest.TestCase):
+    def test_png_and_jpeg(self):
+        self.assertEqual(rc.decode_picture(b64(PNG)), (PNG, "png"))
+        self.assertEqual(rc.decode_picture(b64(JPEG)), (JPEG, "jpg"))
+
+    def test_data_url_and_wrapped_lines(self):
+        text = b64(PNG)
+        self.assertEqual(rc.decode_picture("data:image/png;base64," + text)[0], PNG)
+        self.assertEqual(rc.decode_picture(text[:10] + "\n" + text[10:])[0], PNG)
+
+    def test_refusals(self):
+        for value, words in (("not base64!!", "valid base64"), (b64(b"GIF89a" + b"\0" * 8), "PNG or JPEG"),
+                             (b64(PNG + b"\0" * rc.MAX_PICTURE_BYTES), "over 1 MB")):
+            with self.assertRaises(ValueError) as cm:
+                rc.decode_picture(value)
+            self.assertIn(words, str(cm.exception))
+
+    def test_absent_is_skipped(self):
+        with unittest.mock.patch.object(rc, "set_account_picture") as setter:
+            self.assertIsNone(rc.apply_profile_picture({}))
+            self.assertIsNone(rc.apply_profile_picture({"profile_picture": ""}))
+        setter.assert_not_called()
+
+    def test_applied_through_accountsservice(self):
+        seen = {}
+
+        def setter(path):
+            seen["data"] = path.read_bytes()
+            seen["name"] = path.name
+            seen["mode"] = stat.S_IMODE(path.stat().st_mode)
+
+        with unittest.mock.patch.object(rc, "set_account_picture", side_effect=setter), \
+                unittest.mock.patch.object(rc.os, "getuid", return_value=1000):
+            line = rc.apply_profile_picture({"profile_picture": b64(JPEG)})
+        self.assertIn("Set as your account picture", line)
+        self.assertEqual(seen, {"data": JPEG, "name": "picture.jpg", "mode": 0o644})
+
+    def test_bad_picture_is_reported_not_fatal(self):
+        with unittest.mock.patch.object(rc, "set_account_picture") as setter:
+            line = rc.apply_profile_picture({"profile_picture": "nope"})
+        setter.assert_not_called()
+        self.assertIn("Not applied", line)
+
+    def test_accountsservice_failure_is_reported(self):
+        with unittest.mock.patch.object(rc, "set_account_picture", side_effect=RuntimeError("denied")), \
+                unittest.mock.patch.object(rc.os, "getuid", return_value=1000):
+            self.assertIn("Not applied: denied", rc.apply_profile_picture({"profile_picture": b64(PNG)}))
+
+    def test_not_as_root(self):
+        with unittest.mock.patch.object(rc, "set_account_picture") as setter, \
+                unittest.mock.patch.object(rc.os, "getuid", return_value=0):
+            self.assertIn("not as root", rc.apply_profile_picture({"profile_picture": b64(PNG)}))
+        setter.assert_not_called()
+
+    def test_gdbus_calls(self):
+        calls = []
+
+        def run(cmd, **kwargs):
+            calls.append(cmd)
+            out = "(objectpath '/org/freedesktop/Accounts/User1000',)\n" if "FindUserByName" in cmd[-2] else "()\n"
+            return unittest.mock.Mock(returncode=0, stdout=out, stderr="")
+
+        with unittest.mock.patch.object(rc.subprocess, "run", side_effect=run):
+            rc.set_account_picture(Path("/tmp/x/picture.png"))
+        self.assertEqual(calls[1][calls[1].index("--object-path") + 1], "/org/freedesktop/Accounts/User1000")
+        self.assertEqual(calls[1][-2:], ["org.freedesktop.Accounts.User.SetIconFile", "/tmp/x/picture.png"])
+
+
+class SetupAppliesThePicture(SetupBase):
+    def test_setup_prints_the_result(self):
+        with unittest.mock.patch.object(rc, "set_account_picture") as setter, \
+                unittest.mock.patch.object(rc.os, "getuid", return_value=1000):
+            out, code = self.setup(str(self.write("cfg.yaml", PLAIN + f"profile_picture: {b64(PNG)}\n")))
+        self.assertIsNone(code, out)
+        setter.assert_called_once()
+        self.assertIn("Profile picture : Set as your account picture.", out)
+
+    def test_no_picture_no_line(self):
+        with unittest.mock.patch.object(rc, "set_account_picture") as setter:
+            out, code = self.setup(str(self.write("cfg.yaml", PLAIN)))
+        setter.assert_not_called()
+        self.assertNotIn("Profile picture", out)
+
+
 class NoAge(SetupBase):
     def test_missing_age_is_a_clear_error(self):
         with unittest.mock.patch("shutil.which", return_value=None):
