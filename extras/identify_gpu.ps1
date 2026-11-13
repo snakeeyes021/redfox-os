@@ -107,15 +107,12 @@ foreach ($r in $rules.rules) {
 # The download's name, as on the download page and in RedFox Hub
 $downloads = @{
     'redfox-os' = 'RedFoxOS (AMD & Intel)'
-    'redfox-os-nvidia' = 'RedFoxOS NVIDIA (GTX 16xx, RTX 20xx and newer)'
-    'redfox-os-nvidia-legacy' = 'RedFoxOS NVIDIA Legacy (GTX 10xx, 9xx and 750)'
+    'redfox-os-nvidia' = 'RedFoxOS NVIDIA'
+    'redfox-os-nvidia-legacy' = 'RedFoxOS NVIDIA Legacy'
 }
 $download = if ($rule.image) { $downloads[$rule.image] } else { $null }
 if ($download) {
-    Write-Output 'The download to get:'
-    Write-Output ('  ' + $download)
-    Write-Output ''
-    Write-Output 'Why:'
+    Write-Output 'Why this download:'
     Write-Wrapped ('This computer has ' + $rule.why + '.')
 } else {
     Write-Output 'No single download works best on your machine:'
@@ -127,7 +124,24 @@ if ($rule.hybrid) {
     Write-Wrapped ('This computer has built-in graphics next to its NVIDIA card, like most laptops with NVIDIA. The NVIDIA download drives the card with NVIDIA''s driver, and the built-in graphics keep working. If the screen stays black when the USB stick starts, choose "Start RedFoxOS (basic graphics)" in its menu.')
 }
 Write-Output ''
-if ($download) { Write-Output 'Get it at:' } else { Write-Output 'The downloads are at:' }
-Write-Output ('  ' + $page)
+if ($download) {
+    # The page marks the card this anchor names
+    Write-Output 'The download page, with it marked:'
+    Write-Output ('  ' + $page + '#' + $rule.image)
+} else {
+    Write-Output 'The downloads are at:'
+    Write-Output ('  ' + $page)
+}
 Write-Output ''
 Write-Output 'Nothing about this computer has been sent anywhere.'
+if ($download) {
+    # The result comes last, on its own line: red in a console, plain when
+    # the output goes to a file or another program, or NO_COLOR is set.
+    Write-Output ''
+    Write-Output 'The download to get:'
+    if (-not [Console]::IsOutputRedirected -and -not $env:NO_COLOR) {
+        Write-Host $download -ForegroundColor Red
+    } else {
+        Write-Output $download
+    }
+}
