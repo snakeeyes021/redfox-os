@@ -17,12 +17,15 @@ Switching layout puts the dock or taskbar's own settings back to that layout's d
 - **Wash.** One taskbar along the bottom, with the start menu and apps centred.
 - **Nostalgia.** One taskbar along the bottom: start menu and apps on the left, clock on the right.
 
-## Floating dock settings
+## Dock settings
 
-Below the cards, the **Floating Dock** settings apply to the layouts whose dock floats:
+Below the cards, the **Dock** settings apply to the layouts with a dock:
 
 - **Gap to the Screen Edge** is the space between the dock and the edge of the screen, in the RedFox and Cal layouts.
-- **Dock on Screens at Least** is the screen width from which the RedFox layout shows its dock. On narrower screens it uses the plain GNOME dash instead.
+- **Dock on Screens From** is the screen size, in inches measured across, from which the RedFox layout shows its dock: 15 to start with. On smaller screens it uses the plain GNOME dash instead. A screen that doesn't say how big it is (some projectors, for example) gets the dock when it's at least 1600 pixels wide.
+- **Show the Dock on Small Screens Too** keeps the RedFox layout's dock on every screen, whatever its size.
+
+Changes apply straight away, and again whenever you plug in or unplug a screen.
 
 ## Clicking an open app
 

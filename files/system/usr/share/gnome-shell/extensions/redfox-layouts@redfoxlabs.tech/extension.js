@@ -12,6 +12,8 @@ import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import {ExtensionState} from 'resource:///org/gnome/shell/misc/extensionUtils.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
+import {diagonalInches, primaryPhysicalSize, wantDock} from './autodock.js';
+
 const DASH_TO_DOCK = 'dash-to-dock@micxgx.gmail.com';
 const TILING_SHELL = 'tilingshell@ferrarodomenico.com';
 const DASH_TO_PANEL = 'dash-to-panel@jderose9.github.com';
@@ -90,6 +92,8 @@ export default class RedFoxLayoutsExtension extends Extension {
             'changed::floating-dock-gap', () => this._syncFloatingDock(),
             'changed::auto-dock', () => this._queueAutoDock(),
             'changed::auto-dock-min-width', () => this._queueAutoDock(),
+            'changed::auto-dock-min-inches', () => this._queueAutoDock(),
+            'changed::auto-dock-small-screens', () => this._queueAutoDock(),
             'changed::tiling-button-by-start', () => this._queueTilingButton(),
             'changed::tiling-button-size', () => this._queueTilingButton(),
             this);
@@ -229,21 +233,55 @@ export default class RedFoxLayoutsExtension extends Extension {
         });
     }
 
-    // Show the dock on screens wide enough for it; leave small screens
-    // (laptops) with GNOME's dash in the overview.
-    _syncAutoDock() {
-        if (!this._settings.get_boolean('auto-dock'))
+    // Show the dock on big screens (by their diagonal, in inches); leave small screens
+    // (smaller laptops) with GNOME's dash in the overview, unless the dock is wanted on
+    // small screens too. A screen that doesn't report its size is judged by its width.
+    async _syncAutoDock() {
+        if (!this._settings?.get_boolean('auto-dock'))
             return;
         const monitor = Main.layoutManager.primaryMonitor;
         if (!monitor)
             return;
 
-        const wantDock = monitor.width >= this._settings.get_int('auto-dock-min-width');
+        let inches = null;
+        try {
+            const size = await this._primaryPhysicalSize();
+            inches = size ? diagonalInches(size.widthMm, size.heightMm) : null;
+        } catch (e) {
+            inches = null;
+        }
+        if (!this._settings)
+            return; // turned off meanwhile
+
+        const want = wantDock({
+            smallToo: this._settings.get_boolean('auto-dock-small-screens'),
+            inches,
+            minInches: this._settings.get_double('auto-dock-min-inches'),
+            logicalWidth: monitor.width,
+            minWidth: this._settings.get_int('auto-dock-min-width'),
+        });
         const enabled = global.settings.get_strv('enabled-extensions').includes(DASH_TO_DOCK);
-        if (wantDock && !enabled)
+        if (want && !enabled)
             Main.extensionManager.enableExtension(DASH_TO_DOCK);
-        else if (!wantDock && enabled)
+        else if (!want && enabled)
             Main.extensionManager.disableExtension(DASH_TO_DOCK);
+    }
+
+    // The primary screen's physical size, from Mutter's own display configuration.
+    async _primaryPhysicalSize() {
+        const call = method => new Promise((resolve, reject) => {
+            Gio.DBus.session.call('org.gnome.Mutter.DisplayConfig', '/org/gnome/Mutter/DisplayConfig',
+                'org.gnome.Mutter.DisplayConfig', method, null, null, Gio.DBusCallFlags.NONE, 5000,
+                null, (connection, result) => {
+                    try {
+                        resolve(connection.call_finish(result).deepUnpack());
+                    } catch (e) {
+                        reject(e);
+                    }
+                });
+        });
+        const [state, resources] = await Promise.all([call('GetCurrentState'), call('GetResources')]);
+        return primaryPhysicalSize(state, resources);
     }
 
     // ArcMenu and Tiling Shell can take a few seconds after being turned on

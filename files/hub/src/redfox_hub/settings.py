@@ -48,6 +48,22 @@ CLICK_CHOICES = [
 ]
 # Shown when the docks are set to something else (in their own settings).
 CLICK_OTHER = ("Other", "Set in the taskbar or dock's own settings")
+# The Layout page's Dock numbers (the layout extension's keys): key, low, high, step, title,
+# subtitle. Which screens count as big is their diagonal; a screen that doesn't report its
+# size falls back to its width (auto-dock-min-width), which isn't shown.
+INCHES_KEY = "auto-dock-min-inches"
+SMALL_SCREENS_KEY = "auto-dock-small-screens"
+DOCK_NUMBERS = [
+    ("floating-dock-gap", 0, 64, 1, "Gap to the Screen Edge",
+     "For the RedFox and Cal layouts, in pixels"),
+    (INCHES_KEY, 7, 100, 1, "Dock on Screens From",
+     "In inches, measured across. The RedFox layout uses the plain GNOME dash on smaller screens."),
+]
+
+
+def gsettings_number(key, value):
+    """The value as gsettings wants it for the key: a whole number, or a double for the inches."""
+    return f"{float(value):.1f}" if key == INCHES_KEY else str(int(value))
 
 
 def login_apps(data):
@@ -515,15 +531,10 @@ class LayoutPage(Adw.NavigationPage):
         intro.add_css_class("dim-label")
 
         # Shown once the host's gsettings has answered for both keys.
-        self.options = Adw.PreferencesGroup(title="Floating Dock", visible=False)
+        self.options = Adw.PreferencesGroup(title="Dock", visible=False)
         self.option_rows = {}
         self._pending = {}
-        for key, low, high, step, title, subtitle in (
-                ("floating-dock-gap", 0, 64, 1, "Gap to the Screen Edge",
-                 "For the RedFox and Cal layouts, in pixels"),
-                ("auto-dock-min-width", 0, 10000, 10, "Dock on Screens at Least",
-                 "The RedFox layout uses the plain GNOME dash on smaller screens. "
-                 "Logical pixels wide.")):
+        for key, low, high, step, title, subtitle in DOCK_NUMBERS:
             row = Adw.SpinRow.new_with_range(low, high, step)
             row.set_title(title)
             row.set_subtitle(subtitle)
@@ -533,6 +544,14 @@ class LayoutPage(Adw.NavigationPage):
             self.option_rows[key] = row
             host.run(["gsettings", "get", RFL, key],
                      on_done=lambda rc, out, k=key: self._on_option_read(k, rc, out))
+        # The dock on every screen, whatever its size (the size above then doesn't matter).
+        self.small_row = Adw.SwitchRow(
+            title="Show the Dock on Small Screens Too",
+            subtitle="In the RedFox layout, keep the dock on every screen, whatever its size",
+            sensitive=False)
+        self.small_row.connect("notify::active", self._on_small_screens)
+        self.options.add(self.small_row)
+        host.run(["gsettings", "get", RFL, SMALL_SCREENS_KEY], on_done=self._on_small_read)
 
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18,
                       margin_top=24, margin_bottom=24, margin_start=12, margin_end=12)
@@ -559,17 +578,18 @@ class LayoutPage(Adw.NavigationPage):
     def _on_option_read(self, key, returncode, output):
         row = self.option_rows[key]
         try:
-            value = int(output.split()[-1])
+            value = float(output.split()[-1])
         except (ValueError, IndexError):
             return
         if returncode != 0:
             return
         row.set_value(value)
-        row.set_sensitive(True)
+        row.set_sensitive(key != INCHES_KEY or not self.small_row.get_active())
+        row._read = True
         self.options.set_visible(True)
 
     def _on_option(self, row, _param, key):
-        if not row.get_sensitive():
+        if not getattr(row, "_read", False):
             return  # still the value read from the host
         # Write once the value has settled, not on every step of a drag.
         if key in self._pending:
@@ -577,10 +597,28 @@ class LayoutPage(Adw.NavigationPage):
 
         def write():
             self._pending.pop(key, None)
-            host.run(["gsettings", "set", RFL, key, str(int(row.get_value()))])
+            host.run(["gsettings", "set", RFL, key, gsettings_number(key, row.get_value())])
             return GLib.SOURCE_REMOVE
 
         self._pending[key] = GLib.timeout_add(400, write)
+
+    def _on_small_read(self, returncode, output):
+        if returncode != 0:
+            return
+        self.small_row.set_active(output.strip() == "true")
+        self.small_row.set_sensitive(True)
+        self.small_row._read = True
+        inches = self.option_rows.get(INCHES_KEY)
+        if inches is not None and getattr(inches, "_read", False):
+            inches.set_sensitive(not self.small_row.get_active())
+
+    def _on_small_screens(self, row, _param):
+        if not getattr(row, "_read", False):
+            return
+        inches = self.option_rows.get(INCHES_KEY)
+        if inches is not None and getattr(inches, "_read", False):
+            inches.set_sensitive(not row.get_active())
+        host.run(["gsettings", "set", RFL, SMALL_SCREENS_KEY, "true" if row.get_active() else "false"])
 
     def reload(self):
         host.run_json(["redfox-layout", "list", "--json"], self._on_list)

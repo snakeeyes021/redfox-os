@@ -19,12 +19,22 @@
     <key name="auto-dock" type="b">
       <default>false</default>
       <summary>Switch between the dock and the GNOME dash by screen size</summary>
-      <description>Turn Dash to Dock on when the primary monitor is at least auto-dock-min-width logical pixels wide, and off (leaving GNOME's own dash in the overview) on smaller screens.</description>
+      <description>Turn Dash to Dock on when the primary monitor's diagonal is at least auto-dock-min-inches (or, if it doesn't report its size, when it's at least auto-dock-min-width logical pixels wide), and off (leaving GNOME's own dash in the overview) on smaller screens, unless auto-dock-small-screens is set.</description>
+    </key>
+    <key name="auto-dock-min-inches" type="d">
+      <range min="7" max="100"/>
+      <default>15</default>
+      <summary>Smallest primary monitor (diagonal, in inches) that gets the dock</summary>
+    </key>
+    <key name="auto-dock-small-screens" type="b">
+      <default>false</default>
+      <summary>Show the dock on small screens too</summary>
+      <description>With auto-dock, keep Dash to Dock on whatever the primary monitor's size.</description>
     </key>
     <key name="auto-dock-min-width" type="i">
       <range min="0" max="10000"/>
       <default>1600</default>
-      <summary>Smallest primary monitor width (logical pixels) that gets the dock</summary>
+      <summary>Smallest primary monitor width (logical pixels) that gets the dock, for monitors that don't report their size</summary>
     </key>
     <key name="tiling-button-by-start" type="b">
       <default>false</default>
