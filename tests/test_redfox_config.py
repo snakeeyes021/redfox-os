@@ -355,6 +355,155 @@ class SetupAppliesThePicture(SetupBase):
         self.assertNotIn("Profile picture", out)
 
 
+MS_ACCOUNT = {"id": "a378f75c", "name": "Test One", "provider": "imap", "emailAddress": "test1@example.test",
+              "settings": {"imap_host": "127.0.0.1", "imap_port": 3143, "imap_username": "test1"}}
+MS_BLOB = b"v12" + bytes(range(40))
+MS_TOKEN = bytes(range(64))
+
+
+def ms_section():
+    return {"accounts": [MS_ACCOUNT], "credentials": b64(MS_BLOB), "portal_token": b64(MS_TOKEN)}
+
+
+class Mailspring(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp)
+        self.ms_config = self.tmp / "Mailspring" / "config.json"
+        self.tokens = []
+        patches = [
+            unittest.mock.patch.object(rc, "MAILSPRING_CONFIG", self.ms_config),
+            unittest.mock.patch.object(rc, "write_portal_token", side_effect=self.tokens.append),
+            unittest.mock.patch.object(rc, "mailspring_running", return_value=False),
+            unittest.mock.patch.object(rc.os, "getuid", return_value=1000),
+        ]
+        for p in patches:
+            p.start()
+            self.addCleanup(p.stop)
+
+    def config(self):
+        import json
+        return json.loads(self.ms_config.read_text())
+
+    def test_absent_is_skipped(self):
+        self.assertIsNone(rc.apply_mailspring({}))
+        self.assertEqual(self.tokens, [])
+        self.assertFalse(self.ms_config.exists())
+
+    def test_restores_accounts_logins_and_token(self):
+        line = rc.apply_mailspring({"mailspring": ms_section()})
+        self.assertIn("1 account(s) restored", line)
+        self.assertEqual(self.tokens, [MS_TOKEN])
+        star = self.config()["*"]
+        self.assertEqual(star["accounts"], [MS_ACCOUNT])
+        self.assertEqual(star["credentials"], {"type": "Buffer", "data": list(MS_BLOB)})
+        self.assertEqual(stat.S_IMODE(self.ms_config.stat().st_mode), 0o600)
+
+    def test_keeps_the_theme_settings_already_there(self):
+        import json
+        self.ms_config.parent.mkdir(parents=True)
+        self.ms_config.write_text(json.dumps({"*": {"core": {"themes": ["redfox-adwaita"]}, "env": "production"}}))
+        rc.apply_mailspring({"mailspring": ms_section()})
+        star = self.config()["*"]
+        self.assertEqual(star["core"], {"themes": ["redfox-adwaita"]})
+        self.assertEqual(star["env"], "production")
+        self.assertEqual(star["accounts"], [MS_ACCOUNT])
+
+    def test_existing_accounts_are_left_alone(self):
+        import json
+        self.ms_config.parent.mkdir(parents=True)
+        before = json.dumps({"*": {"accounts": [dict(MS_ACCOUNT, id="other")]}})
+        self.ms_config.write_text(before)
+        line = rc.apply_mailspring({"mailspring": ms_section()})
+        self.assertIn("already has accounts", line)
+        self.assertEqual(self.tokens, [])
+        self.assertEqual(self.ms_config.read_text(), before)
+
+    def test_not_while_mailspring_is_open(self):
+        with unittest.mock.patch.object(rc, "mailspring_running", return_value=True):
+            line = rc.apply_mailspring({"mailspring": ms_section()})
+        self.assertIn("Mailspring is open", line)
+        self.assertEqual(self.tokens, [])
+        self.assertFalse(self.ms_config.exists())
+
+    def test_incomplete_sections_are_refused(self):
+        for broken, words in (
+                ({"accounts": []}, "must list the accounts"),
+                ({"accounts": [{"name": "x"}]}, "must list the accounts"),
+                (dict(ms_section(), credentials="not base64!"), "must be base64"),
+                (dict(ms_section(), portal_token=""), "needs both")):
+            with self.subTest(words=words):
+                line = rc.apply_mailspring({"mailspring": broken})
+                self.assertIn(words, line)
+        self.assertEqual(self.tokens, [])
+        self.assertFalse(self.ms_config.exists())
+
+    def test_keyring_failure_writes_nothing_else(self):
+        with unittest.mock.patch.object(rc, "write_portal_token", side_effect=RuntimeError("the keyring is locked")):
+            line = rc.apply_mailspring({"mailspring": ms_section()})
+        self.assertIn("Not applied: the keyring is locked", line)
+        self.assertFalse(self.ms_config.exists())
+
+    def test_not_as_root(self):
+        with unittest.mock.patch.object(rc.os, "getuid", return_value=0):
+            self.assertIn("not as root", rc.apply_mailspring({"mailspring": ms_section()}))
+        self.assertEqual(self.tokens, [])
+
+    def test_export_then_apply_round_trip(self):
+        import json
+        self.ms_config.parent.mkdir(parents=True)
+        full = dict(MS_ACCOUNT, syncState="ok", authedAt=1, metadata=[], __cls="Account")
+        self.ms_config.write_text(json.dumps({"*": {"accounts": [full], "core": {},
+                                                    "credentials": {"type": "Buffer", "data": list(MS_BLOB)}}}))
+        with unittest.mock.patch.object(rc, "read_portal_token", return_value=MS_TOKEN):
+            sec = rc.mailspring_section()
+        self.assertEqual(sec, ms_section())
+        self.ms_config.unlink()
+        rc.apply_mailspring({"mailspring": sec})
+        self.assertEqual(self.config()["*"]["accounts"], [MS_ACCOUNT])
+        self.assertEqual(self.tokens, [MS_TOKEN])
+
+    def test_export_needs_accounts_and_the_key(self):
+        with self.assertRaises(RuntimeError):
+            rc.mailspring_section()
+        import json
+        self.ms_config.parent.mkdir(parents=True)
+        self.ms_config.write_text(json.dumps({"*": {"accounts": [MS_ACCOUNT],
+                                                    "credentials": {"type": "Buffer", "data": [1]}}}))
+        with unittest.mock.patch.object(rc, "read_portal_token", return_value=b""), \
+                self.assertRaises(RuntimeError):
+            rc.mailspring_section()
+
+    def test_write_portal_token_replaces_the_old_one(self):
+        calls = []
+
+        def call(path, iface, method, args, reply):
+            calls.append((path, method))
+            return {"SearchItems": (["/old/item"], []), "Delete": ("/",), "OpenSession": (None, "/session/1"),
+                    "CreateItem": ("/new/item", "/")}[method]
+
+        real = Mailspring.real_write  # the real function; setUp replaces rc.write_portal_token
+        with unittest.mock.patch.object(rc, "secret_call", side_effect=call):
+            real(MS_TOKEN)
+        self.assertEqual([m for _, m in calls], ["SearchItems", "Delete", "OpenSession", "CreateItem"])
+        self.assertEqual(calls[1][0], "/old/item")
+
+    def test_show_hides_the_secrets(self):
+        cfg = {"mailspring": ms_section(), "profile_picture": b64(PNG)}
+        out = io.StringIO()
+        with unittest.mock.patch.object(rc, "USER_CONFIG_PATH", self.tmp / "c.yaml"), redirect_stdout(out):
+            import yaml
+            (self.tmp / "c.yaml").write_text(yaml.safe_dump(cfg))
+            rc.cmd_show(None)
+        self.assertNotIn(ms_section()["portal_token"], out.getvalue())
+        self.assertNotIn(ms_section()["credentials"], out.getvalue())
+        self.assertIn("(hidden,", out.getvalue())
+        self.assertIn("(an image,", out.getvalue())
+
+
+Mailspring.real_write = staticmethod(rc.write_portal_token)
+
+
 class NoAge(SetupBase):
     def test_missing_age_is_a_clear_error(self):
         with unittest.mock.patch("shutil.which", return_value=None):

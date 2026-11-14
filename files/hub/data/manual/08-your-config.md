@@ -34,3 +34,15 @@ base64 -w0 picture.jpg
 ```
 
 Setup makes it your picture on the login screen and in Settings.
+
+## Your Mailspring accounts
+
+Your config can also bring your Mailspring accounts to a new install, already signed in. On the computer where Mailspring is set up, run:
+
+```
+redfox-config mailspring-export
+```
+
+It prints a `mailspring:` section with your accounts, their saved logins and the key they're encrypted with. Add it to your config, and keep the config encrypted (see above).
+
+On the new install, run setup before you first open Mailspring. If Mailspring is open, setup asks you to quit it and run setup again; if Mailspring already has accounts, setup leaves them alone.

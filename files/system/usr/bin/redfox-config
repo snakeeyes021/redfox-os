@@ -21,6 +21,7 @@ An optional `profile_picture:` (a base64 PNG or JPEG) becomes the account pictur
 import os
 import sys
 import argparse
+import json
 import subprocess
 import urllib.request
 import urllib.error
@@ -368,6 +369,164 @@ def apply_profile_picture(cfg: dict):
     return "  [✔] Profile picture : Set as your account picture."
 
 
+# --- Mailspring accounts ---
+#
+# mailspring:
+#   accounts: [...]        Mailspring's account entries (no passwords in them)
+#   credentials: <base64>  its saved logins, encrypted with the key below
+#   portal_token: <base64> that key: the Flatpak's Secret-portal token from the keyring
+#
+# Applied before Mailspring's first start, the accounts come back signed in. The
+# token and the saved logins only work together, so they're always written together.
+
+MAILSPRING_APP = "com.getmailspring.Mailspring"
+MAILSPRING_CONFIG = get_user_home() / ".var" / "app" / MAILSPRING_APP / "config" / "Mailspring" / "config.json"
+MAILSPRING_ACCOUNT_KEYS = ("id", "name", "provider", "emailAddress", "settings", "label", "aliases",
+                           "autoaddress", "color")
+SECRETS = "org.freedesktop.secrets"
+
+
+def secret_call(path: str, iface: str, method: str, args, reply: str):
+    """One call to the Secret Service (the keyring) on the session bus."""
+    import gi
+    gi.require_version("Gio", "2.0")
+    from gi.repository import Gio, GLib
+    bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+    return bus.call_sync(SECRETS, path, iface, method, args, GLib.VariantType(reply),
+                         Gio.DBusCallFlags.NONE, 20000, None).unpack()
+
+
+def _variant(fmt, value):
+    from gi.repository import GLib
+    return GLib.Variant(fmt, value)
+
+
+def _portal_token_items() -> list:
+    unlocked, locked = secret_call("/org/freedesktop/secrets", "org.freedesktop.Secret.Service", "SearchItems",
+                                   _variant("(a{ss})", ({"app_id": MAILSPRING_APP},)), "(aoao)")
+    if locked:
+        raise RuntimeError("the keyring is locked")
+    return list(unlocked)
+
+
+def _open_session() -> str:
+    _, session = secret_call("/org/freedesktop/secrets", "org.freedesktop.Secret.Service", "OpenSession",
+                             _variant("(sv)", ("plain", _variant("s", ""))), "(vo)")
+    return session
+
+
+def read_portal_token() -> bytes:
+    """Mailspring's Secret-portal token, or b"" if there's none."""
+    items = _portal_token_items()
+    if not items:
+        return b""
+    secrets = secret_call("/org/freedesktop/secrets", "org.freedesktop.Secret.Service", "GetSecrets",
+                          _variant("(aoo)", (items[:1], _open_session())), "(a{o(oayays)})")[0]
+    return bytes(secrets[items[0]][2])
+
+
+def write_portal_token(token: bytes):
+    """Replace Mailspring's Secret-portal token, where the portal looks for it (its app_id)."""
+    for item in _portal_token_items():
+        prompt = secret_call(item, "org.freedesktop.Secret.Item", "Delete", None, "(o)")[0]
+        if prompt != "/":
+            raise RuntimeError("the keyring asked for confirmation")
+    props = {"org.freedesktop.Secret.Item.Label": _variant("s", f"Secret Portal token for {MAILSPRING_APP}"),
+             "org.freedesktop.Secret.Item.Attributes": _variant("a{ss}", {"app_id": MAILSPRING_APP})}
+    item, prompt = secret_call(
+        "/org/freedesktop/secrets/aliases/default", "org.freedesktop.Secret.Collection", "CreateItem",
+        _variant("(a{sv}(oayays)b)", (props, (_open_session(), b"", token, "application/octet-stream"), True)),
+        "(oo)")
+    if item == "/":
+        raise RuntimeError("the keyring asked for confirmation")
+
+
+def mailspring_running() -> bool:
+    try:
+        res = subprocess.run(["flatpak", "ps", "--columns=application"], stdout=subprocess.PIPE,
+                             stderr=subprocess.DEVNULL, text=True, timeout=20)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return MAILSPRING_APP in res.stdout.split()
+
+
+def load_mailspring_config() -> dict:
+    if not MAILSPRING_CONFIG.exists():
+        return {}
+    data = json.loads(MAILSPRING_CONFIG.read_text(encoding="utf-8"))
+    return data if isinstance(data, dict) else {}
+
+
+def check_mailspring_section(sec: dict) -> tuple:
+    """(accounts, credentials bytes, token bytes) from a mailspring: section. Raises ValueError."""
+    import base64
+    import binascii
+    accounts = sec.get("accounts")
+    if not isinstance(accounts, list) or not accounts or \
+            not all(isinstance(a, dict) and a.get("emailAddress") and a.get("id") for a in accounts):
+        raise ValueError("mailspring.accounts must list the accounts (each with an id and emailAddress).")
+    try:
+        credentials = base64.b64decode("".join(str(sec.get("credentials", "")).split()), validate=True)
+        token = base64.b64decode("".join(str(sec.get("portal_token", "")).split()), validate=True)
+    except (binascii.Error, ValueError):
+        raise ValueError("mailspring.credentials and mailspring.portal_token must be base64.")
+    if not credentials or not token:
+        raise ValueError("mailspring needs both credentials and portal_token.")
+    return accounts, credentials, token
+
+
+def apply_mailspring(cfg: dict):
+    """Restore Mailspring's accounts, signed in, from `mailspring:`. Returns a summary line, or None if unset."""
+    sec = section(cfg, "mailspring")
+    if not sec:
+        return None
+    label = "  [{}] Mailspring      : {}"
+    if os.getuid() == 0:
+        return label.format("!", "Not applied (run setup as yourself, not as root).")
+    try:
+        accounts, credentials, token = check_mailspring_section(sec)
+        existing = load_mailspring_config()
+        star = existing.get("*") if isinstance(existing.get("*"), dict) else {}
+        if star.get("accounts"):
+            return label.format("―", "Mailspring already has accounts here; left as it is.")
+        if mailspring_running():
+            return label.format("!", "Not applied: Mailspring is open. Quit it and run setup again.")
+        write_portal_token(token)
+        # RedFox may have written this file already (its theme); keep everything else in it.
+        star.update({"accounts": accounts, "accountsVersion": 1,
+                     "credentials": {"type": "Buffer", "data": list(credentials)}})
+        existing["*"] = star
+        MAILSPRING_CONFIG.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        tmp = MAILSPRING_CONFIG.with_name(f".{MAILSPRING_CONFIG.name}.tmp")
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(existing, f, indent=2)
+        os.replace(tmp, MAILSPRING_CONFIG)
+    except (ValueError, RuntimeError, OSError) as e:
+        return label.format("!", f"Not applied: {e}")
+    except Exception as e:  # D-Bus errors from the keyring
+        return label.format("!", f"Not applied: the keyring refused ({e}).")
+    return label.format("✔", f"{len(accounts)} account(s) restored; they're signed in when Mailspring starts.")
+
+
+def mailspring_section() -> dict:
+    """This account's Mailspring accounts, saved logins and token, as a mailspring: section."""
+    import base64
+    star = load_mailspring_config().get("*") or {}
+    accounts = star.get("accounts") or []
+    data = (star.get("credentials") or {}).get("data") if isinstance(star.get("credentials"), dict) else None
+    if not accounts or not data:
+        raise RuntimeError("Mailspring has no accounts here to export.")
+    token = read_portal_token()
+    if not token:
+        raise RuntimeError("Mailspring's key isn't in the keyring.")
+    return {
+        "accounts": [{k: a[k] for k in MAILSPRING_ACCOUNT_KEYS if k in a} for a in accounts],
+        "credentials": base64.b64encode(bytes(data)).decode(),
+        "portal_token": base64.b64encode(token).decode(),
+    }
+
+
 # --- Commands ---
 
 def read_source(source_str: str) -> bytes:
@@ -524,9 +683,9 @@ def cmd_setup(args):
             print("        (The DMI serial may need sudo to read; bootstrap recipes pass it in automatically.)")
     else:
         print("  [―] Machines        : No machine-specific settings registered.")
-    picture = apply_profile_picture(parsed)
-    if picture:
-        print(picture)
+    for line in (apply_profile_picture(parsed), apply_mailspring(parsed)):
+        if line:
+            print(line)
     warn_legacy_quirks(parsed)
 
     print("\n🎉 RedFoxOS configuration setup complete!")
@@ -589,9 +748,29 @@ def cmd_show(args):
             cfg["nordvpn"]["token"] = tok[:4] + "..." + tok[-4:]
         else:
             cfg["nordvpn"]["token"] = "********"
+    for key in ("credentials", "portal_token"):
+        if section(cfg, "mailspring").get(key):
+            cfg["mailspring"][key] = f"(hidden, {len(str(cfg['mailspring'][key]))} characters)"
+    if cfg.get("profile_picture"):
+        cfg["profile_picture"] = f"(an image, {len(str(cfg['profile_picture']))} characters)"
 
     import yaml
     print(yaml.dump(cfg, default_flow_style=False, sort_keys=False).strip())
+
+
+def cmd_mailspring_export(args):
+    """Print this account's Mailspring accounts as a mailspring: section for config.yaml."""
+    import yaml
+    try:
+        sec = mailspring_section()
+    except RuntimeError as e:
+        print(f"[ERROR] {e}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:  # D-Bus errors from the keyring
+        print(f"[ERROR] The keyring refused: {e}", file=sys.stderr)
+        sys.exit(1)
+    print("# Your Mailspring accounts and saved logins. Add this to your config.yaml and keep it secret.")
+    print(yaml.safe_dump({"mailspring": sec}, default_flow_style=False, sort_keys=False, width=100000).strip())
 
 
 def cmd_edit(args):
@@ -638,7 +817,8 @@ COMMANDS:
     get <KEY>         Retrieve a specific configuration value (e.g. 'nordvpn.token')
     show              Display active configuration with tokens masked
     edit              Open ~/.config/redfox/config.yaml in preferred editor
-    reset [-y]        Permanently delete ~/.config/redfox configuration"""
+    reset [-y]        Permanently delete ~/.config/redfox configuration
+    mailspring-export Print your Mailspring accounts and saved logins as a mailspring: section"""
 
     main_epilog = """EXAMPLES:
     redfox-config setup              # Interactive prompt (paste YAML, enter URL or file)
@@ -710,6 +890,15 @@ COMMANDS:
     )
     p_reset.add_argument("-y", "--yes", action="store_true", help="Skip confirmation prompt")
 
+    # mailspring-export
+    subparsers.add_parser(
+        "mailspring-export",
+        description="Print this account's Mailspring accounts, their saved logins and the key they are "
+                    "encrypted with, as a mailspring: section for config.yaml. setup restores them, signed in, "
+                    "before Mailspring's first start on a new install.",
+        help="Export Mailspring accounts for config.yaml"
+    )
+
     # Remove automatic positional arguments group to prevent duplicate command listing
     for grp in parser._action_groups:
         if grp.title == "positional arguments":
@@ -739,6 +928,8 @@ def main():
             cmd_show(args)
         elif args.command == "edit":
             cmd_edit(args)
+        elif args.command == "mailspring-export":
+            cmd_mailspring_export(args)
         elif args.command == "reset":
             cmd_reset(args)
     except KeyboardInterrupt:
