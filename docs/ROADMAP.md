@@ -307,7 +307,8 @@
 - [ ] vesktop icons fix (would like to use discord icons in system tray, perhaps different app icon too)
 - [x] **Android Studio:** not in the default software; revisit if the /home → /var/home problem is fixed upstream.
 - [ ] Bake Ollama
-- [ ] implement 6 openclaw recipes (installs for openclaw, openclaw orchestrator, openclaw worker, and uninstalls for openclaw, orchestrator, and worker) -- see standalone to-do doc
+- [x] ~~implement 6 openclaw recipes (installs for openclaw, openclaw orchestrator, openclaw worker, and uninstalls for openclaw, orchestrator, and worker) -- see standalone to-do doc~~ *(Dropped: OpenClaw isn't part of RedFox's plans. The Ollama plans carry on in [`docs/ollama-planning.md`](ollama-planning.md).)*
+- [ ] **Manual guide: local AI models** (low priority): setting up a few local models with Ollama, using them from T3 Code, and connecting the T3 Code on each of your machines over Tailscale (Tailscale could have a guide of its own). From there, the agents can set up the rest themselves, such as a git server (Forgejo, Gitea) and project tracking.
 - [ ] rounded blur issue in blur my shell
 - [x] Joplin and Signal start minimized to the tray, but only when started at login; started any other way they open normally (`ujust configure-autostart-tray`).
 - [x] Mailspring doesn't get Adwaita as its default theme, but it should. *(Shipped 2026-11-03: RedFox Adwaita Light and Dark, written from scratch, with Adwaita symbolic icons from the system theme and a small plugin for GNOME's button layout and Reply/Forward in the header; see [`docs/mailspring-adwaita.md`](mailspring-adwaita.md). Known limits: no GNOME split header, no native window corners or menus, and Mailspring puts the plugin's Reply group after its own buttons. A GNOME front end over Mailspring's sync engine was looked at and isn't recommended: [`docs/mailspring-gnome-frontend.md`](mailspring-gnome-frontend.md).)*
