@@ -2,7 +2,7 @@
 """RedFox Hub: RedFoxOS's welcome, apps, updates, settings and manual.
 
     redfox-hub                      open Hub
-    redfox-hub --page updates       open a page (settings/layout, manual/apps, ...)
+    redfox-hub --page updates       open a page (desktop/layout, manual/apps, ...)
     redfox-hub --welcome            show the welcome tour
     redfox-hub --first-login        show the welcome tour, once per user
 """

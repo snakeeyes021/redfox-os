@@ -20,7 +20,8 @@ sys.path.insert(0, str(ROOT / "files/hub/src"))
 from redfox_hub import manual  # noqa: E402
 
 MANUAL = ROOT / "files/hub/data/manual"
-HUB_PAGES = {"welcome", "apps", "updates", "settings", "settings/layout", "manual"}
+HUB_PAGES = {"welcome", "apps", "updates", "desktop", "desktop/layout", "services", "storage", "sound",
+             "terminal", "setup", "manual"}
 
 
 class TestManual(unittest.TestCase):

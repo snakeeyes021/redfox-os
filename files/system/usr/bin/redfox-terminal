@@ -22,7 +22,7 @@
 #
 # Both are set in your shells' startup files (bash, zsh and fish), so they work
 # in any terminal. Turning one off removes its lines; the Homebrew packages
-# stay installed. RedFox Hub's Settings › Terminal uses this.
+# stay installed. RedFox Hub's Terminal section uses this.
 set -euo pipefail
 
 BREW=/home/linuxbrew/.linuxbrew/bin/brew

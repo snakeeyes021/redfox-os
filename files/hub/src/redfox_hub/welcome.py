@@ -135,7 +135,7 @@ class TourPage(Gtk.Box):
 
 class Tour(Gtk.Box):
     """The pages, the arrows and the dots. on_finish(page) is called with
-    'apps', 'settings/layout', 'manual' or None."""
+    'apps', 'desktop/layout', 'manual' or None."""
 
     def __init__(self, on_finish, embedded=False):
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
@@ -162,7 +162,7 @@ class Tour(Gtk.Box):
         links = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12,
                         halign=Gtk.Align.CENTER)
         for label, icon, page in (("Get Apps", "view-app-grid-symbolic", "apps"),
-                                  ("Choose a Layout", "view-dual-symbolic", "settings/layout"),
+                                  ("Choose a Layout", "view-dual-symbolic", "desktop/layout"),
                                   ("Read the Manual", "help-browser-symbolic", "manual")):
             button = Gtk.Button(child=Adw.ButtonContent(label=label, icon_name=icon))
             button.add_css_class("pill")

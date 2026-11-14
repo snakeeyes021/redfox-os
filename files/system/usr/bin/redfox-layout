@@ -164,7 +164,7 @@ def dash_to_panel(elements, **extra):
 
 
 # What clicking an open app does starts out as the system each layout is
-# modelled on does it (RedFox Hub's Settings › Desktop changes it):
+# modelled on does it (RedFox Hub's Desktop section changes it):
 # - RedFox: one window shows or minimizes it; several show their previews.
 # - Ubuntu: Ubuntu Dock's default, focus the app or, if it's already in
 #   front, spread its windows (click-action='focus-or-appspread' in

@@ -1,4 +1,4 @@
-"""Full Setup: set the computer up in one go from a profile (Matt, Dewy,
+"""Hub's Full Setup section: set the computer up in one go from a profile (Matt, Dewy,
 Normie, Fedora). A front end to redfox-bootstrap: it lists what each profile
 does, step by step, and runs it in a terminal window, since some steps ask
 for a password. The steps use the same tools as Hub's own switches, so Hub
@@ -7,6 +7,7 @@ shows the result afterwards."""
 from gi.repository import Adw, GLib, Gtk
 
 from . import host
+from .window import Section
 
 
 def terminal(argv):
@@ -16,21 +17,18 @@ def terminal(argv):
     return ["ptyxis", "--new-window", "--", *argv]
 
 
-class SetupPage(Adw.NavigationPage):
-    def __init__(self, section):
-        self.section = section
+class SetupSection(Section):
+    """Hub's Full Setup section: the profiles, each with its stages and steps."""
+
+    def __init__(self, window):
         self.page = Adw.PreferencesPage(
             description="Each profile sets up apps, settings, the theme and the layout in one "
                         "go. It runs in a terminal window, which may ask for your password, and "
                         "ends with a list of what was done or skipped.")
         self.groups = []
-        toolbar = Adw.ToolbarView()
-        toolbar.add_top_bar(Adw.HeaderBar())
-        toolbar.set_content(self.page)
-        super().__init__(title="Full Setup", child=toolbar, tag="setup")
-        self.reload()
+        super().__init__(window, "Full Setup", self.page)
 
-    def reload(self):
+    def shown(self):
         host.run_json(["redfox-bootstrap", "list", "--json"], self._on_list)
 
     def _on_list(self, data, error):
@@ -74,13 +72,13 @@ class SetupPage(Adw.NavigationPage):
         dialog.set_response_appearance("run", Adw.ResponseAppearance.SUGGESTED)
         dialog.set_close_response("cancel")
         dialog.connect("response", lambda _d, r: r == "run" and self._run(profile))
-        dialog.present(self.section.window)
+        dialog.present(self.window)
 
     def _run(self, profile):
         def done(returncode, output):
             if returncode != 0:
                 lines = output.strip().splitlines()
-                self.section.window.toast(lines[-1] if lines else "Couldn't open a terminal")
+                self.window.toast(lines[-1] if lines else "Couldn't open a terminal")
 
         host.run(terminal(["redfox-bootstrap", "run", profile["id"]]), on_done=done)
-        self.section.window.toast(f"Setting up as {profile['name']} in a terminal window")
+        self.window.toast(f"Setting up as {profile['name']} in a terminal window")

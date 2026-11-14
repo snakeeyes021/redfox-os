@@ -7,7 +7,7 @@ from . import host
 
 # Where each action group lives in Hub, for Help's links.
 GROUP_PAGES = {
-    "sound": ("settings", "Settings › Sound & Music"),
+    "sound": ("sound", "Sound & Music"),
     "gaming": ("apps/gaming", "Software › Gaming"),
     "updates": ("updates", "Updates"),
 }

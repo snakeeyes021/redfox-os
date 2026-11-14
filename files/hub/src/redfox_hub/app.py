@@ -25,7 +25,7 @@ class HubApplication(Adw.Application):
                              "Show the welcome tour once, at first login", None)
         self.add_main_option("page", 0, GLib.OptionFlags.NONE,
                              GLib.OptionArg.STRING,
-                             "Open a page, e.g. updates or settings/layout", "PAGE")
+                             "Open a page, e.g. updates or desktop/layout", "PAGE")
         self.add_main_option("version", 0, GLib.OptionFlags.NONE,
                              GLib.OptionArg.NONE, "Print the version", None)
         self.window = None

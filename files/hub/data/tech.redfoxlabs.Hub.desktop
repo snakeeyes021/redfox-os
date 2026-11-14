@@ -18,7 +18,7 @@ Exec=redfox-hub --page updates
 
 [Desktop Action layout]
 Name=Choose a Layout
-Exec=redfox-hub --page settings/layout
+Exec=redfox-hub --page desktop/layout
 
 [Desktop Action manual]
 Name=Manual

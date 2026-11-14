@@ -2,7 +2,7 @@
 # New accounts start in the RedFox layout: a floating dock on big screens,
 # the GNOME dash on small ones. Only accounts made on RedFoxOS have the
 # marker (from /etc/skel), so an existing account's layout is left alone.
-# It can be changed any time in RedFox Hub › Settings › Layout.
+# It can be changed any time in RedFox Hub › Desktop › Layout.
 
 set -euo pipefail
 

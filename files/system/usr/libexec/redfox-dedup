@@ -12,7 +12,7 @@
 # and a daily beesd@<uuid>.timer that only starts bees when that much memory
 # is free. Off: the timer, the config and the hash table go; files already
 # merged keep sharing their space until one copy changes.
-# RedFox Hub's Settings › Storage runs on and off through
+# RedFox Hub's Storage section runs on and off through
 # /usr/libexec/redfox-system-toggle.
 set -euo pipefail
 

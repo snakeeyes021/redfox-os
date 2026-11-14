@@ -30,7 +30,7 @@ maximize-over-floating-dock=true
 
 [org/gnome/shell/extensions/dash-to-panel]
 # The taskbar (Nostalgia, Wash) clicks like the dock above: one window shows
-# or minimizes it, several show their previews. Hub › Settings › Desktop
+# or minimizes it, several show their previews. Hub › Desktop
 # changes both.
 click-action='TOGGLE-SHOWPREVIEW'
 

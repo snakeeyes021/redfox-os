@@ -1,8 +1,9 @@
-"""Settings: the layout picker, extra dimming, apps at login, services,
-storage, and sound & music (with the MIDI archive).
+"""The setting sections in Hub's sidebar: Desktop (the layout picker, extra
+dimming, clicking an open app, apps at login), Services, Storage, Sound &
+Music (with the MIDI archive) and Terminal.
 
-The on/off settings in Services, Storage and Sound & Music come from
-`redfox-toggles`, which also changes them (asking for a password through
+The on/off settings in Services, Storage, Sound & Music and Terminal come
+from `redfox-toggles`, which also changes them (asking for a password through
 polkit for the system-wide ones)."""
 
 from gi.repository import Adw, Gdk, Gio, GLib, Gtk
@@ -16,9 +17,10 @@ from .window import Section
 RFL = "org.gnome.shell.extensions.redfox-layouts"
 # RedFox Dim, turned on and off with gnome-extensions like any extension.
 DIM = "redfox-dim@redfoxlabs.tech"
-# redfox-toggles groups, in page order: id, title.
+# The sections built from redfox-toggles groups: section id (= group id), title.
 TOGGLE_GROUPS = [("terminal", "Terminal"), ("services", "Services"),
                  ("storage", "Storage"), ("sound", "Sound & Music")]
+SECTION_TITLES = dict(TOGGLE_GROUPS, desktop="Desktop")
 # What clicking an open app in the taskbar or dock does: name, explanation,
 # Dash to Panel's value, Dash to Dock's. Each layout starts with its own
 # default (see redfox-layout); the row shows the current layout's dock and
@@ -65,22 +67,25 @@ TERMINAL_NOTE = ("Each works in bash, zsh and fish, in any terminal app. "
 
 
 class SettingsSection(Section):
-    def __init__(self, window):
+    """One setting section: kind is "desktop" or a redfox-toggles group ("services",
+    "storage", "sound", "terminal"). Each builds and loads only its own rows."""
+
+    def __init__(self, window, kind):
+        self.kind = kind
         page = Adw.PreferencesPage()
-        super().__init__(window, "Settings", page)
+        super().__init__(window, SECTION_TITLES[kind], page)
+        self.page = page
+        self.toggle_groups = {}
+        self.toggle_rows = []
+        self.actions = []
+        self.action_rows = []
+        if kind == "desktop":
+            self._build_desktop(page)
+        else:
+            self._build_toggles(page, kind)
 
-        # Full Setup: a whole profile in one go (redfox-bootstrap).
-        full = Adw.PreferencesGroup(title="Full Setup")
-        setup_row = Adw.ActionRow(title="Set Up From a Profile",
-                                  subtitle="Apps, settings and layout in one go",
-                                  activatable=True)
-        setup_row.add_prefix(Gtk.Image(icon_name="emblem-system-symbolic"))
-        setup_row.add_suffix(Gtk.Image(icon_name="go-next-symbolic"))
-        setup_row.connect("activated", lambda *_: self.open("setup"))
-        full.add(setup_row)
-        page.add(full)
-
-        desktop = Adw.PreferencesGroup(title="Desktop")
+    def _build_desktop(self, page):
+        desktop = Adw.PreferencesGroup()
         layout_row = Adw.ActionRow(title="Layout",
                                    subtitle="Where the dock, the top bar and the taskbar go",
                                    activatable=True)
@@ -118,17 +123,15 @@ class SettingsSection(Section):
         self.login_rows = []
         page.add(self.login_group)
 
-        # On/off settings from redfox-toggles, in these groups. A group shows
-        # once it has rows.
-        self.toggle_groups = {}
-        for group_id, title in TOGGLE_GROUPS:
-            # Group titles are markup ("Sound & Music").
-            group = Adw.PreferencesGroup(title=GLib.markup_escape_text(title), visible=False,
-                                         description=TERMINAL_NOTE
-                                         if group_id == "terminal" else None)
-            page.add(group)
-            self.toggle_groups[group_id] = group
-        self.toggle_rows = []
+    def _build_toggles(self, page, kind):
+        # On/off settings from redfox-toggles in this section's group, then its one-off
+        # actions (redfox-actions). The section's title names the group.
+        group = Adw.PreferencesGroup(description=TERMINAL_NOTE if kind == "terminal" else None)
+        page.add(group)
+        self.toggle_groups[kind] = group
+        # Shown when nothing in this section applies to this computer.
+        self.empty_row = Adw.ActionRow(title="Nothing to set here on this computer", visible=False)
+        group.add(self.empty_row)
         # The styled prompt is a choice of theme rather than a switch: Off,
         # then redfox-terminal's themes. It takes the prompt switch's place.
         self.prompt_row = Adw.ComboRow(visible=False)
@@ -138,10 +141,6 @@ class SettingsSection(Section):
         self.prompt_subtitle = ""
         self._prompt_guard = True
         self.prompt_row.connect("notify::selected", self._on_prompt_selected)
-        # One-off actions (redfox-actions) after the switches in their group.
-        self.actions = []
-        self.action_rows = []
-
         # The MIDI archive folder sits under the Midikeep switch, in Sound &
         # Music. It shows once `midikeep data-dir` answers.
         self.midi_row = Adw.ActionRow(title="MIDI Archive Folder", subtitle="…",
@@ -153,12 +152,15 @@ class SettingsSection(Section):
         self.midi_dir = None
 
     def shown(self):
-        host.run_json(["redfox-autostart", "list", "--json"], self._on_autostart)
+        if self.kind == "desktop":
+            host.run_json(["redfox-autostart", "list", "--json"], self._on_autostart)
+            host.run(["gnome-extensions", "info", DIM], on_done=self._on_dim_info)
+            host.run(["redfox-layout", "get"], on_done=self._on_click_layout)
+            return
         host.run_json(["redfox-toggles", "list", "--json"], self._on_toggles)
         actions.load(self._on_actions)
-        host.run_json(["midikeep", "data-dir", "--json"], self._on_midi)
-        host.run(["gnome-extensions", "info", DIM], on_done=self._on_dim_info)
-        host.run(["redfox-layout", "get"], on_done=self._on_click_layout)
+        if self.kind == "sound":
+            host.run_json(["midikeep", "data-dir", "--json"], self._on_midi)
 
     # Clicking an open app
 
@@ -247,11 +249,14 @@ class SettingsSection(Section):
         for group, row in self.toggle_rows:
             group.remove(row)
         self.toggle_rows = []
+        own = self.toggle_groups[self.kind]
         if self.prompt_row.get_parent():
-            self.toggle_groups["terminal"].remove(self.prompt_row)
+            own.remove(self.prompt_row)
         if self.midi_row.get_parent():
-            self.toggle_groups["sound"].remove(self.midi_row)
+            own.remove(self.midi_row)
+        self.toggles_loaded = not error
         if error:
+            self._show_empty()
             return
         for toggle in data.get("toggles", []):
             group = self.toggle_groups.get(toggle["group"])
@@ -335,6 +340,14 @@ class SettingsSection(Section):
             group.add(row)
             group.set_visible(True)
             self.action_rows.append((group, row))
+        self._show_empty()
+
+    def _show_empty(self):
+        """The "nothing here" row, once the switches are read and none apply."""
+        if self.kind in self.toggle_groups:
+            nothing = not self.toggle_rows and not self.action_rows and \
+                not self.prompt_row.get_parent()
+            self.empty_row.set_visible(getattr(self, "toggles_loaded", False) and nothing)
 
     def _on_toggled(self, row, _param, toggle_id):
         if not row.get_sensitive() or getattr(row, "_busy", False):
@@ -384,12 +397,7 @@ class SettingsSection(Section):
         host.run(["midikeep", "data-dir", folder.get_path()], on_done=done)
 
     def open(self, subpath):
-        if subpath == "setup":
-            from .setup import SetupPage
-            self.view.pop_to_tag("root")
-            self.view.push(SetupPage(self))
-            return
-        if subpath == "layout":
+        if subpath == "layout" and self.kind == "desktop":
             self.view.pop_to_tag("root")
             if getattr(self, "layout_page", None) is None:
                 self.layout_page = LayoutPage(self)

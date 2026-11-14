@@ -1,4 +1,4 @@
-*Want a different desktop?* RedFox Hub › Settings › Layout has six layouts that switch without logging out (`redfox-hub --page settings/layout`)
+*Want a different desktop?* RedFox Hub › Desktop › Layout has six layouts that switch without logging out (`redfox-hub --page desktop/layout`)
 It is **always** better to install packages in a Distrobox than to layer them with rpm-ostree: `distrobox create`, then `distrobox enter`
 *Need a Python environment?* `uv` and `pixi` are preinstalled: `uv venv`, or `uv run --with <package>` for a one-off
 *Update break something?* Pick the previous version in the boot menu, or go back in RedFox Hub › Updates

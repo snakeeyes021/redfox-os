@@ -4,7 +4,7 @@ RedFoxOS has six desktop layouts, and you can switch between them at any time wi
 
 ## Choosing one
 
-Open [Hub › Settings › Layout](hub:settings/layout) and pick a card. The desktop changes straight away, behind the window, so you can try each one. Your apps and windows stay open.
+Open [Hub › Desktop › Layout](hub:desktop/layout) and pick a card. The desktop changes straight away, behind the window, so you can try each one. Your apps and windows stay open.
 
 Switching layout puts the dock or taskbar's own settings back to that layout's defaults, so anything you changed in the dock's or taskbar's settings has to be set again afterwards.
 
@@ -26,7 +26,7 @@ Below the cards, the **Floating Dock** settings apply to the layouts whose dock 
 
 ## Clicking an open app
 
-What happens when you click an app that's already open, in the dock or the taskbar, is set in [Hub › Settings](hub:settings) under **Clicking an Open App**: for example, show its windows' previews, spread its windows out, or bring it to the front. Each layout starts with the behaviour of the system it's modelled on, and switching layout sets it back to that. The GNOME layout has no dock, so the setting doesn't apply there.
+What happens when you click an app that's already open, in the dock or the taskbar, is set in [Hub › Desktop](hub:desktop) under **Clicking an Open App**: for example, show its windows' previews, spread its windows out, or bring it to the front. Each layout starts with the behaviour of the system it's modelled on, and switching layout sets it back to that. The GNOME layout has no dock, so the setting doesn't apply there.
 
 ## From a terminal
 

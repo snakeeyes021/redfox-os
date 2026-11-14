@@ -3,13 +3,21 @@
 from gi.repository import Adw, Gio, Gtk
 
 SECTIONS = [
-    # id, title, icon
-    ("welcome", "Welcome", "user-home-symbolic"),
-    ("apps", "Software", "view-app-grid-symbolic"),
-    ("updates", "Updates", "software-update-available-symbolic"),
-    ("settings", "Settings", "preferences-system-symbolic"),
-    ("manual", "Manual", "help-browser-symbolic"),
+    # id, title, icon, sidebar block (blocks are drawn apart)
+    ("welcome", "Welcome", "user-home-symbolic", 0),
+    ("apps", "Software", "view-app-grid-symbolic", 0),
+    ("updates", "Updates", "software-update-available-symbolic", 0),
+    ("desktop", "Desktop", "video-display-symbolic", 1),
+    ("services", "Services", "network-server-symbolic", 1),
+    ("storage", "Storage", "drive-harddisk-symbolic", 1),
+    ("sound", "Sound & Music", "audio-speakers-symbolic", 1),
+    ("terminal", "Terminal", "utilities-terminal-symbolic", 1),
+    ("setup", "Full Setup", "emblem-system-symbolic", 1),
+    ("manual", "Manual", "help-browser-symbolic", 2),
 ]
+SECTION_IDS = [s[0] for s in SECTIONS]
+# Links from before the setting sections had their own place in the sidebar.
+OLD_PAGES = {"settings": "desktop", "settings/layout": "desktop/layout", "settings/setup": "setup"}
 
 
 def make_section(section_id, window):
@@ -22,9 +30,12 @@ def make_section(section_id, window):
     if section_id == "updates":
         from .updates import UpdatesSection
         return UpdatesSection(window)
-    if section_id == "settings":
+    if section_id in ("desktop", "services", "storage", "sound", "terminal"):
         from .settings import SettingsSection
-        return SettingsSection(window)
+        return SettingsSection(window, section_id)
+    if section_id == "setup":
+        from .setup import SetupSection
+        return SetupSection(window)
     from .manual import ManualSection
     return ManualSection(window)
 
@@ -50,10 +61,12 @@ class HubWindow(Adw.ApplicationWindow):
 
         # Sidebar
         self.sidebar = Adw.Sidebar()
-        section = Adw.SidebarSection()
-        for section_id, title, icon in SECTIONS:
-            section.append(Adw.SidebarItem(title=title, icon_name=icon))
-        self.sidebar.append(section)
+        blocks = {}
+        for _section_id, title, icon, block in SECTIONS:
+            if block not in blocks:
+                blocks[block] = Adw.SidebarSection()
+                self.sidebar.append(blocks[block])
+            blocks[block].append(Adw.SidebarItem(title=title, icon_name=icon))
         self.sidebar.connect("activated", self._on_activated)
 
         menu = Gio.Menu()
@@ -96,7 +109,8 @@ class HubWindow(Adw.ApplicationWindow):
         return self.sections[section_id]
 
     def show_section(self, section_id, reveal=True):
-        ids = [s[0] for s in SECTIONS]
+        ids = SECTION_IDS
+        section_id = OLD_PAGES.get(section_id, section_id)
         if section_id not in ids:
             section_id = "welcome"
         section = self.section(section_id)
@@ -110,10 +124,11 @@ class HubWindow(Adw.ApplicationWindow):
         return section
 
     def open_page(self, path):
-        """Open a deep link: 'updates', 'settings/layout', 'manual/apps'."""
+        """Open a deep link: 'updates', 'desktop/layout', 'manual/apps'."""
         path = path.strip().strip("/")
         if path.startswith("hub:"):
             path = path[4:]
+        path = OLD_PAGES.get(path, path)
         section_id, _, rest = path.partition("/")
         section = self.show_section(section_id or "welcome")
         if rest:
