@@ -12,7 +12,8 @@ One config file can describe all of a user's machines:
         quirks: [fix-oryp9-mouse]
 
 `setup` also takes a config encrypted with `age -p` (binary or --armor), from any
-source: it asks for the passphrase and decrypts it in memory.
+source: it asks for the passphrase, decrypts it without temporary files and saves the
+plain config as ~/.config/redfox/config.yaml (readable only by you).
 
 An optional `profile_picture:` (a base64 PNG or JPEG) becomes the account picture
 (login screen, Settings) when setup runs.
@@ -262,6 +263,9 @@ def ask_passphrase(prompt: str) -> str:
 
 def decrypt_config(data: bytes, ask=None) -> bytes:
     """Ask for the passphrase and decrypt, with a retry for a wrong one. None if the user gives up."""
+    import shutil
+    if not shutil.which("age"):  # before asking for a passphrase that can't be used
+        raise RuntimeError("age isn't installed, so an encrypted config can't be read.")
     ask = ask or ask_passphrase
     print("This config is encrypted.")
     for attempt in range(1, PASSPHRASE_TRIES + 1):
@@ -308,18 +312,24 @@ def decode_picture(value) -> tuple:
     """(bytes, extension) from a base64 PNG or JPEG (a data: URL prefix is fine). Raises ValueError."""
     import base64
     import binascii
-    text = str(value).strip()
-    if text.startswith("data:") and "," in text:
-        text = text.split(",", 1)[1]
-    try:
-        data = base64.b64decode("".join(text.split()), validate=True)
-    except (binascii.Error, ValueError):
-        raise ValueError("profile_picture isn't valid base64.")
+    too_big = ValueError("profile_picture is over 1 MB; use a smaller image (256 px is plenty).")
+    if isinstance(value, bytes):  # YAML's !!binary form arrives already decoded
+        data = value
+    else:
+        text = str(value).strip()
+        if text.startswith("data:") and "," in text:
+            text = text.split(",", 1)[1]
+        if len(text) > MAX_PICTURE_BYTES * 4 // 3 + 4096:  # don't decode something far too big
+            raise too_big
+        try:
+            data = base64.b64decode("".join(text.split()), validate=True)
+        except (binascii.Error, ValueError):
+            raise ValueError("profile_picture isn't valid base64.")
     ext = next((e for magic, e in PICTURE_FORMATS.items() if data.startswith(magic)), None)
     if not ext:
         raise ValueError("profile_picture must be a PNG or JPEG image.")
     if len(data) > MAX_PICTURE_BYTES:
-        raise ValueError("profile_picture is over 1 MB; use a smaller image (256 px is plenty).")
+        raise too_big
     return data, ext
 
 
@@ -360,9 +370,10 @@ def apply_profile_picture(cfg: dict):
         data, ext = decode_picture(value)
         with tempfile.TemporaryDirectory(prefix="redfox-picture-") as tmp:
             path = Path(tmp) / f"picture.{ext}"
-            path.write_bytes(data)
-            path.chmod(0o644)
-            Path(tmp).chmod(0o755)  # accounts-daemon reads it as root or as you
+            # Private to you: accounts-daemon reads a user's file as that user.
+            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(fd, "wb") as f:
+                f.write(data)
             set_account_picture(path)
     except (ValueError, RuntimeError, OSError, subprocess.SubprocessError) as e:
         return f"  [!] Profile picture : Not applied: {e}"
@@ -843,7 +854,8 @@ COMMANDS:
         "setup",
         usage="redfox-config setup [SOURCE]",
         description="Ingest and validate RedFoxOS configuration from a URL, local file, or interactive paste. "
-                    "A config encrypted with age -p is decrypted in memory after its passphrase.",
+                    "A config encrypted with age -p is decrypted after its passphrase (no temporary files) "
+                    "and saved as the usual plain config, readable only by you.",
         help="Setup system configuration (paste, file, or URL)"
     )
     p_setup.add_argument("source", nargs="?", help="Optional file path or URL to configuration YAML")

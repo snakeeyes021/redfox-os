@@ -50,7 +50,7 @@ CLICK_OTHER = ("Other", "Set in the taskbar or dock's own settings")
 
 def login_apps(data):
     """The Start at Login rows: only apps that are installed (redfox-autostart list --json)."""
-    return [app for app in data.get("apps", []) if app.get("installed")]
+    return [app for app in (data.get("apps") or []) if app.get("installed")]
 
 
 def app_icon_name(app_id):
@@ -205,8 +205,12 @@ class SettingsSection(Section):
             model.remove(len(CLICK_CHOICES))
             self._click_guard = False
         _name, _text, panel, dock = CLICK_CHOICES[row.get_selected()]
+        failed = []
+
         def done(returncode, _output):
-            if returncode != 0:
+            # Two writes (taskbar and dock); one toast if either fails.
+            if returncode != 0 and not failed:
+                failed.append(returncode)
                 self.window.toast("The click setting wasn't changed")
 
         for path, value in zip(CLICK_PATHS, (panel, dock)):
@@ -412,7 +416,7 @@ class SettingsSection(Section):
             icon = Gtk.Image(icon_name=app_icon_name(app["id"]), pixel_size=32)
             icon.add_css_class("lowres-icon")
             row.add_prefix(icon)
-            row.set_active(app["on"])
+            row.set_active(bool(app.get("on")))
             row.connect("notify::active", self._on_login_toggled, app["id"])
             self.login_group.add(row)
             self.login_rows.append(row)

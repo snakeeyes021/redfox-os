@@ -1,5 +1,5 @@
 """redfox-config setup: plain configs (file, pipe, URL, paste) work as before, and an
-age-encrypted config is decrypted in memory after its passphrase, with a retry.
+age-encrypted config is decrypted after its passphrase (no temporary files), with a retry.
 
     python3 -m unittest tests.test_redfox_config
 
@@ -306,7 +306,7 @@ class ProfilePicture(unittest.TestCase):
                 unittest.mock.patch.object(rc.os, "getuid", return_value=1000):
             line = rc.apply_profile_picture({"profile_picture": b64(JPEG)})
         self.assertIn("Set as your account picture", line)
-        self.assertEqual(seen, {"data": JPEG, "name": "picture.jpg", "mode": 0o644})
+        self.assertEqual(seen, {"data": JPEG, "name": "picture.jpg", "mode": 0o600})
 
     def test_bad_picture_is_reported_not_fatal(self):
         with unittest.mock.patch.object(rc, "set_account_picture") as setter:
@@ -510,7 +510,19 @@ class NoAge(SetupBase):
             out, code = self.setup(str(FIXTURES / "config.age"), passphrases=[PASSPHRASE])
         self.assertEqual(code, 1)
         self.assertIn("age isn't installed", out)
+        self.assertEqual(self.asked, [], "no passphrase should be asked for when age is missing")
         self.assertFalse(self.config.exists())
+
+
+class PictureEdges(unittest.TestCase):
+    def test_binary_yaml_form(self):
+        self.assertEqual(rc.decode_picture(PNG), (PNG, "png"))
+
+    def test_far_too_big_is_refused_before_decoding(self):
+        with unittest.mock.patch("base64.b64decode") as decode, self.assertRaises(ValueError) as cm:
+            rc.decode_picture("A" * (rc.MAX_PICTURE_BYTES * 2))
+        decode.assert_not_called()
+        self.assertIn("over 1 MB", str(cm.exception))
 
 
 if __name__ == "__main__":

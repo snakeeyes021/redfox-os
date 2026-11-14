@@ -33,6 +33,7 @@ class LoginApps(unittest.TestCase):
     def test_none_installed_is_an_empty_list(self):
         self.assertEqual(settings.login_apps({"apps": [dict(self.DATA["apps"][1])]}), [])
         self.assertEqual(settings.login_apps({}), [])
+        self.assertEqual(settings.login_apps({"apps": None}), [])
 
     def test_icon_is_the_apps_own_or_a_generic_one(self):
         theme = unittest.mock.Mock()
