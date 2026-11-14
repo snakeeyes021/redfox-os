@@ -755,6 +755,12 @@ configure-terminal-tilix:
     nautilus -q || true    
     @echo "Done. Tilix is now the default."
 
+# Matt's terminal: Ptyxis in light mode, the Catppuccin Powerline prompt and the modern command-line tools
+configure-terminal-matt: configure-terminal-default
+    gsettings set org.gnome.Ptyxis interface-style "'light'"
+    redfox-terminal prompt theme catppuccin-powerline
+    redfox-terminal tools on
+
 # Restore the default terminal (Ptyxis)
 configure-terminal-default:
     @echo "Restoring system default terminal (Ptyxis)..."
@@ -882,7 +888,7 @@ configure-music: enable-midikeep
 configure-dev: configure-vscode configure-cursor
 
 # Configure Matt's Environment
-configure-matt: redfox-enforce-config apply-hardware-quirks add-swap configure-nordvpn reset-hostname configure-keybindings-default configure-dev configure-text-editor-dev configure-terminal-default configure-powersaver-no-suspend configure-xway-scale-off configure-music configure-autostart-tray
+configure-matt: redfox-enforce-config apply-hardware-quirks add-swap configure-nordvpn reset-hostname configure-keybindings-default configure-dev configure-text-editor-dev configure-terminal-matt configure-powersaver-no-suspend configure-xway-scale-off configure-music configure-autostart-tray
     mkdir -p ~/dev
     gnome-extensions enable unblank@sun.wxg@gmail.com
     # just runs hardware atoms here eventually

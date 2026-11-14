@@ -105,6 +105,18 @@ class TestSameToolsAsHub(unittest.TestCase):
         self.assertEqual(midikeep["on"], ["ujust", "enable-midikeep"])
         self.assertIn("enable-midikeep", recipe_bodies()["configure-music"][0])
 
+    def test_matts_terminal(self):
+        # Matt's Full Setup: Ptyxis (the default terminal) in light mode, the Catppuccin
+        # Powerline prompt and the modern tools, through the same tool as Hub's Terminal switches.
+        bodies = recipe_bodies()
+        self.assertIn("configure-terminal-matt", bodies["configure-matt"][0])
+        self.assertNotIn("configure-terminal-default", bodies["configure-matt"][0])
+        deps, body = bodies["configure-terminal-matt"]
+        self.assertIn("configure-terminal-default", deps)
+        self.assertIn("gsettings set org.gnome.Ptyxis interface-style \"'light'\"", body)
+        self.assertIn("redfox-terminal prompt theme catppuccin-powerline", body)
+        self.assertIn("redfox-terminal tools on", body)
+
 
 class TestSteam(unittest.TestCase):
     def setUp(self):
