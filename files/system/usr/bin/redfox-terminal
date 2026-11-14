@@ -25,7 +25,8 @@
 # stay installed. RedFox Hub's Terminal section uses this.
 set -euo pipefail
 
-BREW=/home/linuxbrew/.linuxbrew/bin/brew
+BREW_PREFIX="${REDFOX_BREW_PREFIX:-/home/linuxbrew/.linuxbrew}"
+BREW="$BREW_PREFIX/bin/brew"
 CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}"
 TOOLS=(eza ugrep atuin zoxide bat fd ripgrep)
 # The prompt themes (id, name, file, uses Nerd Font symbols), and the one
@@ -74,11 +75,21 @@ brew_install() {
         echo "redfox-terminal: Homebrew isn't set up yet" >&2
         exit 1
     fi
+    # Installed formulae each have a link in opt/, which every account can see.
     local missing=()
     for pkg in "$@"; do
-        "$BREW" list --formula "$pkg" >/dev/null 2>&1 || missing+=("$pkg")
+        [ -e "$BREW_PREFIX/opt/$pkg" ] || missing+=("$pkg")
     done
     if [ "${#missing[@]}" -gt 0 ]; then
+        # Homebrew belongs to one account (the first one made). The others can
+        # use what it installed, but not install anything themselves.
+        if [ ! -w "$BREW_PREFIX" ]; then
+            local owner name
+            owner=$(stat -c %U "$BREW_PREFIX")
+            name=$(getent passwd "$owner" | cut -d: -f5 | cut -d, -f1)
+            echo "Only ${name:-$owner} can install this. Once they've turned it on, it works for you too." >&2
+            exit 1
+        fi
         echo "Installing ${missing[*]} with Homebrew..."
         "$BREW" install "${missing[@]}"
     fi

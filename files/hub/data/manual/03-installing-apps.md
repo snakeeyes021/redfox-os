@@ -32,6 +32,8 @@ brew search ripgrep
 
 RedFoxOS's updates, automatic or from [Hub › Updates](hub:updates), keep Homebrew tools up to date along with everything else.
 
+On a computer with more than one account, Homebrew belongs to the first account made. Every account can use the tools it has installed, but only that account can install new ones. The same goes for the extras in [Hub › Terminal](hub:terminal): once that account has turned one on, the others can turn it on too.
+
 ## Anything else: Distrobox
 
 **Distrobox** runs another Linux system (Fedora, Ubuntu, Arch and others) in a container that shares your home folder, so its programs feel like part of your desktop. Inside it you use that system's own package manager. It's the place for software only packaged as `.rpm` or `.deb`, or that needs a particular distribution.
