@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Builds RedFox Symbols, a one-glyph font: RedFox's fox face as a symbol
 at U+10F000 (a private-use codepoint), so a terminal prompt can show it in
-the prompt's own colours, like Nerd Font symbols. It's about one terminal
-cell wide.
+the prompt's own colours, like Nerd Font symbols. It's the size of the
+Nerd Font icons beside it.
 
 Writes files/system/usr/share/fonts/redfox-symbols/RedFoxSymbols.ttf and,
 for reference, assets/fox-glyph/fox-face.svg.
@@ -32,9 +32,13 @@ EYES = [[(25, 44), (41, 49), (29, 51)], [(75, 44), (59, 49), (71, 51)]]
 NOSE = [(43, 86), (57, 86), (50, 94)]
 MUZZLE = [(22, 52), (38, 60), (50, 80), (62, 60), (78, 52)]
 
-# Font metrics: 1000 units per em; the glyph is about one cell (0.6 em) wide.
-UPM, ASC, DESC = 1000, 880, -120
-ADVANCE, MAX_W, MAX_H, TOP = 600, 640, 780, 790
+# Font metrics: sized like the Symbols Nerd Font icons beside the fox in
+# prompts and fastfetch (terminals draw those at their own size, past the
+# cell): from 0.116 em below the baseline to 0.716 em above it, as the
+# Material Design icons there are, as wide as that makes it, with no space
+# either side.
+UPM, ASC, DESC = 1000, 800, -200
+BOTTOM, TOP = -116, 716
 
 
 def fox():
@@ -64,13 +68,12 @@ def main():
                 f'{x2 - x1 + 8:.1f} {y2 - y1 + 8:.1f}"><path fill="currentColor" fill-rule="evenodd" '
                 f'd="{" ".join(paths)}"/></svg>\n')
 
-    scale = min(MAX_W / (x2 - x1), MAX_H / (y2 - y1))
-    ox = (ADVANCE - (x2 - x1) * scale) / 2
-    oy = (MAX_H - (y2 - y1) * scale) / 2
+    scale = (TOP - BOTTOM) / (y2 - y1)
+    advance = round((x2 - x1) * scale)
     pen = TTGlyphPen(None)
     for p in polygons(geom):
         for i, ring in enumerate([p.exterior, *p.interiors]):
-            pts = [(round(ox + (x - x1) * scale), round(TOP - oy - (y - y1) * scale))
+            pts = [(round((x - x1) * scale), round(TOP - (y - y1) * scale))
                    for x, y in list(ring.coords)[:-1]]
             # TrueType: outer contours clockwise, holes counter-clockwise (y up).
             if (i == 0) != (signed_area(pts) < 0):
@@ -86,7 +89,7 @@ def main():
     fb.setupGlyphOrder([".notdef", "space", "fox"])
     fb.setupCharacterMap({0x20: "space", CODEPOINT: "fox"})
     fb.setupGlyf(glyphs)
-    fb.setupHorizontalMetrics({".notdef": (ADVANCE, 0), "space": (ADVANCE, 0), "fox": (ADVANCE, 0)})
+    fb.setupHorizontalMetrics({".notdef": (advance, 0), "space": (advance, 0), "fox": (advance, 0)})
     fb.setupHorizontalHeader(ascent=ASC, descent=DESC)
     fb.setupNameTable({"familyName": "RedFox Symbols", "styleName": "Regular",
                        "copyright": "RedFox Labs", "version": "Version 1.0"})
