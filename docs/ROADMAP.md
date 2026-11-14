@@ -318,6 +318,7 @@
 - [x] Mailspring: bring email accounts over to a new install, for example with the rest of a person's saved configuration, even if some accounts need signing in again in the browser.
     - *Shipped as: a `mailspring:` section in `config.yaml` (the accounts, their saved logins and the keyring key they're encrypted with), printed by `redfox-config mailspring-export` and restored by `redfox-config setup` before Mailspring's first start, so the accounts come back signed in.*
 - [ ] Mailspring: when it starts at login, its tray icon is the wrong one.
+- [ ] Bug: on a machine with more than one account, the Terminal switches in Hub (the prompt theme, the modern command-line tools) fail for every account but the first, with "Permission denied", because Homebrew belongs to the first account.
 - [x] Midikeep: let the user set where the session archive goes, in a config Pianola also reads: `data_dir` in `~/.config/midikeep/config.yaml` (see `docs/midikeep.md`); Pianola side in snakeeyes021/pianola#3.
 
 
