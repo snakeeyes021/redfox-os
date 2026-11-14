@@ -374,6 +374,8 @@ class Mailspring(unittest.TestCase):
         patches = [
             unittest.mock.patch.object(rc, "MAILSPRING_CONFIG", self.ms_config),
             unittest.mock.patch.object(rc, "write_portal_token", side_effect=self.tokens.append),
+            unittest.mock.patch.object(rc, "read_portal_token", return_value=b""),
+            unittest.mock.patch.object(rc, "delete_portal_token", side_effect=lambda: self.tokens.append("deleted")),
             unittest.mock.patch.object(rc, "mailspring_running", return_value=False),
             unittest.mock.patch.object(rc.os, "getuid", return_value=1000),
         ]
@@ -443,6 +445,40 @@ class Mailspring(unittest.TestCase):
             line = rc.apply_mailspring({"mailspring": ms_section()})
         self.assertIn("Not applied: the keyring is locked", line)
         self.assertFalse(self.ms_config.exists())
+        self.assertEqual(list(self.ms_config.parent.glob(".*.tmp")), [])
+
+    def test_config_failure_puts_the_old_token_back(self):
+        # Both or neither: if the config can't be put in place, the token is restored.
+        old = b"old-token"
+        with unittest.mock.patch.object(rc, "read_portal_token", return_value=old), \
+                unittest.mock.patch.object(rc.os, "replace", side_effect=OSError("disk full")):
+            line = rc.apply_mailspring({"mailspring": ms_section()})
+        self.assertIn("Not applied: disk full", line)
+        self.assertEqual(self.tokens, [MS_TOKEN, old])
+        self.assertFalse(self.ms_config.exists())
+        self.assertEqual(list(self.ms_config.parent.glob(".*.tmp")), [])
+
+    def test_config_failure_removes_a_token_that_was_not_there(self):
+        with unittest.mock.patch.object(rc.os, "replace", side_effect=OSError("disk full")):
+            rc.apply_mailspring({"mailspring": ms_section()})
+        self.assertEqual(self.tokens, [MS_TOKEN, "deleted"])
+        self.assertFalse(self.ms_config.exists())
+
+    def test_existing_config_is_untouched_when_the_token_fails(self):
+        import json
+        self.ms_config.parent.mkdir(parents=True)
+        before = json.dumps({"*": {"core": {"themes": ["redfox-adwaita"]}}})
+        self.ms_config.write_text(before)
+        with unittest.mock.patch.object(rc, "write_portal_token", side_effect=RuntimeError("refused")):
+            rc.apply_mailspring({"mailspring": ms_section()})
+        self.assertEqual(self.ms_config.read_text(), before)
+
+    def test_export_says_where_it_belongs(self):
+        out = io.StringIO()
+        with unittest.mock.patch.object(rc, "mailspring_section", return_value=ms_section()), redirect_stdout(out):
+            rc.cmd_mailspring_export(None)
+        self.assertIn("only in an encrypted config", out.getvalue())
+        self.assertIn("mailspring:", out.getvalue())
 
     def test_not_as_root(self):
         with unittest.mock.patch.object(rc.os, "getuid", return_value=0):
@@ -483,7 +519,8 @@ class Mailspring(unittest.TestCase):
                     "CreateItem": ("/new/item", "/")}[method]
 
         real = Mailspring.real_write  # the real function; setUp replaces rc.write_portal_token
-        with unittest.mock.patch.object(rc, "secret_call", side_effect=call):
+        with unittest.mock.patch.object(rc, "secret_call", side_effect=call), \
+                unittest.mock.patch.object(rc, "delete_portal_token", Mailspring.real_delete):
             real(MS_TOKEN)
         self.assertEqual([m for _, m in calls], ["SearchItems", "Delete", "OpenSession", "CreateItem"])
         self.assertEqual(calls[1][0], "/old/item")
@@ -502,6 +539,7 @@ class Mailspring(unittest.TestCase):
 
 
 Mailspring.real_write = staticmethod(rc.write_portal_token)
+Mailspring.real_delete = staticmethod(rc.delete_portal_token)
 
 
 class NoAge(SetupBase):

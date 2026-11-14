@@ -436,12 +436,17 @@ def read_portal_token() -> bytes:
     return bytes(secrets[items[0]][2])
 
 
-def write_portal_token(token: bytes):
-    """Replace Mailspring's Secret-portal token, where the portal looks for it (its app_id)."""
+def delete_portal_token():
+    """Remove Mailspring's Secret-portal token from the keyring."""
     for item in _portal_token_items():
         prompt = secret_call(item, "org.freedesktop.Secret.Item", "Delete", None, "(o)")[0]
         if prompt != "/":
             raise RuntimeError("the keyring asked for confirmation")
+
+
+def write_portal_token(token: bytes):
+    """Replace Mailspring's Secret-portal token, where the portal looks for it (its app_id)."""
+    delete_portal_token()
     props = {"org.freedesktop.Secret.Item.Label": _variant("s", f"Secret Portal token for {MAILSPRING_APP}"),
              "org.freedesktop.Secret.Item.Attributes": _variant("a{ss}", {"app_id": MAILSPRING_APP})}
     item, prompt = secret_call(
@@ -502,17 +507,31 @@ def apply_mailspring(cfg: dict):
             return label.format("―", "Mailspring already has accounts here; left as it is.")
         if mailspring_running():
             return label.format("!", "Not applied: Mailspring is open. Quit it and run setup again.")
-        write_portal_token(token)
-        # RedFox may have written this file already (its theme); keep everything else in it.
+        # The saved logins only open with this token, and a token without them is useless:
+        # both are written, or neither. The config is prepared first, then the token is
+        # swapped in, then the config; if anything fails, the old token goes back.
+        # RedFox may have written this config already (its theme); keep everything else in it.
         star.update({"accounts": accounts, "accountsVersion": 1,
                      "credentials": {"type": "Buffer", "data": list(credentials)}})
         existing["*"] = star
         MAILSPRING_CONFIG.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
         tmp = MAILSPRING_CONFIG.with_name(f".{MAILSPRING_CONFIG.name}.tmp")
-        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(existing, f, indent=2)
-        os.replace(tmp, MAILSPRING_CONFIG)
+        try:
+            fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(existing, f, indent=2)
+            previous = read_portal_token()
+            try:
+                write_portal_token(token)
+                os.replace(tmp, MAILSPRING_CONFIG)
+            except BaseException:
+                try:
+                    write_portal_token(previous) if previous else delete_portal_token()
+                except Exception:
+                    pass
+                raise
+        finally:
+            tmp.unlink(missing_ok=True)
     except (ValueError, RuntimeError, OSError) as e:
         return label.format("!", f"Not applied: {e}")
     except Exception as e:  # D-Bus errors from the keyring
@@ -780,7 +799,11 @@ def cmd_mailspring_export(args):
     except Exception as e:  # D-Bus errors from the keyring
         print(f"[ERROR] The keyring refused: {e}", file=sys.stderr)
         sys.exit(1)
-    print("# Your Mailspring accounts and saved logins. Add this to your config.yaml and keep it secret.")
+    print("# Secret: this unlocks every saved mail password. Keep it only in an encrypted config\n"
+          "# (age -p, see the manual) or your password manager's note, never in plain files or logs.")
+    if sys.stdout.isatty():
+        print("Secret: these lines unlock your mail passwords. Redirect them into your encrypted "
+              "config rather than leaving them on screen.", file=sys.stderr)
     print(yaml.safe_dump({"mailspring": sec}, default_flow_style=False, sort_keys=False, width=100000).strip())
 
 
