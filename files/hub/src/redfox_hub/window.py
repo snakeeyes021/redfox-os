@@ -8,6 +8,7 @@ SECTIONS = [
     ("apps", "Software", "view-app-grid-symbolic", 0),
     ("updates", "Updates", "software-update-available-symbolic", 0),
     ("desktop", "Desktop", "video-display-symbolic", 1),
+    ("vpn", "VPN", "network-vpn-symbolic", 1),
     ("services", "Services", "network-server-symbolic", 1),
     ("storage", "Storage", "drive-harddisk-symbolic", 1),
     ("sound", "Sound & Music", "audio-speakers-symbolic", 1),
@@ -33,6 +34,9 @@ def make_section(section_id, window):
     if section_id in ("desktop", "services", "storage", "sound", "terminal"):
         from .settings import SettingsSection
         return SettingsSection(window, section_id)
+    if section_id == "vpn":
+        from .vpn import VpnSection
+        return VpnSection(window)
     if section_id == "setup":
         from .setup import SetupSection
         return SetupSection(window)

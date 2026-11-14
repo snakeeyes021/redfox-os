@@ -23,7 +23,7 @@ class Sections(unittest.TestCase):
     def test_the_sidebar(self):
         self.assertEqual([(s[0], s[1]) for s in window.SECTIONS], [
             ("welcome", "Welcome"), ("apps", "Software"), ("updates", "Updates"),
-            ("desktop", "Desktop"), ("services", "Services"), ("storage", "Storage"),
+            ("desktop", "Desktop"), ("vpn", "VPN"), ("services", "Services"), ("storage", "Storage"),
             ("sound", "Sound & Music"), ("terminal", "Terminal"), ("setup", "Full Setup"),
             ("manual", "Manual")])
         self.assertNotIn("settings", window.SECTION_IDS)

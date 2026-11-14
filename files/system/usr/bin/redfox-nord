@@ -770,6 +770,206 @@ def cmd_list(args):
     print(f"\nSummary: {len(managed)} / 8 Quick Settings slots used.")
 
 
+# --- Machine-readable output and settings, for RedFox Hub ---
+
+COUNTRY_CACHE = get_user_home() / ".cache" / "redfox" / "nord-countries.json"
+COUNTRY_CACHE_DAYS = 30
+
+
+def country_names(fetch: bool = True) -> dict:
+    """ISO code -> country name, from a local cache refreshed from Nord's API when it's old.
+    Without the network (or fetch=False), whatever the cache has, possibly nothing."""
+    import time
+    cached = {}
+    try:
+        cached = json.loads(COUNTRY_CACHE.read_text(encoding="utf-8"))
+        fresh = time.time() - COUNTRY_CACHE.stat().st_mtime < COUNTRY_CACHE_DAYS * 86400
+    except (OSError, ValueError):
+        fresh = False
+    if fresh or not fetch:
+        return cached if isinstance(cached, dict) else {}
+    try:
+        names = {code: c["name"] for code, c in get_country_map().items()
+                 if len(code) == 2 and c.get("name")}
+    except Exception:
+        return cached if isinstance(cached, dict) else {}
+    try:
+        COUNTRY_CACHE.parent.mkdir(parents=True, exist_ok=True)
+        COUNTRY_CACHE.write_text(json.dumps(names), encoding="utf-8")
+    except OSError:
+        pass
+    return names
+
+
+def country_name(code: str, names: dict) -> str:
+    code = canonical_country(code)
+    return names.get(code) or display_country(code)
+
+
+def server_entries(load: bool = False) -> list:
+    """The installed servers as Hub shows them. With load=True, each one's load and whether it's
+    online (one API call per country; None where that can't be found out)."""
+    names = country_names(fetch=load)
+    managed = get_managed_connections()
+    servers = [{
+        "uuid": c["uuid"],
+        "name": c["name"],
+        "country": c["country_code"],
+        "country_name": country_name(c["country_code"], names) if c["country_code"] else "",
+        "number": c["server_num"],
+        "p2p": c["category"] == "p2p",
+        "active": c["active"],
+    } for c in managed]
+    if load:
+        try:
+            cmap = get_country_map()
+        except Exception:
+            cmap = {}
+        health = {}
+        for code in {s["country"] for s in servers if s["country"]}:
+            entry = cmap.get(canonical_country(code))
+            if not entry:
+                continue
+            try:
+                health[code] = get_country_server_health(entry["id"])
+            except Exception:
+                pass
+        for s in servers:
+            info = health.get(s["country"], {}).get(s["number"]) if s["country"] in health else None
+            s["load"] = info.get("load") if info else None
+            # A server missing from its country's list is gone (offline for good).
+            s["online"] = (info.get("status") == "online") if info else \
+                (False if s["country"] in health else None)
+    return servers
+
+
+def rules_entries(names: dict) -> list:
+    """The country rules (config.yaml, else the system default), one entry per country and kind."""
+    entries = []
+    for rule in resolve_fleet_rules():
+        code = canonical_country(rule.get("country", ""))
+        if not code:
+            continue
+        try:
+            count = max(1, int(rule.get("count", 1)))
+        except (TypeError, ValueError):
+            count = 1
+        entries.append({"country": display_country(code), "country_name": country_name(code, names),
+                        "count": count, "p2p": str(rule.get("category", "")).lower() == "p2p"})
+    return entries
+
+
+def token_works(token: str) -> bool:
+    """Ask Nord whether the token works (this also caches the WireGuard key). Raises
+    ConnectionError when Nord can't be reached."""
+    try:
+        get_wireguard_private_key(token)
+    except (PermissionError, ValueError):  # refused, or no WireGuard key for this account
+        return False
+    except RuntimeError as e:  # NordVPN answers a malformed or unknown token with 400 or 403
+        if "(400)" in str(e) or "(403)" in str(e):
+            return False
+        raise ConnectionError(str(e))
+    return True
+
+
+def cmd_list_json(args):
+    servers = server_entries(load=getattr(args, "load", False))
+    print(json.dumps({"servers": servers,
+                      "connected": next((s["uuid"] for s in servers if s["active"]), None)}))
+
+
+def cmd_status(args):
+    """Token, rules and countries as JSON, for RedFox Hub's VPN page."""
+    if not getattr(args, "json", False):
+        print("redfox-nord status prints JSON: run it with --json.")
+        sys.exit(1)
+    names = country_names(fetch=True)
+    token = get_nord_token()
+    status = {
+        "provider": "nordvpn",
+        "provider_name": "NordVPN",
+        "token": bool(token),
+        "token_works": None,
+        "rules_from": "config" if isinstance(get_nord_config().get("servers"), list)
+        and get_nord_config().get("servers") else "default",
+        "rules": rules_entries(names),
+        "countries": sorted(({"code": display_country(code), "name": name} for code, name in names.items()),
+                            key=lambda c: c["name"]),
+    }
+    if token and getattr(args, "check", False):
+        try:
+            status["token_works"] = token_works(token)
+        except Exception:  # NordVPN couldn't be asked: unknown, and the rest still answers
+            status["token_works"] = None
+    print(json.dumps(status))
+
+
+def cmd_rules(args):
+    """`rules set`: replace the country rules with a JSON list on stdin,
+    [{"country": "US", "count": 1, "p2p": false}, ...]."""
+    if args.action != "set":
+        sys.exit(1)
+    try:
+        wanted = json.loads(sys.stdin.read())
+    except ValueError:
+        print("The country list isn't valid JSON.")
+        sys.exit(1)
+    if not isinstance(wanted, list):
+        print("The country list must be a list.")
+        sys.exit(1)
+    servers = []
+    for rule in wanted:
+        code = canonical_country(str(rule.get("country", ""))) if isinstance(rule, dict) else ""
+        if not re.fullmatch(r"[A-Z]{2}", code):
+            print(f"Not a country code: {rule!r}")
+            sys.exit(1)
+        try:
+            count = int(rule.get("count", 1))
+        except (TypeError, ValueError):
+            count = 1
+        if not 1 <= count <= 8:
+            print("Each country can have 1 to 8 servers.")
+            sys.exit(1)
+        entry = {"country": display_country(code)}
+        if count != 1:
+            entry["count"] = count
+        if rule.get("p2p"):
+            entry["category"] = "p2p"
+        servers.append(entry)
+    config = load_yaml(USER_CONFIG_PATH)
+    nord = config.get("nordvpn") if isinstance(config.get("nordvpn"), dict) else {}
+    nord["servers"] = servers
+    config["nordvpn"] = nord
+    save_user_config(config)
+    print(f"Saved {len(servers)} countr{'y' if len(servers) == 1 else 'ies'}.")
+
+
+def cmd_token(args):
+    """`token set`: read a token on stdin (never as an argument), check it with Nord unless
+    --no-check, and save it. Exit 2: Nord refused it; exit 3: Nord couldn't be reached."""
+    if args.action != "set":
+        sys.exit(1)
+    token = sys.stdin.read().strip()
+    if not token:
+        print("No token was given.")
+        sys.exit(1)
+    if not getattr(args, "no_check", False):
+        try:
+            if not token_works(token):
+                print("That token doesn't work. Check that it's a NordVPN access token and hasn't expired.")
+                sys.exit(2)
+        except ConnectionError:
+            print("Couldn't reach NordVPN to check the token. Check the network and try again.")
+            sys.exit(3)
+    config = load_yaml(USER_CONFIG_PATH)
+    nord = config.get("nordvpn") if isinstance(config.get("nordvpn"), dict) else {}
+    nord["token"] = token
+    config["nordvpn"] = nord
+    save_user_config(config)
+    print("Token saved.")
+
+
 def cmd_nuke(args):
     """Purge all RedFox-managed NordVPN WireGuard connections."""
     managed = get_managed_connections()
@@ -865,6 +1065,9 @@ COMMANDS:
     list [OPTIONS]               Display installed connections and active tunnel status
     nuke [OPTIONS]               Permanently delete all managed NordVPN connections
     search <QUERY>               Search available NordVPN countries and country codes
+    status --json [--check]      Token, country rules and countries as JSON (for RedFox Hub)
+    rules set                    Replace the country rules (a JSON list on stdin)
+    token set [--no-check]       Save the access token (on stdin), checked with NordVPN first
     help [COMMAND]               Show detailed help for a specific command"""
 
     main_epilog = """EXAMPLES:
@@ -994,6 +1197,41 @@ deleting more than one connection unless -y is given."""
         help="Display installed connections and active tunnel status",
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
+    p_list.add_argument("--json", action="store_true", help="Print JSON (for RedFox Hub)")
+    p_list.add_argument("--load", action="store_true",
+                        help="With --json, also each server's current load and whether it's online")
+
+    # status (JSON, for RedFox Hub)
+    p_status = subparsers.add_parser(
+        "status",
+        usage="redfox-nord status --json [--check]",
+        description="Print the token state, the country rules and the countries as JSON (for RedFox Hub).",
+        help="Token, rules and countries as JSON",
+    )
+    p_status.add_argument("--json", action="store_true", help="Print JSON")
+    p_status.add_argument("--check", action="store_true", help="Also ask NordVPN whether the token works")
+
+    # rules set
+    p_rules = subparsers.add_parser(
+        "rules",
+        usage="redfox-nord rules set < rules.json",
+        description='Replace the country rules in ~/.config/redfox/config.yaml with a JSON list on stdin: '
+                    '[{"country": "US", "count": 1, "p2p": false}, ...]',
+        help="Set the country rules (JSON on stdin)",
+    )
+    p_rules.add_argument("action", choices=["set"])
+
+    # token set
+    p_token = subparsers.add_parser(
+        "token",
+        usage="redfox-nord token set [--no-check] < token",
+        description="Save the NordVPN access token from stdin into ~/.config/redfox/config.yaml, after "
+                    "checking it with NordVPN. It's never taken as an argument, so it doesn't show in "
+                    "the process list.",
+        help="Set the access token (on stdin)",
+    )
+    p_token.add_argument("action", choices=["set"])
+    p_token.add_argument("--no-check", action="store_true", help="Save it without asking NordVPN")
 
     # nuke
     nuke_desc = """Permanently delete all RedFox-managed NordVPN WireGuard connections from NetworkManager.
@@ -1063,7 +1301,13 @@ def main():
         elif args.command in ("remove", "rm"):
             cmd_remove(args)
         elif args.command in ("list", "ls"):
-            cmd_list(args)
+            cmd_list_json(args) if getattr(args, "json", False) else cmd_list(args)
+        elif args.command == "status":
+            cmd_status(args)
+        elif args.command == "rules":
+            cmd_rules(args)
+        elif args.command == "token":
+            cmd_token(args)
         elif args.command == "nuke":
             cmd_nuke(args)
         elif args.command == "search":

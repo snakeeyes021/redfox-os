@@ -24,7 +24,7 @@ def _env():
     return env
 
 
-def run(argv, on_done=None, on_line=None, on_partial=None):
+def run(argv, on_done=None, on_line=None, on_partial=None, input_text=None):
     """Run argv in a thread.
 
     on_line(line) is called for each finished line of output (stdout and
@@ -32,6 +32,8 @@ def run(argv, on_done=None, on_line=None, on_partial=None):
     bars redraw one line with carriage returns; on_partial(text) gets that
     line as it's redrawn (at most a few times a second), and None once it's
     finished. All callbacks run on the main loop. Returns the thread.
+    input_text, if given, is written to the command's stdin (for secrets,
+    which must never be arguments).
     """
 
     def worker():
@@ -39,12 +41,20 @@ def run(argv, on_done=None, on_line=None, on_partial=None):
         try:
             proc = subprocess.Popen(
                 argv, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                stdin=subprocess.DEVNULL, bufsize=0, env=_env())
+                stdin=subprocess.DEVNULL if input_text is None else subprocess.PIPE,
+                bufsize=0, env=_env())
         except OSError as error:
             message = f"Couldn't run {argv[0]}: {error.strerror}"
             if on_done:
                 GLib.idle_add(on_done, 127, message)
             return
+        if input_text is not None:
+            try:
+                proc.stdin.write(input_text.encode("utf-8"))
+            except OSError:
+                pass
+            finally:
+                proc.stdin.close()
         decoder = codecs.getincrementaldecoder("utf-8")("replace")
         pending = ""
         partial_shown = False
