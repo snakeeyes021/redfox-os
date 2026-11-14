@@ -34,6 +34,8 @@ An account added later, or a standard (non-administrator) account, isn't added b
 sudo usermod -aG docker username
 ```
 
+Being in the `docker` group lets an account take over the whole computer without a password, the same as an administrator. Only add people you'd make administrators; for anyone else, Podman (also in the image) runs containers without it. Administrators also get the `libvirt` and `incus-admin` groups, which give the same control. When an account stops being an administrator, RedFoxOS takes it out of all three at the next start. A standard account you added to `docker` by hand keeps it.
+
 ## Distrobox, for your own setup
 
 If you only need a fixed toolset for yourself, a Distrobox is simpler: a long-lived container that shares your home folder. See [Installing apps](manual:installing-apps).

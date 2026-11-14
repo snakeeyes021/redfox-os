@@ -36,6 +36,7 @@ case "$*" in
 esac
 """
 PGREP = """#!/bin/bash
+[ -f "$T/no-main" ] && exit 1
 [ "$2" = 4242 ] && cat "$T/app.pid"
 """
 GIO = """#!/bin/bash
@@ -60,13 +61,19 @@ class MailspringTray(unittest.TestCase):
                               f"Exec=flatpak run --command=mailspring {APP} --background %U\n")
         # The fake Mailspring: a process whose command line is "mailspring ...".
         self.app = subprocess.Popen(["bash", "-c", "exec -a mailspring sleep 60"])
-        self.addCleanup(self.app.kill)
+        self.addCleanup(self.stop_app, self.app)
         (self.tmp / "app.pid").write_text(str(self.app.pid))
+
+    @staticmethod
+    def stop_app(app):
+        app.kill()
+        app.wait()
 
     def run_script(self):
         env = dict(os.environ, T=str(self.tmp), XDG_CONFIG_HOME=str(self.config),
                    PATH=f"{self.bin}:{os.environ['PATH']}",
-                   REDFOX_MAILSPRING_WAIT="2", REDFOX_MAILSPRING_SETTLE="0")
+                   REDFOX_MAILSPRING_WAIT="2", REDFOX_MAILSPRING_SETTLE="0",
+                   REDFOX_MAILSPRING_QUIT_WAIT="3")
         res = subprocess.run(["bash", str(SCRIPT)], env=env, capture_output=True, text=True, timeout=60)
         calls = (self.tmp / "calls").read_text() if (self.tmp / "calls").exists() else ""
         return res, calls
@@ -102,6 +109,26 @@ class MailspringTray(unittest.TestCase):
         res, calls = self.run_script()
         self.assertTrue(self.alive())
         self.assertEqual(calls, "")
+
+    def test_never_forced_without_its_main_process(self):
+        (self.tmp / "no-main").touch()
+        res, calls = self.run_script()
+        self.assertEqual(res.returncode, 0)
+        self.assertTrue(self.alive(), "Mailspring must not be killed")
+        self.assertEqual(calls, "", "no flatpak kill and no relaunch")
+        self.assertIn("couldn't find Mailspring's main process", res.stdout)
+
+    def test_left_running_if_it_does_not_quit(self):
+        self.app.kill()
+        self.app.wait()
+        # A Mailspring that ignores SIGTERM.
+        self.app = subprocess.Popen(["bash", "-c", "trap '' TERM; exec -a mailspring sleep 60"])
+        self.addCleanup(self.stop_app, self.app)
+        (self.tmp / "app.pid").write_text(str(self.app.pid))
+        res, calls = self.run_script()
+        self.assertTrue(self.alive())
+        self.assertEqual(calls, "", "no flatpak kill and no relaunch")
+        self.assertIn("didn't quit; leaving it running", res.stdout)
 
     def test_left_alone_without_its_tray_icon(self):
         for marker in ("no-tray", "other-tray"):

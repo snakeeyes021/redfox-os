@@ -11,7 +11,7 @@ How to find out what went wrong, and where to report a problem with RedFoxOS.
 
 At the top of this Manual, **Something not working?** lists quick fixes for common problems. **Collect Logs** and **Restart into Firmware Settings** run from there; the others open the part of Hub where they are, next to the settings they're about. Only the ones that apply to this computer are shown.
 
-- **Collect Logs** saves this computer's logs and system details in one zip in your Downloads folder, for someone helping you. Your name, the computer's name, email addresses, network names, serial numbers and similar details are taken out, and nothing is uploaded: you choose whom to send it to. In a terminal, `redfox-logs` does the same.
+- **Collect Logs** saves this computer's logs and system details in one zip in your Downloads folder, for someone helping you. Your name, the computer's name, email addresses, network names, serial numbers and similar details are taken out where RedFox can find them, and nothing is uploaded: you choose whom to send it to. Look through it before you post it anywhere public. In a terminal, `redfox-logs` does the same.
 - **Restart Audio**, in [Hub › Settings](hub:settings), under **Sound & Music**, if sound stops, or a speaker or headset doesn't show up.
 - **Stop Stuck Windows Games** and **Reset Steam**, in [Hub › Software](hub:apps), on the **Gaming** tab, for a game that won't close or start again, and for Steam itself.
 - **Update NVIDIA Libraries for Flatpak Apps**, in [Hub › Updates](hub:updates), on computers with NVIDIA graphics, if Flatpak apps lose graphics acceleration.

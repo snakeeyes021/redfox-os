@@ -74,12 +74,19 @@ def run(argv, on_done=None, on_line=None, on_partial=None):
         except Exception as error:
             # Its output can't be read any more: stop it, reap it, and say so, so the page
             # waiting for it doesn't wait forever.
-            proc.terminate()
+            # A child pkexec has made root can't be signalled from here (PermissionError):
+            # report back anyway.
             try:
+                proc.terminate()
                 proc.wait(timeout=10)
             except subprocess.TimeoutExpired:
-                proc.kill()
-                proc.wait()
+                try:
+                    proc.kill()
+                    proc.wait(timeout=10)
+                except (OSError, subprocess.TimeoutExpired):
+                    pass
+            except OSError:
+                pass
             if on_done:
                 GLib.idle_add(on_done, proc.returncode or 1,
                               "\n".join(lines + [f"Stopped {argv[0]}: {error}"]))

@@ -69,6 +69,26 @@ class TestRun(unittest.TestCase):
         self.assertNotEqual(result[0][0], 0)
         self.assertIn("Stopped bash: boom", result[0][1])
 
+    def test_reports_even_if_the_command_cannot_be_stopped(self):
+        # A pkexec child running as root can't be signalled by Hub (PermissionError).
+        loop = GLib.MainLoop()
+        result = []
+
+        def done(rc, out):
+            result.append((rc, out))
+            loop.quit()
+
+        broken = unittest.mock.Mock()
+        broken.return_value.return_value.decode.side_effect = ValueError("boom")
+        with unittest.mock.patch.object(host.codecs, "getincrementaldecoder", broken), \
+                unittest.mock.patch.object(host.subprocess.Popen, "terminate", side_effect=PermissionError), \
+                unittest.mock.patch.object(host.subprocess.Popen, "kill", side_effect=PermissionError):
+            host.run(["bash", "-c", "echo hi; sleep 3"], on_done=done)
+            GLib.timeout_add_seconds(20, loop.quit)
+            loop.run()
+        self.assertEqual(len(result), 1)
+        self.assertIn("Stopped bash: boom", result[0][1])
+
 
 if __name__ == "__main__":
     unittest.main()

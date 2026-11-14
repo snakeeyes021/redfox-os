@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
-GSHADOW="/etc/gshadow"
+# Test runs (never as root) can point the files below at a scratch folder.
+ROOT=""
+[ "$(id -u)" -ne 0 ] && ROOT="${REDFOX_TEST_ROOT:-}"
+
+GSHADOW="$ROOT/etc/gshadow"
 
 # Remove /etc/gshadow entries for groups that exist nowhere. Existence is checked with
 # getent, which sees both /etc/group and the image's /usr/lib/group (nss-altfiles).
@@ -56,13 +60,42 @@ fi
 # owned by them (e.g. ClamAV's /var/lib/clamav) were skipped. Create them now.
 systemd-tmpfiles --create || true
 
-# SCRIPT VERSION (increment this number every time you update this script)
-GROUP_SETUP_VER=4
-GROUP_SETUP_VER_FILE="/etc/ublue/dx-groups"
-GROUP_SETUP_VER_RAN=$(cat "$GROUP_SETUP_VER_FILE" 2>/dev/null || echo "0")
+# docker, incus-admin and libvirt are as good as root: members control containers and VMs
+# that can reach the whole system. Administrators (members of wheel) get them.
+DX_GROUPS=(docker incus-admin libvirt)
+# The memberships this script manages, one "user:group" per line.
+MANAGED_FILE="$ROOT/etc/ublue/dx-groups-managed"
 
-# make the directory if it doesn't exist
-mkdir -p /etc/ublue
+mkdir -p "$ROOT/etc/ublue"
+
+wheel_members() { getent group wheel | cut -d ":" -f 4 | tr ',' '\n' | sed '/^$/d'; }
+in_group() { id -nG "$1" 2>/dev/null | tr ' ' '\n' | grep -qx -- "$2"; }
+
+# Every start: an account that is no longer an administrator leaves the groups this script
+# manages for it. Memberships added by hand for other accounts aren't recorded and stay.
+if [ -s "$MANAGED_FILE" ]; then
+  mapfile -t admins < <(wheel_members)
+  keep=()
+  while IFS=: read -r user group; do
+    [ -n "$user" ] && [ -n "$group" ] || continue
+    if printf '%s\n' "${admins[@]}" | grep -qx -- "$user"; then
+      keep+=("$user:$group")
+    elif in_group "$user" "$group"; then
+      if gpasswd -d "$user" "$group" >/dev/null; then
+        echo "Took $user out of $group: no longer an administrator"
+      else
+        echo "Couldn't take $user out of $group; trying again next start"
+        keep+=("$user:$group")
+      fi
+    fi
+  done <"$MANAGED_FILE"
+  printf '%s\n' "${keep[@]}" | sed '/^$/d' >"$MANAGED_FILE.tmp" && mv -f "$MANAGED_FILE.tmp" "$MANAGED_FILE"
+fi
+
+# SCRIPT VERSION (increment this number every time you update this script)
+GROUP_SETUP_VER=5
+GROUP_SETUP_VER_FILE="$ROOT/etc/ublue/dx-groups"
+GROUP_SETUP_VER_RAN=$(cat "$GROUP_SETUP_VER_FILE" 2>/dev/null || echo "0")
 
 # Run script if updated
 if [[ -f $GROUP_SETUP_VER_FILE && "$GROUP_SETUP_VER" = "$GROUP_SETUP_VER_RAN" ]]; then
@@ -79,7 +112,7 @@ append_group() {
     line=$(grep -h "^$group_name:" /usr/lib/group /usr/etc/group 2>/dev/null | head -n1)
     if [ -n "$line" ]; then
       echo "Appending $group_name to /etc/group"
-      echo "$line" >>/etc/group
+      echo "$line" >>"$ROOT/etc/group"
     else
       echo "No $group_name group in the image; skipping it."
     fi
@@ -87,17 +120,23 @@ append_group() {
 }
 
 # Setup Groups
-append_group docker
-append_group incus-admin
-append_group libvirt
+for group in "${DX_GROUPS[@]}"; do
+  append_group "$group"
+done
 
-# Every administrator (member of wheel), not just the first: "${wheelarray[@]}", not
-# "$wheelarray". Adding someone to a group they're already in changes nothing.
-mapfile -t wheelarray < <(getent group wheel | cut -d ":" -f 4 | tr ',' '\n' | sed '/^$/d')
+# Every administrator, not just the first ("${wheelarray[@]}", not "$wheelarray"). Their
+# memberships are recorded, so they're taken away again if the account stops being one.
+# One account that can't be changed doesn't stop the others.
+mapfile -t wheelarray < <(wheel_members)
 for user in "${wheelarray[@]}"; do
-  usermod -aG docker "$user"
-  usermod -aG incus-admin "$user"
-  usermod -aG libvirt "$user"
+  for group in "${DX_GROUPS[@]}"; do
+    getent group "$group" >/dev/null || continue
+    if in_group "$user" "$group" || usermod -aG "$group" "$user"; then
+      grep -qx -- "$user:$group" "$MANAGED_FILE" 2>/dev/null || echo "$user:$group" >>"$MANAGED_FILE"
+    else
+      echo "Couldn't add $user to $group; skipping it."
+    fi
+  done
 done
 
 # Prevent future executions

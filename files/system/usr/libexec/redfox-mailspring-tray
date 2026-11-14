@@ -11,6 +11,7 @@ APP=com.getmailspring.Mailspring
 ENTRY="${XDG_CONFIG_HOME:-$HOME/.config}/autostart/$APP.desktop"
 WAIT_FOR_TRAY=${REDFOX_MAILSPRING_WAIT:-120}
 SETTLE=${REDFOX_MAILSPRING_SETTLE:-5}
+QUIT_WAIT=${REDFOX_MAILSPRING_QUIT_WAIT:-30}
 
 log() { echo "redfox-mailspring-tray: $*"; }
 
@@ -60,10 +61,18 @@ fi
 sleep "$SETTLE"
 
 # Quit it the way its own Quit does (SIGTERM to the app), then start it again
-# the way the login did, from its autostart entry.
-pid=$(main_pid) && kill -TERM "$pid" 2>/dev/null
-for _ in $(seq 20); do running || break; sleep 1; done
-running && flatpak kill "$APP" 2>/dev/null
-for _ in $(seq 10); do running || break; sleep 1; done
+# the way the login did, from its autostart entry. Never force it: if its main
+# process can't be found or it doesn't quit, leave it running as it is.
+running || exit 0  # quit by the user meanwhile
+if ! pid=$(main_pid); then
+    log "couldn't find Mailspring's main process; leaving it alone."
+    exit 0
+fi
+kill -TERM "$pid" 2>/dev/null
+for _ in $(seq "$QUIT_WAIT"); do running || break; sleep 1; done
+if running; then
+    log "Mailspring didn't quit; leaving it running."
+    exit 0
+fi
 log "restarting Mailspring once so its tray icon shows."
 exec gio launch "$ENTRY"
