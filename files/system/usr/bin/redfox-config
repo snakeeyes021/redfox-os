@@ -455,6 +455,27 @@ def write_portal_token(token: bytes):
         "(oo)")
     if item == "/":
         raise RuntimeError("the keyring asked for confirmation")
+    if "/collection/session/" in item:  # kept in memory only: gone at the next login
+        secret_call(item, "org.freedesktop.Secret.Item", "Delete", None, "(o)")
+        raise RuntimeError(KEYRING_NOT_KEPT)
+
+
+KEYRING_NOT_KEPT = ("your keyring isn't unlocked by a password at login (automatic login, or no keyring "
+                    "password), so Mailspring can't keep saved logins. Sign in to your accounts in "
+                    "Mailspring instead.")
+
+
+def keyring_keeps_secrets() -> bool:
+    """Whether the default keyring is unlocked and stored on disk, so a key written now is
+    still there at the next login. With automatic login it stays locked; an in-memory
+    "session" collection forgets everything at logout."""
+    path = secret_call("/org/freedesktop/secrets", "org.freedesktop.Secret.Service", "ReadAlias",
+                       _variant("(s)", ("default",)), "(o)")[0]
+    if path == "/" or path.rstrip("/").endswith("/collection/session"):
+        return False
+    locked = secret_call(path, "org.freedesktop.DBus.Properties", "Get",
+                         _variant("(ss)", ("org.freedesktop.Secret.Collection", "Locked")), "(v)")[0]
+    return not locked
 
 
 def mailspring_running() -> bool:
@@ -507,6 +528,8 @@ def apply_mailspring(cfg: dict):
             return label.format("―", "Mailspring already has accounts here; left as it is.")
         if mailspring_running():
             return label.format("!", "Not applied: Mailspring is open. Quit it and run setup again.")
+        if not keyring_keeps_secrets():
+            return label.format("!", f"Not applied: {KEYRING_NOT_KEPT}")
         # The saved logins only open with this token, and a token without them is useless:
         # both are written, or neither. The config is prepared first, then the token is
         # swapped in, then the config; if anything fails, the old token goes back.

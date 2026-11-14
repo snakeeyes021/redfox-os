@@ -377,6 +377,7 @@ class Mailspring(unittest.TestCase):
             unittest.mock.patch.object(rc, "read_portal_token", return_value=b""),
             unittest.mock.patch.object(rc, "delete_portal_token", side_effect=lambda: self.tokens.append("deleted")),
             unittest.mock.patch.object(rc, "mailspring_running", return_value=False),
+            unittest.mock.patch.object(rc, "keyring_keeps_secrets", return_value=True),
             unittest.mock.patch.object(rc.os, "getuid", return_value=1000),
         ]
         for p in patches:
@@ -473,6 +474,39 @@ class Mailspring(unittest.TestCase):
             rc.apply_mailspring({"mailspring": ms_section()})
         self.assertEqual(self.ms_config.read_text(), before)
 
+    def test_skipped_when_the_keyring_would_not_keep_the_key(self):
+        # Automatic login leaves the keyring locked; a restore would break Mailspring at the next login.
+        with unittest.mock.patch.object(rc, "keyring_keeps_secrets", return_value=False):
+            line = rc.apply_mailspring({"mailspring": ms_section()})
+        self.assertIn("Not applied: your keyring isn't unlocked by a password at login", line)
+        self.assertEqual(self.tokens, [])
+        self.assertFalse(self.ms_config.exists())
+
+    def test_keyring_keeps_secrets(self):
+        for alias, locked, expected in (("/org/freedesktop/secrets/collection/login", False, True),
+                                        ("/org/freedesktop/secrets/collection/login", True, False),
+                                        ("/org/freedesktop/secrets/collection/session", False, False),
+                                        ("/", False, False)):
+            def call(path, iface, method, args, reply):
+                return (alias,) if method == "ReadAlias" else (locked,)
+            with self.subTest(alias=alias, locked=locked), \
+                    unittest.mock.patch.object(rc, "secret_call", side_effect=call):
+                self.assertIs(Mailspring.real_keeps(), expected)
+
+    def test_a_key_that_landed_in_memory_is_removed(self):
+        calls = []
+
+        def call(path, iface, method, args, reply):
+            calls.append((path, method))
+            return {"SearchItems": ([], []), "OpenSession": (None, "/s/1"), "Delete": ("/",),
+                    "CreateItem": ("/org/freedesktop/secrets/collection/session/7", "/")}[method]
+
+        with unittest.mock.patch.object(rc, "secret_call", side_effect=call), \
+                unittest.mock.patch.object(rc, "delete_portal_token", Mailspring.real_delete), \
+                self.assertRaises(RuntimeError):
+            Mailspring.real_write(MS_TOKEN)
+        self.assertIn(("/org/freedesktop/secrets/collection/session/7", "Delete"), calls)
+
     def test_export_says_where_it_belongs(self):
         out = io.StringIO()
         with unittest.mock.patch.object(rc, "mailspring_section", return_value=ms_section()), redirect_stdout(out):
@@ -540,6 +574,7 @@ class Mailspring(unittest.TestCase):
 
 Mailspring.real_write = staticmethod(rc.write_portal_token)
 Mailspring.real_delete = staticmethod(rc.delete_portal_token)
+Mailspring.real_keeps = staticmethod(rc.keyring_keeps_secrets)
 
 
 class NoAge(SetupBase):

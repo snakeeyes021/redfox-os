@@ -45,4 +45,6 @@ redfox-config mailspring-export
 
 It prints a `mailspring:` section with your accounts, their saved logins and the key they're encrypted with. It's a secret: it unlocks every saved mail password. Keep it only in your encrypted config (see above) or in your password manager, never in a plain file.
 
+The saved logins need a keyring that your password unlocks when you log in. With automatic login there isn't one, so setup skips them and you sign in to your accounts in Mailspring instead.
+
 On the new install, run setup before you first open Mailspring. If Mailspring is open, setup asks you to quit it and run setup again; if Mailspring already has accounts, setup leaves them alone.
