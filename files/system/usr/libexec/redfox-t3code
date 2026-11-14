@@ -8,7 +8,7 @@
                  for updates. Gear Lever is installed first if it's missing.
   remove         Gear Lever removes it (the AppImage goes to the bin; T3
                  Code's settings and data stay).
-  check          exits 0 when it's installed.
+  check          exits 0 when it's installed: by RedFox, or by hand through Gear Lever.
   channel        prints the channel it was installed from.
 
 Downloads come only from github.com/pingdotgg/t3code's releases. T3 Code
@@ -79,6 +79,43 @@ def read_state():
     if not isinstance(state.get("path"), str) or not os.path.isfile(state["path"]):
         return None
     return state
+
+
+def gearlever_installs():
+    """T3 Code AppImages Gear Lever has added to the app grid, however they were installed
+    (by RedFox, or by hand through Gear Lever): [{"path", "version"}], read from the desktop
+    entries Gear Lever writes (X-AppImage-Name), whose AppImage must still exist. T3 Code's own
+    hidden URL-handler entry has no such line and doesn't count."""
+    data = os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share")
+    folder = os.path.join(data, "applications")
+    found = []
+    try:
+        names = sorted(os.listdir(folder))
+    except OSError:
+        return found
+    for name in names:
+        if not name.endswith(".desktop"):
+            continue
+        fields = {}
+        try:
+            with open(os.path.join(folder, name), encoding="utf-8", errors="replace") as f:
+                for line in f:
+                    key, sep, value = line.partition("=")
+                    if sep and key in ("X-AppImage-Name", "X-AppImage-Version", "TryExec", "Exec"):
+                        fields.setdefault(key, value.strip())
+        except OSError:
+            continue
+        if not GEARLEVER_NAME.match(fields.get("X-AppImage-Name", "")):
+            continue
+        path = fields.get("TryExec") or (fields.get("Exec") or "").split(" ")[0]
+        if path and os.path.isfile(path):
+            found.append({"path": path, "version": fields.get("X-AppImage-Version", "")})
+    return found
+
+
+def channel_of(version):
+    """The channel a T3 Code version comes from: nightly builds say so in their version."""
+    return "nightly" if "nightly" in (version or "") else "stable"
 
 
 def write_state(state):
@@ -346,11 +383,15 @@ def main(argv=None):
     if args.command == "remove":
         return remove()
     state = read_state()
+    # Installed by hand through Gear Lever (no RedFox state) counts as installed too.
+    found = None if state else next(iter(gearlever_installs()), None)
     if args.command == "check":
-        return 0 if state else 1
+        return 0 if state or found else 1
     if state:
         print(state["channel"])
-    return 0 if state else 1
+    elif found:
+        print(channel_of(found["version"]))
+    return 0 if state or found else 1
 
 
 if __name__ == "__main__":

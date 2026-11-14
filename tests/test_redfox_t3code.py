@@ -207,5 +207,58 @@ class TestRemove(unittest.TestCase):
             self.assertFalse(entry.exists())
 
 
+class TestInstalledByHand(unittest.TestCase):
+    """T3 Code added through Gear Lever by hand (no RedFox state) still counts as installed."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(lambda: __import__("shutil").rmtree(self.tmp))
+        self.apps = self.tmp / "data" / "applications"
+        self.apps.mkdir(parents=True)
+        self.appimage = self.tmp / "AppImages" / "t3_code_beta.appimage"
+        self.appimage.parent.mkdir()
+        self.appimage.write_bytes(b"not really an AppImage")
+        env = {"XDG_DATA_HOME": str(self.tmp / "data"), "XDG_STATE_HOME": str(self.tmp / "state")}
+        patch = unittest.mock.patch.dict(os.environ, env)
+        patch.start()
+        self.addCleanup(patch.stop)
+
+    def entry(self, name, appimage_name, version="0.1.2", path=None):
+        path = path or self.appimage
+        (self.apps / name).write_text(
+            "[Desktop Entry]\nType=Application\nName=T3 Code (Beta)\n"
+            f"TryExec={path}\nExec={path} %U\n"
+            + (f"X-AppImage-Version={version}\nX-AppImage-Name={appimage_name}\n" if appimage_name else ""))
+
+    def run_main(self, command):
+        out = io.StringIO()
+        with redirect_stdout(out):
+            code = t3.main([command])
+        return code, out.getvalue().strip()
+
+    def test_a_gear_lever_install_is_installed(self):
+        self.entry("t3_code_beta.desktop", "T3 Code (Beta)")
+        self.assertEqual(t3.gearlever_installs(), [{"path": str(self.appimage), "version": "0.1.2"}])
+        self.assertEqual(self.run_main("check"), (0, ""))
+        self.assertEqual(self.run_main("channel"), (0, "stable"))
+
+    def test_a_nightly_one_is_on_the_nightly_channel(self):
+        self.entry("t3.desktop", "T3 Code (Nightly)", version="0.1.3-nightly.20261113.4")
+        self.assertEqual(self.run_main("channel"), (0, "nightly"))
+
+    def test_not_installed_without_a_gear_lever_entry(self):
+        # T3 Code's own hidden URL-handler entry has no X-AppImage-Name.
+        self.entry("com.t3tools.T3Code.desktop", None)
+        self.assertEqual(self.run_main("check"), (1, ""))
+
+    def test_an_entry_whose_appimage_is_gone_does_not_count(self):
+        self.entry("t3_code_beta.desktop", "T3 Code (Beta)", path=self.tmp / "AppImages" / "gone.appimage")
+        self.assertEqual(self.run_main("check"), (1, ""))
+
+    def test_other_apps_do_not_count(self):
+        self.entry("other.desktop", "Another App")
+        self.assertEqual(self.run_main("check"), (1, ""))
+
+
 if __name__ == "__main__":
     unittest.main()
