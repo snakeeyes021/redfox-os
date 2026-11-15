@@ -113,7 +113,8 @@ class TestSameToolsAsHub(unittest.TestCase):
         self.assertNotIn("configure-terminal-default", bodies["configure-matt"][0])
         deps, body = bodies["configure-terminal-matt"]
         self.assertIn("configure-terminal-default", deps)
-        self.assertIn("gsettings set org.gnome.Ptyxis interface-style \"'light'\"", body)
+        # Its style comes from configure-terminal-default: it follows the desktop.
+        self.assertNotIn("interface-style", body)
         self.assertIn("redfox-terminal prompt theme catppuccin-powerline", body)
         self.assertIn("redfox-terminal tools on", body)
 

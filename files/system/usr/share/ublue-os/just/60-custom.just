@@ -755,9 +755,8 @@ configure-terminal-tilix:
     nautilus -q || true    
     @echo "Done. Tilix is now the default."
 
-# Matt's terminal: Ptyxis in light mode, the Catppuccin Powerline prompt and the modern command-line tools
+# Matt's terminal: Ptyxis following the desktop's light or dark style, the Catppuccin Powerline prompt and the modern command-line tools
 configure-terminal-matt: configure-terminal-default
-    gsettings set org.gnome.Ptyxis interface-style "'light'"
     redfox-terminal prompt theme catppuccin-powerline
     redfox-terminal tools on
 

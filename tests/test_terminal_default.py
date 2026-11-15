@@ -43,7 +43,7 @@ class Recipes(unittest.TestCase):
     def test_matts_and_dewys_stay(self):
         deps, body = self.bodies["configure-terminal-matt"]
         self.assertEqual(deps, ["configure-terminal-default"])
-        self.assertIn("interface-style \"'light'\"", body)
+        self.assertNotIn("interface-style", body)  # follows the desktop, as the default does
         self.assertIn("redfox-terminal tools on", body)
         dewy = self.bodies["configure-dewy"][0]
         self.assertIn("configure-terminal-tilix", dewy)
