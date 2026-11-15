@@ -925,12 +925,13 @@ configure-cursor-dewy:
 # last other speed used (1.8 to start with), otherwise back to normal (=
 # still goes to normal). R is a small Lua interface VLC loads at every start
 # (/usr/share/redfox/vlc/redfox_speed.lua). Frees S (Stop; the Media Stop key
-# still stops), D (deinterlace) and R (random). Quit VLC first: it rewrites
-# its settings when it closes.
+# still stops), D (deinterlace) and R (random). Left and Right jump 5 seconds
+# instead of 10 (VLC's short jump, which Alt+Left and Alt+Right also use).
+# Quit VLC first: it rewrites its settings when it closes.
 configure-vlc-dewy:
     #!/usr/bin/bash
     set -euo pipefail
-    echo "Setting VLC's speed keys (S slower, D faster, R toggles the speed)..."
+    echo "Setting VLC's keys (S slower, D faster, R toggles the speed, the arrows jump 5 seconds)..."
     tab=$'\t'
     # section|option=value
     settings=(
@@ -940,6 +941,7 @@ configure-vlc-dewy:
         "core|key-stop=Media Stop"
         "core|key-deinterlace="
         "core|key-random="
+        "core|short-jump-size=5"
         "lua|lua-intf=redfox_speed"
     )
     # Sets an option at the top of its [section], dropping it wherever else
@@ -978,7 +980,7 @@ configure-vlc-dewy:
     if pgrep -x vlc >/dev/null; then
         echo "VLC is open: quit it and run this again, or it may put the old keys back."
     fi
-    echo "Done. In VLC: S slower, D faster (0.1 steps), R toggles between normal and the last speed (1.8 at first)."
+    echo "Done. In VLC: S slower, D faster (0.1 steps), R toggles between normal and the last speed (1.8 at first); Left and Right jump 5 seconds."
 
 # Configure Dewy's Environment
 configure-dewy: redfox-enforce-config configure-keybindings-default configure-text-editor-dev reset-hostname configure-cursor-dewy configure-terminal-tilix configure-vlc-dewy configure-nordvpn configure-powersaver-default configure-xway-scale-on enable-clamav-weekly
