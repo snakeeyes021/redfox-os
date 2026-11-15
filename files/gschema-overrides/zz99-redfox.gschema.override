@@ -53,3 +53,7 @@ xkb-options=['compose:ralt']
 
 [org.gnome.mutter.wayland]
 xwayland-scaling-factor=1.0
+
+[org.gnome.Ptyxis]
+# The terminal follows the desktop's light or dark style.
+interface-style='system'

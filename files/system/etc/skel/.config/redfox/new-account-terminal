@@ -1,0 +1,4 @@
+# Only accounts made on RedFoxOS get this file (from /etc/skel). At their
+# first login, user-setup hook 35-new-account-terminal.sh turns on the
+# terminal's styled prompt (Catppuccin Powerline) and removes it. Accounts
+# from before never had it, so their terminal stays as it is.

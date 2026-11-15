@@ -761,7 +761,7 @@ configure-terminal-matt: configure-terminal-default
     redfox-terminal prompt theme catppuccin-powerline
     redfox-terminal tools on
 
-# Restore the default terminal (Ptyxis)
+# The default terminal: Ptyxis, following the desktop's light or dark style, with the Catppuccin Powerline prompt
 configure-terminal-default:
     @echo "Restoring system default terminal (Ptyxis)..."
     # 1. Reset the extension to defaults (it defaults to 'kgx' or 'gnome-terminal')
@@ -777,6 +777,13 @@ configure-terminal-default:
     
     # 3. Reload Nautilus
     nautilus -q || true
+
+    # 4. Ptyxis follows the desktop's light or dark style (RedFox's default), with the
+    #    Catppuccin Powerline prompt; the modern command-line tools stay off.
+    gsettings reset org.gnome.Ptyxis interface-style
+    # (Homebrew installs the prompt; on an account that can't install with it, the rest still runs.)
+    -redfox-terminal prompt theme catppuccin-powerline
+    redfox-terminal tools off
     @echo "Done. Restored to Ptyxis."
 
 # Configure Power Saver, Suspend (default)
@@ -985,7 +992,7 @@ configure-fedora: configure-keybindings-default configure-text-editor-reset rese
     gnome-extensions disable unblank@sun.wxg@gmail.com
 
 # Configure Normie's Environment
-configure-normie: configure-keybindings-default configure-text-editor-reset reset-hostname configure-powersaver-no-suspend configure-xway-scale-off
+configure-normie: configure-keybindings-default configure-text-editor-reset reset-hostname configure-terminal-default configure-powersaver-no-suspend configure-xway-scale-off
     gnome-extensions enable unblank@sun.wxg@gmail.com
 
 
