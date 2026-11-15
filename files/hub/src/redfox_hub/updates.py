@@ -113,6 +113,35 @@ def system_name(d):
     return " · ".join(parts)
 
 
+def last_update(status):
+    """The most recent update and whether it worked: (time, ok, how), how being "automatically",
+    "with Update Now" or "" for a new system that came some other way (a terminal, say).
+    A system set up after a failed run is a newer update that worked, so the failure no
+    longer counts. (None, True, "") if there's been none."""
+    auto, now = status["auto"], status["now"]
+    runs = [(auto["last_run"], auto.get("last_result") in (None, "success"), "automatically"),
+            (now["last_run"], now.get("last_ok") is not False, "with Update Now")]
+    for system in ("booted", "staged"):
+        deployed = (status.get(system) or {}).get("deployed")
+        runs.append((deployed, True, ""))
+    runs = [r for r in runs if r[0]]
+    # On a tie, the one that worked.
+    return max(runs, key=lambda r: (r[0], r[1])) if runs else (None, True, "")
+
+
+def automatic_note(status):
+    """What follows the time of the last automatic update, if it didn't finish: that it will
+    try again, or that the system has been updated since anyway."""
+    auto = status["auto"]
+    result = auto.get("last_result")
+    if not auto["last_run"] or not result or result == "success":
+        return ""
+    last, ok, _how = last_update(status)
+    if ok and last and last > auto["last_run"]:
+        return " (it didn't finish; updated since)"
+    return " (it didn't finish; it will try again)"
+
+
 class UpdatesSection(Section):
     def __init__(self, window):
         self.status = None
@@ -348,22 +377,18 @@ class UpdatesSection(Section):
                             "Update now and then to get fixes and security updates.",
                             "warning")
         else:
-            # The most recent update, automatic or "update now", and whether it worked.
-            # The most recent update, automatic or "update now", and whether it
-            # worked. The header says which it was, so it doesn't read as a
-            # contradiction of "Last Automatic Update" below.
-            runs = [(auto["last_run"], auto.get("last_result") in (None, "success"), "automatically"),
-                    (status["now"]["last_run"], status["now"].get("last_ok") is not False,
-                     "with Update Now")]
-            runs = [r for r in runs if r[0]]
-            last, ok, how = max(runs) if runs else (None, True, "")
+            # The most recent update of any kind, and whether it worked. The header says
+            # which it was, so it doesn't read as a contradiction of "Last Automatic
+            # Update" below.
+            last, ok, how = last_update(status)
             if not ok:
                 self.show_state("dialog-warning-symbolic", "The Last Update Didn't Finish",
                                 f"Started {how} {when(last, capital=False)}. It will try "
                                 "again by itself, or you can update now.", "warning")
             else:
                 self.show_state("object-select-symbolic", "Updates Are Automatic",
-                                f"Last updated {how}, {when(last, capital=False)}."
+                                f"Last updated{' ' + how + ',' if how else ''} "
+                                f"{when(last, capital=False)}."
                                 if last else "The first update will run soon.", "success")
         self.restart_button.set_visible(status["restart_pending"] and not busy)
         self.update_button.set_sensitive(not busy)
@@ -371,11 +396,7 @@ class UpdatesSection(Section):
 
         self._set_auto(auto["enabled"])
         self._set_hour(auto)
-        result = auto.get("last_result")
-        last = when(auto["last_run"])
-        if auto["last_run"] and result and result != "success":
-            last += " (it didn't finish; it will try again)"
-        self.last_row.set_subtitle(last)
+        self.last_row.set_subtitle(when(auto["last_run"]) + automatic_note(status))
         self.next_row.set_subtitle(when(auto["next"]) if auto["enabled"] else "Off")
 
         self._channel_guard = True

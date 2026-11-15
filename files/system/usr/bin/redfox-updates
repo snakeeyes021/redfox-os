@@ -50,6 +50,9 @@ HOUR = re.compile(r"(?:[01]\d|2[0-3]):00")
 # When uupd.timer last fired. systemd keeps this file while the timer is disabled, unlike the
 # timer's LastTriggerUSec, which a stopped timer no longer reports.
 TIMER_STAMP = _test_path("REDFOX_UUPD_STAMP", "/var/lib/systemd/timers/stamp-uupd.timer")
+# Where each deployment (system) lives: <osname>/deploy/<checksum>.<serial>, written when that
+# system was downloaded and set up, so its time is when that update finished. Readable by all.
+OSTREE_DEPLOY = _test_path("REDFOX_OSTREE_DEPLOY", "/ostree/deploy")
 # systemd's journal message ids for a unit's start job: "Starting …" and "Finished …"
 JOB_STARTING = "7d4958e842da4a758f6c1cdc7b36dcc5"
 JOB_FINISHED = "39f53479d3a045ac8e11786248231fbf"
@@ -165,7 +168,19 @@ def deployment(d):
         "version": d.get("version"),
         "timestamp": d.get("timestamp"),
         "pinned": bool(d.get("pinned")),
+        "deployed": deployed_at(d),
     }
+
+
+def deployed_at(d):
+    """When the deployment was written to disk (unix time), or None if that can't be read."""
+    osname, checksum = d.get("osname"), d.get("checksum")
+    if not osname or not checksum:
+        return None
+    try:
+        return int((OSTREE_DEPLOY / osname / "deploy" / f"{checksum}.{d.get('serial', 0)}").stat().st_mtime)
+    except OSError:
+        return None
 
 
 def status():
