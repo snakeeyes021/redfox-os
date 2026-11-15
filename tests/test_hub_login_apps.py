@@ -35,6 +35,16 @@ class LoginApps(unittest.TestCase):
         self.assertEqual(settings.login_apps({}), [])
         self.assertEqual(settings.login_apps({"apps": None}), [])
 
+    def test_with_none_installed_it_says_so(self):
+        self.assertEqual(settings.login_empty_text(self.DATA),
+                         "None of the apps that can start at login are installed (Signal, Dropbox or Steam).")
+        self.assertEqual(settings.login_empty_text({}),
+                         "None of the apps that can start at login are installed.")
+
+    def test_the_group_never_hides(self):
+        source = (Path(settings.__file__)).read_text()
+        self.assertNotIn("self.login_group.set_visible(bool(", source)
+
     def test_icon_is_the_apps_own_or_a_generic_one(self):
         theme = unittest.mock.Mock()
         theme.has_icon.side_effect = lambda name: name == "org.signal.Signal"

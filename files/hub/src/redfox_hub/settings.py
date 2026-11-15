@@ -71,6 +71,15 @@ def login_apps(data):
     return [app for app in (data.get("apps") or []) if app.get("installed")]
 
 
+def login_empty_text(data):
+    """What Start at Login says when none of its apps are installed, naming the apps."""
+    names = [app["name"] for app in (data.get("apps") or []) if app.get("name")]
+    if not names:
+        return "None of the apps that can start at login are installed."
+    listed = names[0] if len(names) == 1 else ", ".join(names[:-1]) + " or " + names[-1]
+    return f"None of the apps that can start at login are installed ({listed})."
+
+
 def app_icon_name(app_id):
     """The app's own icon (a Flatpak's exported icon, or the system's), or a generic app icon if
     the icon theme doesn't have it, never the broken-image placeholder."""
@@ -444,7 +453,13 @@ class SettingsSection(Section):
             row.connect("notify::active", self._on_login_toggled, app["id"])
             self.login_group.add(row)
             self.login_rows.append(row)
-        self.login_group.set_visible(bool(self.login_rows))
+        # The group stays, saying why it's empty, so it's clear where these are set.
+        if not self.login_rows:
+            row = Adw.ActionRow(title=login_empty_text(data))
+            row.add_css_class("dim-label")
+            self.login_group.add(row)
+            self.login_rows.append(row)
+        self.login_group.set_visible(True)
 
     def _on_login_toggled(self, row, _param, app_id):
         if not row.get_sensitive():
