@@ -13,11 +13,17 @@ import {ExtensionState} from 'resource:///org/gnome/shell/misc/extensionUtils.js
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {diagonalInches, primaryPhysicalSize, wantDock} from './autodock.js';
+import {areaChanged, refitFrame} from './refit.js';
 
 const DASH_TO_DOCK = 'dash-to-dock@micxgx.gmail.com';
 const TILING_SHELL = 'tilingshell@ferrarodomenico.com';
 const DASH_TO_PANEL = 'dash-to-panel@jderose9.github.com';
 const DASH_TO_PANEL_SCHEMA = 'org.gnome.shell.extensions.dash-to-panel';
+const TILING_SHELL_SCHEMA = 'org.gnome.shell.extensions.tilingshell';
+// Tiling Shell's gaps between tiled windows and around them. They and the
+// floating dock's gap are one setting: floating-dock-gap.
+const TILING_GAPS = ['inner-gaps', 'outer-gaps'];
+const MAX_GAP = 64;
 const ACTIVE = ExtensionState.ACTIVE ?? ExtensionState.ENABLED;
 
 /**
@@ -89,7 +95,10 @@ export default class RedFoxLayoutsExtension extends Extension {
         this._settings = this.getSettings();
         this._settings.connectObject(
             'changed::floating-dock', () => this._syncFloatingDock(),
-            'changed::floating-dock-gap', () => this._syncFloatingDock(),
+            'changed::floating-dock-gap', () => {
+                this._syncFloatingDock();
+                this._syncTilingGaps();
+            },
             'changed::auto-dock', () => this._queueAutoDock(),
             'changed::auto-dock-min-width', () => this._queueAutoDock(),
             'changed::auto-dock-min-inches', () => this._queueAutoDock(),
@@ -115,6 +124,24 @@ export default class RedFoxLayoutsExtension extends Extension {
         this._appSwitcher.connectObject('changed::current-workspace-only',
             () => this._syncWorkspaceIsolation(true), this);
         this._syncWorkspaceIsolation(false);
+
+        // Tiling Shell's own gap settings (its preferences) change the one
+        // gap too, which then sets the other.
+        const schemas = Gio.SettingsSchemaSource.get_default();
+        if (schemas?.lookup(TILING_SHELL_SCHEMA, true)) {
+            this._tilingSettings = new Gio.Settings({schema_id: TILING_SHELL_SCHEMA});
+            for (const key of TILING_GAPS) {
+                this._tilingSettings.connectObject(`changed::${key}`,
+                    () => this._tilingGapChanged(key), this);
+            }
+        }
+        this._syncTilingGaps();
+
+        // Tiled windows follow the tiling area when it changes (see refit.js). Tiling Shell
+        // reads the new area as it's announced; look once it has.
+        this._tilingAreas = new Map();
+        global.display.connectObject('workareas-changed', () => this._queueRefit(), this);
+        this._refitTiledWindows();
 
         // Dash to Dock builds its docks when it starts and when monitors or
         // its own settings change; float each new one as it appears.
@@ -153,6 +180,14 @@ export default class RedFoxLayoutsExtension extends Extension {
         this._settings = null;
         this._appSwitcher.disconnectObject(this);
         this._appSwitcher = null;
+        this._tilingSettings?.disconnectObject(this);
+        this._tilingSettings = null;
+        global.display.disconnectObject(this);
+        if (this._refitId) {
+            GLib.source_remove(this._refitId);
+            this._refitId = 0;
+        }
+        this._tilingAreas = null;
         if (this._autoDockId) {
             GLib.source_remove(this._autoDockId);
             this._autoDockId = 0;
@@ -201,6 +236,86 @@ export default class RedFoxLayoutsExtension extends Extension {
     _syncFloatingDock() {
         for (const dock of this._docks ?? [])
             this._styleDock(dock);
+    }
+
+    // The gap around the floating dock is also Tiling Shell's gap between
+    // tiled windows and around them, in every layout.
+    _syncTilingGaps() {
+        if (!this._tilingSettings)
+            return;
+        const gap = this._settings.get_int('floating-dock-gap');
+        for (const key of TILING_GAPS) {
+            if (this._tilingSettings.get_uint(key) !== gap)
+                this._tilingSettings.set_uint(key, gap);
+        }
+    }
+
+    _queueRefit() {
+        if (this._refitId)
+            return;
+        this._refitId = GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+            this._refitId = 0;
+            this._refitTiledWindows();
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    // Tiling Shell's area for each monitor, as it has it now; tiled windows on a monitor whose
+    // area changed since last time move into their tiles in the new area.
+    _refitTiledWindows() {
+        const tiling = Main.extensionManager.lookup(TILING_SHELL);
+        const managers = tiling?.state === ACTIVE ? tiling.stateObj?._tilingManagers : null;
+        if (!Array.isArray(managers) || !this._tilingAreas) {
+            this._tilingAreas?.clear();
+            return;
+        }
+        const changed = new Map();
+        for (const manager of managers) {
+            const index = manager?._monitor?.index;
+            const area = manager?._workArea;
+            if (index === undefined || !area)
+                continue;
+            const now = {x: area.x, y: area.y, width: area.width, height: area.height};
+            const before = this._tilingAreas.get(index);
+            this._tilingAreas.set(index, now);
+            if (areaChanged(before, now))
+                changed.set(index, {manager, area: now});
+        }
+        if (changed.size === 0)
+            return;
+        for (const actor of global.get_window_actors()) {
+            const window = actor.meta_window;
+            const monitor = changed.get(window?.get_monitor());
+            const tile = window?.assignedTile;
+            if (!monitor || !tile || window.fullscreen || window.maximized_horizontally ||
+                window.maximized_vertically)
+                continue;
+            const frame = window.get_frame_rect();
+            const to = refitFrame({x: frame.x, y: frame.y, width: frame.width, height: frame.height},
+                tile, monitor.area, this._tilingGaps(monitor.manager, window));
+            if (to)
+                window.move_resize_frame(true, to.x, to.y, to.width, to.height);
+        }
+    }
+
+    // The gaps Tiling Shell puts around a window in a tile on this workspace: its layout's own,
+    // or failing that its settings (which the one gap keeps equal).
+    _tilingGaps(manager, window) {
+        const margin = m => ({top: m.top, right: m.right, bottom: m.bottom, left: m.left});
+        const layout = manager._workspaceTilingLayout?.get?.(window.get_workspace());
+        if (layout?.innerGaps && layout?.outerGaps)
+            return {inner: margin(layout.innerGaps), outer: margin(layout.outerGaps)};
+        const all = n => ({top: n, right: n, bottom: n, left: n});
+        const gap = this._settings.get_int('floating-dock-gap');
+        return {inner: all(gap), outer: all(gap)};
+    }
+
+    _tilingGapChanged(key) {
+        const gap = Math.min(this._tilingSettings.get_uint(key), MAX_GAP);
+        if (gap !== this._settings.get_int('floating-dock-gap'))
+            this._settings.set_int('floating-dock-gap', gap);
+        else
+            this._syncTilingGaps();
     }
 
     // Set (or clear) the floating margins on one dock's dash and background.

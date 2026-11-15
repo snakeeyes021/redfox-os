@@ -54,11 +54,25 @@ CLICK_OTHER = ("Other", "Set in the taskbar or dock's own settings")
 INCHES_KEY = "auto-dock-min-inches"
 SMALL_SCREENS_KEY = "auto-dock-small-screens"
 DOCK_NUMBERS = [
-    ("floating-dock-gap", 0, 64, 1, "Gap to the Screen Edge",
-     "For the RedFox and Cal layouts, in pixels"),
+    ("floating-dock-gap", 0, 64, 1, "Gaps",
+     "Between tiled windows, around them, and around a floating dock, in pixels"),
     (INCHES_KEY, 7, 100, 1, "Dock on Screens From",
      "In inches, measured across. The RedFox layout uses the plain GNOME dash on smaller screens."),
 ]
+
+
+SMALL_SCREENS_SUBTITLE = "In the RedFox layout, keep the dock on every screen, whatever its size"
+REDFOX_ONLY = "Only for the RedFox layout"
+
+
+def dock_row_subtitle(key, redfox):
+    """The subtitle of a RedFox-only Dock row: what it does in the RedFox layout, and that
+    it's only for the RedFox layout in the others (where it's greyed)."""
+    if not redfox:
+        return REDFOX_ONLY
+    if key == SMALL_SCREENS_KEY:
+        return SMALL_SCREENS_SUBTITLE
+    return next(row[5] for row in DOCK_NUMBERS if row[0] == key)
 
 
 def gsettings_number(key, value):
@@ -546,7 +560,7 @@ class LayoutPage(Adw.NavigationPage):
         intro.add_css_class("dim-label")
 
         # Shown once the host's gsettings has answered for both keys.
-        self.options = Adw.PreferencesGroup(title="Dock", visible=False)
+        self.options = Adw.PreferencesGroup(title="Dock and Gaps", visible=False)
         self.option_rows = {}
         self._pending = {}
         for key, low, high, step, title, subtitle in DOCK_NUMBERS:
@@ -562,11 +576,25 @@ class LayoutPage(Adw.NavigationPage):
         # The dock on every screen, whatever its size (the size above then doesn't matter).
         self.small_row = Adw.SwitchRow(
             title="Show the Dock on Small Screens Too",
-            subtitle="In the RedFox layout, keep the dock on every screen, whatever its size",
+            subtitle=SMALL_SCREENS_SUBTITLE,
             sensitive=False)
         self.small_row.connect("notify::active", self._on_small_screens)
         self.options.add(self.small_row)
         host.run(["gsettings", "get", RFL, SMALL_SCREENS_KEY], on_done=self._on_small_read)
+        # Which screens get the dock is only for the RedFox layout: those two rows are
+        # greyed in the others, following the layout as it changes (here or with
+        # redfox-layout, which records it in the layout key).
+        self.current_layout = None
+        schemas = Gio.SettingsSchemaSource.get_default()
+        self.layout_settings = (Gio.Settings(schema_id=RFL)
+                                if schemas and schemas.lookup(RFL, True) else None)
+        if self.layout_settings:
+            self.layout_settings.connect("changed::layout",
+                                         lambda s, k: self._mark(s.get_string(k)))
+            # The rows follow their settings changed elsewhere too (a terminal, a profile).
+            self._following = False
+            for key in [row[0] for row in DOCK_NUMBERS] + [SMALL_SCREENS_KEY]:
+                self.layout_settings.connect(f"changed::{key}", self._on_setting_changed)
 
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18,
                       margin_top=24, margin_bottom=24, margin_start=12, margin_end=12)
@@ -599,13 +627,13 @@ class LayoutPage(Adw.NavigationPage):
         if returncode != 0:
             return
         row.set_value(value)
-        row.set_sensitive(key != INCHES_KEY or not self.small_row.get_active())
         row._read = True
+        self._sync_dock_rows()
         self.options.set_visible(True)
 
     def _on_option(self, row, _param, key):
-        if not getattr(row, "_read", False):
-            return  # still the value read from the host
+        if not getattr(row, "_read", False) or getattr(self, "_following", False):
+            return  # still the value read from the host, or one set elsewhere
         # Write once the value has settled, not on every step of a drag.
         if key in self._pending:
             GLib.source_remove(self._pending[key])
@@ -621,18 +649,30 @@ class LayoutPage(Adw.NavigationPage):
         if returncode != 0:
             return
         self.small_row.set_active(output.strip() == "true")
-        self.small_row.set_sensitive(True)
         self.small_row._read = True
-        inches = self.option_rows.get(INCHES_KEY)
-        if inches is not None and getattr(inches, "_read", False):
-            inches.set_sensitive(not self.small_row.get_active())
+        self._sync_dock_rows()
+
+    def _on_setting_changed(self, settings, key):
+        """A Dock setting changed outside this page: show it, without writing it back."""
+        self._following = True
+        try:
+            if key == SMALL_SCREENS_KEY:
+                if getattr(self.small_row, "_read", False):
+                    self.small_row.set_active(settings.get_boolean(key))
+            elif getattr(self.option_rows.get(key), "_read", False):
+                value = settings.get_value(key).unpack()
+                if self.option_rows[key].get_value() != value:
+                    self.option_rows[key].set_value(value)
+        finally:
+            self._following = False
+        self._sync_dock_rows()
 
     def _on_small_screens(self, row, _param):
         if not getattr(row, "_read", False):
             return
-        inches = self.option_rows.get(INCHES_KEY)
-        if inches is not None and getattr(inches, "_read", False):
-            inches.set_sensitive(not row.get_active())
+        self._sync_dock_rows()
+        if getattr(self, "_following", False):
+            return
         host.run(["gsettings", "set", RFL, SMALL_SCREENS_KEY, "true" if row.get_active() else "false"])
 
     def reload(self):
@@ -654,6 +694,25 @@ class LayoutPage(Adw.NavigationPage):
     def _mark(self, current):
         for layout_id, card in self.cards.items():
             card.set_current(layout_id == current)
+        self.current_layout = current
+        self._sync_dock_rows()
+
+    def _sync_dock_rows(self):
+        """Grey what can't be changed now: the gaps once read; the dock's screen size
+        and the small-screens switch only in the RedFox layout (the size not while the
+        switch is on)."""
+        redfox = self.current_layout == "redfox"
+        small = self.small_row
+        small_read = getattr(small, "_read", False)
+        small.set_sensitive(small_read and redfox)
+        small.set_subtitle(dock_row_subtitle(SMALL_SCREENS_KEY, redfox))
+        for key, row in self.option_rows.items():
+            read = getattr(row, "_read", False)
+            if key == INCHES_KEY:
+                row.set_sensitive(read and redfox and small_read and not small.get_active())
+                row.set_subtitle(dock_row_subtitle(key, redfox))
+            else:
+                row.set_sensitive(read)
 
     def _on_card(self, _flow, card):
         if self.busy or card.current:

@@ -50,7 +50,9 @@ pipeline='pipeline_default'
 blur=false
 
 [org/gnome/shell/extensions/tilingshell]
+# The gaps follow the layouts' one gap setting (Hub's Gaps), 8 to start with.
 inner-gaps=uint32 8
+outer-gaps=uint32 8
 quarter-tiling-threshold=uint32 10
 window-use-custom-border-color=false
 selected-layouts=[['26608328'], ['26608328'], ['26608328']]

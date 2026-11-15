@@ -14,7 +14,8 @@
     <key name="floating-dock-gap" type="i">
       <range min="0" max="64"/>
       <default>8</default>
-      <summary>Gap between the floating dock and the screen edge, in pixels</summary>
+      <summary>Gaps, in pixels: around the floating dock, and around and between tiled windows</summary>
+      <description>The space between a floating dock and the screen edge, and Tiling Shell's inner and outer gaps, which the layout extension keeps equal to this in every layout (changing either of Tiling Shell's gaps changes this too). Switching layout keeps it.</description>
     </key>
     <key name="auto-dock" type="b">
       <default>false</default>

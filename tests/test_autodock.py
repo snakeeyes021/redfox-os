@@ -119,6 +119,12 @@ class HubRows(unittest.TestCase):
         self.assertEqual(keys, ["floating-dock-gap", "auto-dock-min-inches"])
         self.assertEqual(hub_settings.SMALL_SCREENS_KEY, "auto-dock-small-screens")
 
+    def test_redfox_only_rows_say_so_in_other_layouts(self):
+        for key in (hub_settings.INCHES_KEY, hub_settings.SMALL_SCREENS_KEY):
+            self.assertEqual(hub_settings.dock_row_subtitle(key, False), "Only for the RedFox layout")
+            self.assertNotEqual(hub_settings.dock_row_subtitle(key, True), "Only for the RedFox layout")
+        self.assertIn("inches", hub_settings.dock_row_subtitle(hub_settings.INCHES_KEY, True))
+
     def test_values_as_gsettings_wants_them(self):
         self.assertEqual(hub_settings.gsettings_number("auto-dock-min-inches", 17), "17.0")
         self.assertEqual(hub_settings.gsettings_number("floating-dock-gap", 8.0), "8")

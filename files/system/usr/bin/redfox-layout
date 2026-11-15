@@ -61,7 +61,9 @@ WM = "org.gnome.desktop.wm.preferences"
 # and ArcMenu settings, like ArcMenu's pinned apps, are left alone.
 RESET_SCHEMAS = [DTD]
 RESET_KEYS = {
-    RFL: ["floating-dock", "floating-dock-gap", "auto-dock", "tiling-button-by-start"],
+    # floating-dock-gap is the user's gap setting for every layout (Hub's Gaps),
+    # so it's kept when switching.
+    RFL: ["floating-dock", "auto-dock", "tiling-button-by-start"],
     # The first RedFox dock preset set a rounded blur pipeline. Blur my Shell
     # now rounds the dock's blur to match the dock by itself.
     BMS: ["pipelines"],
