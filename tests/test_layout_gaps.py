@@ -33,6 +33,16 @@ class OneGap(unittest.TestCase):
         self.assertIn("changed::${key}", text)
         self.assertIn("this._tilingGapChanged(key)", text)
 
+    def test_a_tiling_gap_set_before_keeps_its_value(self):
+        # A Tiling Shell gap set before (layout-tiling-dewy sets 0) isn't replaced by the dock's
+        # default when the one gap was never set: it's adopted first, then synced.
+        text = EXT.read_text()
+        enable = text[text.index("    enable() {"):text.index("    disable() {")]
+        self.assertIn("this._adoptOwnTilingGap();\n        this._syncTilingGaps();", enable)
+        adopt = text[text.index("    _adoptOwnTilingGap() {"):text.index("    _syncTilingGaps() {")]
+        self.assertIn("get_user_value('floating-dock-gap') !== null", adopt)
+        self.assertIn("get_user_value('inner-gaps')", adopt)
+
     def test_defaults_agree(self):
         root = ET.parse(SCHEMA).getroot()
         gap = next(k for k in root.iter("key") if k.get("name") == "floating-dock-gap")

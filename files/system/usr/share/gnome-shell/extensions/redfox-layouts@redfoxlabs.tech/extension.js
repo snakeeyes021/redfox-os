@@ -135,6 +135,7 @@ export default class RedFoxLayoutsExtension extends Extension {
                     () => this._tilingGapChanged(key), this);
             }
         }
+        this._adoptOwnTilingGap();
         this._syncTilingGaps();
 
         // Tiled windows follow the tiling area when it changes (see refit.js). Tiling Shell
@@ -240,6 +241,20 @@ export default class RedFoxLayoutsExtension extends Extension {
 
     // The gap around the floating dock is also Tiling Shell's gap between
     // tiled windows and around them, in every layout.
+    // A gap someone set on Tiling Shell's side (in its preferences, or a profile's tiling
+    // recipe) before the two were one setting is theirs: if the one gap was never set, it
+    // takes that value, rather than the dock's default replacing it.
+    _adoptOwnTilingGap() {
+        if (!this._tilingSettings || this._settings.get_user_value('floating-dock-gap') !== null)
+            return;
+        const own = this._tilingSettings.get_user_value('inner-gaps');
+        if (own === null)
+            return;
+        const gap = Math.min(own.get_uint32(), MAX_GAP);
+        if (gap !== this._settings.get_int('floating-dock-gap'))
+            this._settings.set_int('floating-dock-gap', gap);
+    }
+
     _syncTilingGaps() {
         if (!this._tilingSettings)
             return;
