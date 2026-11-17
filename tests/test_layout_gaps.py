@@ -16,6 +16,7 @@ LAYOUT = ROOT / "files/system/usr/bin/redfox-layout"
 SCHEMA = ROOT / "files/system/usr/share/glib-2.0/schemas/org.gnome.shell.extensions.redfox-layouts.gschema.xml"
 DCONF = ROOT / "files/system/etc/dconf/db/redfox.d/00-redfox"
 HUB = ROOT / "files/hub/src/redfox_hub/settings.py"
+JUST = ROOT / "files/system/usr/share/ublue-os/just/60-custom.just"
 
 
 class OneGap(unittest.TestCase):
@@ -42,6 +43,31 @@ class OneGap(unittest.TestCase):
         adopt = text[text.index("    _adoptOwnTilingGap() {"):text.index("    _syncTilingGaps() {")]
         self.assertIn("get_user_value('floating-dock-gap') !== null", adopt)
         self.assertIn("get_user_value('inner-gaps')", adopt)
+
+    def test_no_layout_switch_changes_the_gap(self):
+        # A gap someone chose (layout-dewy's 0) stays through every layout: no layout's own
+        # settings name a gap, and the terminal presets only set one when it's given.
+        layout = LAYOUT.read_text()
+        layouts = layout[layout.index("LAYOUTS = {"):layout.index("\ndef die(")]
+        for word in ("floating-dock-gap", "inner-gaps", "outer-gaps", "tilingshell"):
+            self.assertNotIn(word, layouts)
+        just = JUST.read_text()
+        for name in ("preset-dock-redfox", "preset-dock-cal"):
+            body = just[just.index(f"\n{name} GAP=\"\":"):]
+            body = body[:body.index("\n\n")]
+            self.assertIn('{{ if GAP == "" { "true" }', body, name)
+        for name in re.findall(r"^(preset-dock-\w+)", just, re.M):
+            if name not in ("preset-dock-redfox", "preset-dock-cal"):
+                body = just[just.index(f"\n{name}:"):]
+                self.assertNotIn("gap", body[:body.index("\n\n")].lower(), name)
+
+    def test_the_dewy_profile_has_no_gaps(self):
+        just = JUST.read_text()
+        self.assertIn("layout-tiling-dewy", re.search(r"^layout-dewy:(.*)$", just, re.M).group(1))
+        tiling = just[just.index("\nlayout-tiling-dewy:"):]
+        tiling = tiling[:tiling.index("\n\n")]
+        self.assertIn("tilingshell inner-gaps 0", tiling)
+        self.assertIn("tilingshell outer-gaps 0", tiling)
 
     def test_defaults_agree(self):
         root = ET.parse(SCHEMA).getroot()

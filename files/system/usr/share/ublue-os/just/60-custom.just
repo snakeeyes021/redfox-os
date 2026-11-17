@@ -399,10 +399,10 @@ default-app-folders:
 # Each preset applies live through `redfox-layout` (see `redfox-layout list`);
 # no logout needed. Switching presets resets the dock/panel settings first.
 
-# Layout preset: RedFox (floating dock on big screens, GNOME dash on small ones)
-preset-dock-redfox GAP="8":
+# Layout preset: RedFox (floating dock on big screens, GNOME dash on small ones). GAP sets the gaps (Hub's Gaps) too; left out, they stay as they are
+preset-dock-redfox GAP="":
     redfox-layout set redfox
-    gsettings set org.gnome.shell.extensions.redfox-layouts floating-dock-gap {{ GAP }}
+    {{ if GAP == "" { "true" } else { "gsettings set org.gnome.shell.extensions.redfox-layouts floating-dock-gap " + GAP } }}
 
 # Layout preset: GNOME (no dock; the dash lives in the overview)
 preset-dock-gnome:
@@ -412,10 +412,10 @@ preset-dock-gnome:
 preset-dock-ubuntu:
     redfox-layout set ubuntu
 
-# Layout preset: Cal (floating dock along the bottom, window buttons on the left)
-preset-dock-cal GAP="8":
+# Layout preset: Cal (floating dock along the bottom, window buttons on the left). GAP sets the gaps (Hub's Gaps) too; left out, they stay as they are
+preset-dock-cal GAP="":
     redfox-layout set cal
-    gsettings set org.gnome.shell.extensions.redfox-layouts floating-dock-gap {{ GAP }}
+    {{ if GAP == "" { "true" } else { "gsettings set org.gnome.shell.extensions.redfox-layouts floating-dock-gap " + GAP } }}
 
 # Layout preset: Wash (one taskbar along the bottom, start menu and apps centred)
 preset-dock-wash:

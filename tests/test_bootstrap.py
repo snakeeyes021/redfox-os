@@ -96,7 +96,7 @@ class TestSameToolsAsHub(unittest.TestCase):
         bodies = recipe_bodies()
         for name, (_deps, body) in bodies.items():
             if name.startswith("preset-dock-"):
-                # (preset-dock-redfox also sets the gap, the same key Hub's Layout page edits)
+                # (preset-dock-redfox and preset-dock-cal can also set the gap, when given one)
                 self.assertRegex(body.splitlines()[0], r"^redfox-layout set \w+$", name)
 
     def test_midikeep_through_hubs_command(self):
