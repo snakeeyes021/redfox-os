@@ -1,6 +1,6 @@
 project('redfox-hub',
   version: '0.7.0',
-  license: 'Apache-2.0',
+  license: 'GPL-3.0-or-later',
   meson_version: '>= 1.0.0',
 )
 

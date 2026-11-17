@@ -15,7 +15,7 @@ The idea: keep Mailspring's sync engine (`mailsync`), which is good at IMAP, and
 
 ### Licence
 
-`mailsync` is **GPL-3.0**. A front end that bundles or links it must be GPL-3.0 too. That's fine for an open-source RedFox app, but the RedFox repo itself is Apache-2.0, so it would have to live in its own repo.
+`mailsync` is **GPL-3.0**. A front end that bundles or links it must be GPL-3.0 too. That fits RedFox, whose own code is GPL-3.0-or-later.
 
 The README asks that forks not use the Mailspring name. The code goes further. In release builds, `mailsync` exits at startup unless its own file path contains "mailspring" (`main.cpp`, commented "prevent re-use of Mailspring-Sync in products / forks not called Mailspring"). That makes the author's wishes clear: the engine isn't meant to be reused this way, and RedFox shouldn't build on it against them. That matters for the next point too.
 

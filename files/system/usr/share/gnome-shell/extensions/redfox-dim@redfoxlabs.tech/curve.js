@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // How a position on the brightness slider splits into backlight and software
 // dim. Kept free of Shell imports so tests can run it under plain gjs.

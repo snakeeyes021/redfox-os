@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // RedFox Dim: more brightness range than the backlight has. The bottom of the
 // regular brightness slider holds the backlight at its minimum and darkens the

@@ -7,7 +7,7 @@
     <name>RedFox Labs</name>
   </developer>
   <metadata_license>CC0-1.0</metadata_license>
-  <project_license>Apache-2.0</project_license>
+  <project_license>GPL-3.0-or-later</project_license>
   <launchable type="desktop-id">tech.redfoxlabs.Hub.desktop</launchable>
   <url type="homepage">https://github.com/snakeeyes021/redfox-os</url>
   <url type="bugtracker">https://github.com/snakeeyes021/redfox-os/issues</url>

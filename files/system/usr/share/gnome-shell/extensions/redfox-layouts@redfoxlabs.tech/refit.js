@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Tiled windows follow the tiling area. Tiling Shell works its tiles out from the work area
 // (the screen less the top bar and the dock), and when that changes (the dock turned off or

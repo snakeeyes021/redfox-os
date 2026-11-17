@@ -119,7 +119,7 @@ class HubApplication(Adw.Application):
             version=VERSION,
             website="https://github.com/snakeeyes021/redfox-os",
             issue_url="https://github.com/snakeeyes021/redfox-os/issues",
-            license_type=Gtk.License.APACHE_2_0,
+            license_type=Gtk.License.GPL_3_0,
         )
         about.present(self.get_active_window())
 

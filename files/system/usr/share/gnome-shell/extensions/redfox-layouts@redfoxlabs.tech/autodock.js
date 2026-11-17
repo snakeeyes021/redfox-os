@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Which screens get the dock in the RedFox layout: the screen's diagonal in inches against the
 // user's threshold, or always when the dock is wanted on small screens too. Screens that don't

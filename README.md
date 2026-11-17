@@ -1,6 +1,6 @@
 # RedFoxOS
 
-![Platform](https://img.shields.io/badge/Platform-BlueBuild%20%2F%20bootc-blue) ![Packaging](https://img.shields.io/badge/Packaging-OCI%20image-orange) ![License](https://img.shields.io/badge/License-Apache%202.0-blue) ![Release](https://img.shields.io/github/v/release/snakeeyes021/redfox-os?label=Release)
+![Platform](https://img.shields.io/badge/Platform-BlueBuild%20%2F%20bootc-blue) ![Packaging](https://img.shields.io/badge/Packaging-OCI%20image-orange) ![License](https://img.shields.io/badge/License-GPL--3.0-blue) ![Release](https://img.shields.io/github/v/release/snakeeyes021/redfox-os?label=Release)
 
 ![The RedFoxOS desktop: the RedFox layout's floating dock on the left, Files, and a terminal showing the RedFoxOS welcome message](docs/screenshots/desktop.jpg)
 
@@ -126,3 +126,14 @@ RedFoxOS uses Bazzite's kernel, which is signed with Universal Blue's key. With 
 1. Choose **Enroll MOK**, then **Continue**, then **Yes**.
 2. Type the password `universalblue`.
 3. Choose **Reboot**.
+
+## License
+
+RedFoxOS's own code is licensed under the [GNU General Public License, version 3 or later](LICENSE). Versions published before the switch to GPL-3.0 remain available under the Apache License 2.0.
+
+Some files come from other projects and keep their own licenses:
+
+- The ISO installer is adapted from [Bazzite's](https://github.com/ublue-os/bazzite) (Apache-2.0), as noted in each file.
+- The prompt themes in `files/system/usr/share/redfox/starship/themes/` are Starship's presets (ISC; see the LICENSE file there).
+- The Cockpit login page styling in `installer/overrides/` is adapted from Cockpit's own (LGPL-2.1-or-later).
+- The default wallpapers are used under the Unsplash License; see [the wallpaper credits](docs/wallpaper-credits.md).

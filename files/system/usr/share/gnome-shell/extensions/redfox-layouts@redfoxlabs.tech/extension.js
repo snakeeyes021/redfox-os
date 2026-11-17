@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // RedFox Layouts: the parts of a RedFox layout that have to live inside
 // GNOME Shell to apply without logging out. `redfox-layout` (a shell script)
