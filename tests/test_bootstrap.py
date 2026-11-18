@@ -86,6 +86,47 @@ class TestBootstrapList(unittest.TestCase):
             self.assertNotRegex(profile["summary"], r"\b(his|her|he|she)\b")
 
 
+class TestFullSetupShowsEverything(unittest.TestCase):
+    """Hub's Full Setup lists a profile's stages and their steps (each a recipe with its comment).
+    A stage that did something itself would be missing from that list."""
+
+    def setUp(self):
+        self.bodies = recipe_bodies()
+        self.stages = []
+        for name, (deps, _body) in self.bodies.items():
+            if name.startswith("bootstrap-"):
+                self.stages += [d for d in deps if not d.startswith("_")]
+
+    def test_stages_do_nothing_themselves(self):
+        for stage in self.stages:
+            if not self.bodies[stage][0]:
+                continue  # a stage with no steps is its own row (the app bundles)
+            body = [line for line in self.bodies[stage][1].splitlines()
+                    if line and not line.startswith(("#", "echo "))]
+            self.assertEqual(body, [], f"{stage} runs commands Hub's list doesn't show")
+
+    def test_every_step_describes_itself(self):
+        # The comment just above each recipe is its description; it ends in a full statement
+        # rather than an instruction for the maintainer.
+        text = JUSTFILE.read_text()
+        for name in ("configure-vlc-dewy", "create-dev-folder", "enable-unblank", "disable-unblank",
+                     "configure-screenshot-keys-dewy", "enable-extra-dimming", "favourite-apps-matt",
+                     "dock-dewy", "favourite-apps-fedora"):
+            doc = text[:text.index(f"\n{name}:")].rsplit("\n", 1)[-1]
+            self.assertTrue(doc.startswith("# ") and len(doc) > 20, name)
+            self.assertNotIn("Quit VLC first", doc)
+
+    def test_maintainer_labels_left_out(self):
+        rb = load(BOOTSTRAP, "redfox_bootstrap_labels")
+        docs = {"a": {"doc": "Disable xwayland-native-scaling (Reset)"},
+                "b": {"doc": "Configure Power Saver, Suspend (default)"},
+                "c": {"doc": "Theme Text Editor Default (Visuals Reset)"},
+                "d": {"doc": "Configure Text Editor Dev Mode (Indentation)"}}
+        self.assertEqual([rb.describe(k, docs)["doc"] for k in "abcd"],
+                         ["Disable xwayland-native-scaling", "Configure Power Saver, Suspend",
+                          "Theme Text Editor Default", "Configure Text Editor Dev Mode (Indentation)"])
+
+
 class TestSameToolsAsHub(unittest.TestCase):
     def test_tray_apps_through_redfox_autostart(self):
         bodies = recipe_bodies()

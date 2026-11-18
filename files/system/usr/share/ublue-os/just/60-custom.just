@@ -702,7 +702,7 @@ install-matt:
 install-dewy:
     /usr/bin/redfox-software install dewy
 
-# Install Normie Bundle
+# Install Normie's Bundle
 install-normie:
     /usr/bin/redfox-software install normie
 
@@ -894,11 +894,28 @@ configure-music: enable-midikeep
 configure-dev: configure-vscode configure-cursor
 
 # Configure Matt's Environment
-configure-matt: redfox-enforce-config apply-hardware-quirks add-swap configure-nordvpn reset-hostname configure-keybindings-default configure-dev configure-text-editor-dev configure-terminal-matt configure-powersaver-no-suspend configure-xway-scale-off configure-music configure-autostart-tray
+configure-matt: redfox-enforce-config apply-hardware-quirks add-swap configure-nordvpn reset-hostname configure-keybindings-default configure-dev configure-text-editor-dev configure-terminal-matt configure-powersaver-no-suspend configure-xway-scale-off configure-music configure-autostart-tray create-dev-folder enable-unblank
+
+# A dev folder in your home folder (~/dev)
+create-dev-folder:
     mkdir -p ~/dev
+
+# The screen stays on at the lock screen (the Unblank extension)
+enable-unblank:
     gnome-extensions enable unblank@sun.wxg@gmail.com
-    # just runs hardware atoms here eventually
-    # e.g., fix-oryp9-mouse
+
+# The screen turns off at the lock screen, as in GNOME (the Unblank extension off)
+disable-unblank:
+    gnome-extensions disable unblank@sun.wxg@gmail.com
+
+# Screenshots: Print opens the screenshot tool, Shift+Super+S takes one
+configure-screenshot-keys-dewy:
+    gsettings set org.gnome.shell.keybindings show-screenshot-ui "['Print']"
+    gsettings set org.gnome.shell.keybindings screenshot "['<Shift><Super>s']"
+
+# Extra Dimming on: the brightness slider goes darker than the screen's lowest setting
+enable-extra-dimming:
+    gnome-extensions enable redfox-dim@redfoxlabs.tech
 
 # Configure Cursor for Dewy
 configure-cursor-dewy:
@@ -927,6 +944,8 @@ configure-cursor-dewy:
 # still stops), D (deinterlace) and R (random). Left and Right jump 5 seconds
 # instead of 10 (VLC's short jump, which Alt+Left and Alt+Right also use).
 # Quit VLC first: it rewrites its settings when it closes.
+#
+# VLC keys: S slower, D faster, R toggles the speed, and Left and Right jump 5 seconds
 configure-vlc-dewy:
     #!/usr/bin/bash
     set -euo pipefail
@@ -982,25 +1001,22 @@ configure-vlc-dewy:
     echo "Done. In VLC: S slower, D faster (0.1 steps), R toggles between normal and the last speed (1.8 at first); Left and Right jump 5 seconds."
 
 # Configure Dewy's Environment
-configure-dewy: redfox-enforce-config configure-keybindings-default configure-text-editor-dev reset-hostname configure-cursor-dewy configure-terminal-tilix configure-vlc-dewy configure-nordvpn configure-powersaver-default configure-xway-scale-on enable-clamav-weekly
-    gsettings set org.gnome.shell.keybindings show-screenshot-ui "['Print']"
-    gsettings set org.gnome.shell.keybindings screenshot "['<Shift><Super>s']"
-    gnome-extensions disable unblank@sun.wxg@gmail.com
-    gnome-extensions enable redfox-dim@redfoxlabs.tech
+configure-dewy: redfox-enforce-config configure-keybindings-default configure-text-editor-dev reset-hostname configure-cursor-dewy configure-terminal-tilix configure-vlc-dewy configure-nordvpn configure-powersaver-default configure-xway-scale-on enable-clamav-weekly configure-screenshot-keys-dewy disable-unblank enable-extra-dimming
 
 # Configure Fedora's Environment
-configure-fedora: configure-keybindings-default configure-text-editor-reset reset-hostname configure-powersaver-default configure-xway-scale-on
-    gnome-extensions disable unblank@sun.wxg@gmail.com
+configure-fedora: configure-keybindings-default configure-text-editor-reset reset-hostname configure-powersaver-default configure-xway-scale-on disable-unblank
 
 # Configure Normie's Environment
-configure-normie: configure-keybindings-default configure-text-editor-reset reset-hostname configure-terminal-default configure-powersaver-no-suspend configure-xway-scale-off
-    gnome-extensions enable unblank@sun.wxg@gmail.com
+configure-normie: configure-keybindings-default configure-text-editor-reset reset-hostname configure-terminal-default configure-powersaver-no-suspend configure-xway-scale-off enable-unblank
 
 
 # --- LAYOUT MOLECULES (UX/Behavior/Positioning) ---
 
 # Layout Matt
-layout-matt: sort-app-grid flatten-app-folders layout-tiling-default preset-dock-gnome set-window-controls-left-gnome
+layout-matt: sort-app-grid flatten-app-folders layout-tiling-default preset-dock-gnome set-window-controls-left-gnome favourite-apps-matt
+
+# Favourite apps: Ptyxis, Files, Mailspring, Firefox, Signal, Text Editor, Spotify, Steam, Joplin, Bazaar and Settings
+favourite-apps-matt:
     gsettings reset-recursively org.gnome.shell.extensions.dash-to-dock
     gsettings set org.gnome.shell favorite-apps "[\
       'org.gnome.Ptyxis.desktop', \
@@ -1017,7 +1033,10 @@ layout-matt: sort-app-grid flatten-app-folders layout-tiling-default preset-dock
     # Note: Add Gemini Web App ID and Dorico 6 once stabilized.
 
 # Layout Dewy
-layout-dewy: sort-app-grid flatten-app-folders layout-tiling-dewy preset-dock-ubuntu set-window-controls-right-full
+layout-dewy: sort-app-grid flatten-app-folders layout-tiling-dewy preset-dock-ubuntu set-window-controls-right-full dock-dewy
+
+# Dock: apps from the current workspace only, smaller icons and Dewy's favourite apps
+dock-dewy:
     # Apps from the current workspace only, in the dock and Super+Tab: GNOME's
     # own switch (Settings › Multitasking › App Switching), which the dock and
     # taskbar follow, so it survives layout switches.
@@ -1025,8 +1044,11 @@ layout-dewy: sort-app-grid flatten-app-folders layout-tiling-dewy preset-dock-ub
     gsettings set org.gnome.shell.extensions.dash-to-dock dash-max-icon-size 40
     gsettings set org.gnome.shell favorite-apps "['org.gnome.Nautilus.desktop', 'net.nokyan.Resources.desktop', 'org.gnome.Settings.desktop', 'org.gnome.Ptyxis.desktop', 'org.mozilla.firefox.desktop', 'com.brave.Browser.desktop', 'org.gnome.Calculator.desktop', 'org.gnome.TextEditor.desktop', 'dev.zed.Zed.desktop', 'cursor.desktop', 'com.spotify.Client.desktop', 'com.slack.Slack.desktop', 'org.signal.Signal.desktop', 'dev.vencord.Vesktop.desktop']"
 
-# Layout Fedora (Mostly Vanilla Fedora 43 Defaults)
-layout-fedora: default-app-grid default-app-folders layout-tiling-default preset-dock-gnome set-window-controls-right-gnome
+# Layout Fedora (Mostly Vanilla Fedora Defaults)
+layout-fedora: default-app-grid default-app-folders layout-tiling-default preset-dock-gnome set-window-controls-right-gnome favourite-apps-fedora
+
+# Favourite apps: Firefox, Calendar, Files, Bazaar, Text Editor and Calculator
+favourite-apps-fedora:
     gsettings reset-recursively org.gnome.shell.extensions.dash-to-dock
     gsettings set org.gnome.shell favorite-apps "['org.mozilla.firefox.desktop', 'org.gnome.Calendar.desktop', 'org.gnome.Nautilus.desktop', 'io.github.kolunmi.Bazaar.desktop', 'org.gnome.TextEditor.desktop', 'org.gnome.Calculator.desktop']"
 

@@ -17,6 +17,7 @@ apps that start at login, Midikeep...), so Hub shows them afterwards.
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -60,8 +61,15 @@ def expand(name, all_recipes, seen):
     return steps
 
 
+# The recipes' comments end with a label for maintainers saying how a recipe relates to the
+# default ("(Reset)", "(Deviation)"...). Hub shows the description without it.
+MAINTAINER_LABEL = re.compile(r"\s*\((?:Reset|Deviation|tweak|default|Visuals Reset|Visuals)\)\s*$",
+                              re.IGNORECASE)
+
+
 def describe(name, all_recipes):
-    return {"recipe": name, "doc": all_recipes[name].get("doc") or name}
+    doc = all_recipes[name].get("doc") or name
+    return {"recipe": name, "doc": MAINTAINER_LABEL.sub("", doc)}
 
 
 def list_profiles():
