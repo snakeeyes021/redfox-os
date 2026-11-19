@@ -39,11 +39,11 @@ TODAY = {
     "dewy": ['app.drey.Warp', 'be.alexandervanhee.gradia', 'com.bambulab.BambuStudio', 'com.brave.Browser', 'com.dropbox.Client', 'com.slack.Slack', 'com.spotify.Client', 'dev.vencord.Vesktop', 'net.cozic.joplin_desktop', 'net.pixieditor.PixiEditor', 'org.gnome.SimpleScan', 'org.libreoffice.LibreOffice', 'org.signal.Signal', 'org.texstudio.TeXstudio', 'org.videolan.VLC', 'texlive', 'zed'],
     "gnome-dev": ['org.gnome.Builder', 're.sonny.Workbench'],
     "graphics": ['com.orama_interactive.Pixelorama', 'net.pixieditor.PixiEditor', 'nl.hjdskes.gcolor3', 'org.blender.Blender', 'org.gimp.GIMP', 'org.inkscape.Inkscape', 'org.kde.krita'],
-    "matt": ['antigravity-cli', 'app.drey.Warp', 'be.alexandervanhee.gradia', 'ca.desrt.dconf-editor', 'ch.theologeek.Manuskript', 'com.getmailspring.Mailspring', 'com.github.geigi.cozy', 'com.github.johnfactotum.Foliate', 'com.github.unrud.VideoDownloader', 'com.jeffser.Alpaca', 'com.obsproject.Studio', 'com.orama_interactive.Pixelorama', 'com.spotify.Client', 'com.usebottles.bottles', 'de.leopoldluley.Clapgrep', 'dev.geopjr.Tuba', 'dev.vencord.Vesktop', 'info.puredata.Pd', 'io.github.getnf.embellish', 'io.github.ronniedroid.concessio', 'io.github.wartybix.Constrict', 'io.gitlab.news_flash.NewsFlash', 'io.podman_desktop.PodmanDesktop', 'me.iepure.devtoolbox', 'net.cozic.joplin_desktop', 'net.pixieditor.PixiEditor', 'net.purrdata.PurrData', 'net.sourceforge.VMPK', 'nl.hjdskes.gcolor3', 'org.ardour.Ardour', 'org.audacityteam.Audacity', 'org.blender.Blender', 'org.bunkus.mkvtoolnix-gui', 'org.cvfosammmm.Setzer', 'org.darktable.Darktable', 'org.freedesktop.Bustle', 'org.frescobaldi.Frescobaldi', 'org.gimp.GIMP', 'org.gnome.Builder', 'org.gnome.Calendar', 'org.gnome.Contacts', 'org.gnome.Maps', 'org.gnome.Music', 'org.gnome.SimpleScan', 'org.gnome.Snapshot', 'org.gnome.Weather', 'org.gnome.World.PikaBackup', 'org.gnome.clocks', 'org.gnome.dspy', 'org.gnome.gitlab.YaLTeR.VideoTrimmer', 'org.inkscape.Inkscape', 'org.kde.digikam', 'org.kde.kdenlive', 'org.kde.krita', 'org.libreoffice.LibreOffice', 'org.musescore.MuseScore', 'org.pipewire.Helvum', 'org.signal.Signal', 're.sonny.Workbench', 'soundthread', 't3code', 'tech.redfoxlabs.Pianola', 'tech.redfoxlabs.Thirties', 'zed'],
-    "normie": ['app.drey.Warp', 'be.alexandervanhee.gradia', 'com.getmailspring.Mailspring', 'com.github.geigi.cozy', 'com.github.johnfactotum.Foliate', 'com.spotify.Client', 'dev.geopjr.Tuba', 'dev.vencord.Vesktop', 'io.gitlab.news_flash.NewsFlash', 'net.cozic.joplin_desktop', 'org.gnome.Calendar', 'org.gnome.Contacts', 'org.gnome.Maps', 'org.gnome.Music', 'org.gnome.SimpleScan', 'org.gnome.Snapshot', 'org.gnome.Weather', 'org.gnome.World.PikaBackup', 'org.gnome.clocks', 'org.libreoffice.LibreOffice', 'org.signal.Signal'],
+    "matt": ['pdfcraft', 'antigravity-cli', 'app.drey.Warp', 'be.alexandervanhee.gradia', 'ca.desrt.dconf-editor', 'ch.theologeek.Manuskript', 'com.getmailspring.Mailspring', 'com.github.geigi.cozy', 'com.github.johnfactotum.Foliate', 'com.github.unrud.VideoDownloader', 'com.jeffser.Alpaca', 'com.obsproject.Studio', 'com.orama_interactive.Pixelorama', 'com.spotify.Client', 'com.usebottles.bottles', 'de.leopoldluley.Clapgrep', 'dev.geopjr.Tuba', 'dev.vencord.Vesktop', 'info.puredata.Pd', 'io.github.getnf.embellish', 'io.github.ronniedroid.concessio', 'io.github.wartybix.Constrict', 'io.gitlab.news_flash.NewsFlash', 'io.podman_desktop.PodmanDesktop', 'me.iepure.devtoolbox', 'net.cozic.joplin_desktop', 'net.pixieditor.PixiEditor', 'net.purrdata.PurrData', 'net.sourceforge.VMPK', 'nl.hjdskes.gcolor3', 'org.ardour.Ardour', 'org.audacityteam.Audacity', 'org.blender.Blender', 'org.bunkus.mkvtoolnix-gui', 'org.cvfosammmm.Setzer', 'org.darktable.Darktable', 'org.freedesktop.Bustle', 'org.frescobaldi.Frescobaldi', 'org.gimp.GIMP', 'org.gnome.Builder', 'org.gnome.Calendar', 'org.gnome.Contacts', 'org.gnome.Maps', 'org.gnome.Music', 'org.gnome.SimpleScan', 'org.gnome.Snapshot', 'org.gnome.Weather', 'org.gnome.World.PikaBackup', 'org.gnome.clocks', 'org.gnome.dspy', 'org.gnome.gitlab.YaLTeR.VideoTrimmer', 'org.inkscape.Inkscape', 'org.kde.digikam', 'org.kde.kdenlive', 'org.kde.krita', 'org.libreoffice.LibreOffice', 'org.musescore.MuseScore', 'org.pipewire.Helvum', 'org.signal.Signal', 're.sonny.Workbench', 'soundthread', 't3code', 'tech.redfoxlabs.Pianola', 'tech.redfoxlabs.Thirties', 'zed'],
+    "normie": ['pdfcraft', 'app.drey.Warp', 'be.alexandervanhee.gradia', 'com.getmailspring.Mailspring', 'com.github.geigi.cozy', 'com.github.johnfactotum.Foliate', 'com.spotify.Client', 'dev.geopjr.Tuba', 'dev.vencord.Vesktop', 'io.gitlab.news_flash.NewsFlash', 'net.cozic.joplin_desktop', 'org.gnome.Calendar', 'org.gnome.Contacts', 'org.gnome.Maps', 'org.gnome.Music', 'org.gnome.SimpleScan', 'org.gnome.Snapshot', 'org.gnome.Weather', 'org.gnome.World.PikaBackup', 'org.gnome.clocks', 'org.libreoffice.LibreOffice', 'org.signal.Signal'],
     "notation": ['org.frescobaldi.Frescobaldi', 'org.musescore.MuseScore'],
     "photos": ['org.darktable.Darktable', 'org.kde.digikam'],
-    "productivity": ['app.drey.Warp', 'be.alexandervanhee.gradia', 'com.getmailspring.Mailspring', 'net.cozic.joplin_desktop', 'org.gnome.SimpleScan', 'org.libreoffice.LibreOffice'],
+    "productivity": ['pdfcraft', 'app.drey.Warp', 'be.alexandervanhee.gradia', 'com.getmailspring.Mailspring', 'net.cozic.joplin_desktop', 'org.gnome.SimpleScan', 'org.libreoffice.LibreOffice'],
     "redfox-app-fleet": ['tech.redfoxlabs.Pianola', 'tech.redfoxlabs.Thirties'],
     "video": ['com.github.unrud.VideoDownloader', 'com.obsproject.Studio', 'io.github.wartybix.Constrict', 'org.bunkus.mkvtoolnix-gui', 'org.gnome.gitlab.YaLTeR.VideoTrimmer', 'org.kde.kdenlive'],
     "writing": ['ch.theologeek.Manuskript', 'org.cvfosammmm.Setzer'],
@@ -96,6 +96,30 @@ class TestCatalog(unittest.TestCase):
     def test_every_item_is_used(self):
         used = {i for p in self.catalog.packs for i in p["items"]}
         self.assertEqual(used, set(self.catalog.items))
+
+    def test_recipe_files_ship_in_the_image(self):
+        # Files under /usr/share/redfox that a recipe's commands use are in the image.
+        import re
+        system = ROOT / "files" / "system"
+        for iid, item in self.catalog.items.items():
+            if item["kind"] != "recipe":
+                continue
+            for key in ("install", "remove", "check"):
+                for path in re.findall(r"/usr/share/redfox/[\w./-]+", item[key]):
+                    self.assertTrue((system / path.lstrip("/")).is_file(), f"{iid}: {path}")
+
+    def test_pdfcraft_remote_offers_only_pdfcraft(self):
+        flatpak = ROOT / "files" / "system" / "usr" / "share" / "redfox" / "flatpak"
+        repo = (flatpak / "artcraft-oci.flatpakrepo").read_text().splitlines()
+        fields = dict(line.split("=", 1) for line in repo[1:] if "=" in line)
+        self.assertEqual(repo[0], "[Flatpak Repo]")
+        self.assertTrue(fields["Url"].startswith("oci+https://"))
+        self.assertTrue(fields["GPGKey"])
+        rules = [line.split() for line in (flatpak / "artcraft-oci.filter").read_text().splitlines()
+                 if line.strip() and not line.startswith("#")]
+        self.assertEqual(rules[0], ["deny", "*"])
+        self.assertTrue(all(r[0] == "allow" and "ai.storyteller.pdfcraft" in r[1] for r in rules[1:]))
+        self.assertIn("artcraft-oci ai.storyteller.pdfcraft", self.catalog.items["pdfcraft"]["install"])
 
     def test_items_are_complete(self):
         for iid, item in self.catalog.items.items():

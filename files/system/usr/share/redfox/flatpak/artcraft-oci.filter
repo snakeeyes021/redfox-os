@@ -1,0 +1,5 @@
+# Software's PdfCraft item adds ArtCraft's Flatpak remote with this filter, so
+# it offers only PdfCraft (and its own extensions); its runtime comes from Flathub.
+deny *
+allow app/ai.storyteller.pdfcraft/*
+allow runtime/ai.storyteller.pdfcraft.*

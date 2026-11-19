@@ -43,10 +43,11 @@ packs:
 
   - id: productivity
     name: Productivity
-    description: Office suite, email, notes, scanning and file transfer.
+    description: Office suite, PDF editor, email, notes, scanning and file transfer.
     items:
       - org.gnome.SimpleScan
       - org.libreoffice.LibreOffice
+      - pdfcraft
       - com.getmailspring.Mailspring
       - be.alexandervanhee.gradia
       - net.cozic.joplin_desktop
@@ -305,6 +306,23 @@ items:
     kind: flatpak
     name: LibreOffice
     summary: Office suite with a word processor, spreadsheets and presentations.
+  # PdfCraft isn't on Flathub. Its maker's Flatpak remote (ArtCraft's, the file
+  # and key as they publish them, filtered to PdfCraft) is added per user, as
+  # they install it: Flatpak can't check its signatures when a user installs
+  # system-wide. Its runtime comes from Flathub, or the system's if installed.
+  - id: pdfcraft
+    kind: recipe
+    name: PdfCraft
+    summary: Fill in, sign and mark up PDFs, and rearrange or merge their pages.
+    install: |
+      flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+      flatpak remote-add --user --if-not-exists --filter=/usr/share/redfox/flatpak/artcraft-oci.filter artcraft-oci /usr/share/redfox/flatpak/artcraft-oci.flatpakrepo
+      flatpak install --user --noninteractive -y artcraft-oci ai.storyteller.pdfcraft
+    remove: |
+      flatpak uninstall --user --noninteractive -y ai.storyteller.pdfcraft
+      flatpak remote-delete --user --force artcraft-oci || true
+    check: flatpak info --user ai.storyteller.pdfcraft >/dev/null 2>&1
+    icon: ai.storyteller.pdfcraft
   - id: com.getmailspring.Mailspring
     kind: flatpak
     name: Mailspring
